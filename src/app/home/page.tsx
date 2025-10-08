@@ -1,0 +1,53 @@
+import MainContent from "@/components/MainContent";
+import { CategoriesProps, Category } from "@/interfaces/product";
+import { fetchCategoriesList, fetchFeaturedProducts } from "@/lib/api";
+import axiosClient from "@/lib/axiosClient";
+import { Metadata } from "next";
+
+// SEO Metadata
+export const metadata: Metadata = {
+  title: 'Mega Shop - Trang chủ | Sản phẩm chính hãng giá tốt',
+  description: 'Khám phá hàng ngàn sản phẩm chất lượng từ các thương hiệu uy tín với giá tốt nhất tại Mega Shop',
+  keywords: 'mua sắm online, điện thoại, laptop, phụ kiện, giá rẻ',
+  openGraph: {
+    title: 'Mega Shop - Sản phẩm chính hãng giá tốt',
+    description: 'Khám phá hàng ngàn sản phẩm chất lượng với giá tốt nhất',
+    type: 'website',
+  },
+};
+
+//Fetch data SSR
+ async function getFeaturedProducts() : Promise<any[]> {
+    try {
+        const res = await fetchFeaturedProducts();
+        // if (!res) {
+        //     console.log('Failed to fetch featured products:', res);
+        //     throw new Error('Failed to fetch data');
+        // }
+         return res || [];
+    } catch (error : any) {
+        console.error(error);
+        return error;
+    }
+}
+async function getCategoriesList() : Promise<Category[]> {
+    try {
+      const res =  await fetchCategoriesList();
+      return Array.isArray(res) ? res : [];
+    } catch (error : any) {
+      console.error(error);
+      return error;
+    }
+}
+
+export default async function Home() {
+    const featuredProducts = await getFeaturedProducts();
+    const fetchCategories = await getCategoriesList();
+    console.log("Home page - Featured Products:", featuredProducts);
+    console.log("Home page - Categories:", fetchCategories);
+  return (
+    <div className="min-h-screen bg-gray-50">
+      <MainContent featuredProducts={featuredProducts} fetchCategories={fetchCategories} />
+    </div>
+  );
+}

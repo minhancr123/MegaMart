@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { ShoppingBag, ArrowRight } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState, useEffect } from "react";
-import { updateQuantityChange } from "@/lib/cartApi";
+import { removeCartItem, updateQuantityChange } from "@/lib/cartApi";
 import { toast, useSonner } from "sonner";
 import { useCart } from "@/hooks/useCart";
 
@@ -81,11 +81,19 @@ export const CartList = ({ cart: initialCart }: CartListProps) => {
     
     setIsUpdating(true);
     try {
+      const result = await removeCartItem(itemId);
       // TODO: Implement API call to remove item
       console.log(`Removing item ${itemId}`);
-      
+
       await refreshCart();
-      toast.success("Đã xóa sản phẩm khỏi giỏ hàng");
+      if(result && result.success) {
+        toast.success("Đã xóa sản phẩm khỏi giỏ hàng");
+      }
+      else {
+        setOptimisticCart(originalCart);
+        toast.error(result?.data?.message || "Xóa sản phẩm thất bại");
+      }
+
     } catch (error) {
       console.error("Failed to remove item:", error);
       setOptimisticCart(originalCart);

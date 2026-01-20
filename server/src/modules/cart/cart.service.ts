@@ -140,4 +140,19 @@ export class CartService {
       where: { id: itemId }
     });
   }
+
+  async removeItemFromCart(itemId :string) {
+    const item = await this.prisma.cartItem.findUnique({
+      where : {
+        id : itemId
+      }
+    });
+    if (!item) {
+      throw new NotFoundException('Cart item not found');
+    }
+
+    return this.prisma.cartItem.delete({
+      where: { id: itemId }
+    })
+  }
 }

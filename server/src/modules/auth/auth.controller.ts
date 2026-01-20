@@ -80,10 +80,11 @@ export class AuthController {
   @Get('profile')
   @ApiOperation({ summary: 'Get user profile (JWT protected)' })
   async getProfile(@Request() req) {
+    const result = await this.authService.getProfile(req.user.id);
     return {
       success: true,
       message: 'Lấy thông tin người dùng thành công',
-      user: req.user
+      user: result
     };
   }
 

@@ -78,6 +78,7 @@ export class UsersController {
     return this.usersService.findOne(id);
   }
 
+  //Update user by ID
   @Patch(':id')
   @ApiOperation({ summary: 'Update user by ID' })
   @ApiParam({
@@ -105,6 +106,37 @@ export class UsersController {
     @Body(ValidationPipe) updateUserDto: UpdateUserDto,
   ) {
     return this.usersService.update(id, updateUserDto);
+  }
+  @ApiParam({
+      name: 'id',
+      description: 'User ID',
+      example: 'cuid_example_123',
+    })
+  @ApiBody({ type: UpdateUserDto })
+  @ApiResponse({
+      status: HttpStatus.OK,
+      description: 'User updated successfully',
+      type: UserResponseDto,
+    })
+
+  //Update avatar for the authenticated user
+  @Patch("me/avatar/:id")
+  @ApiOperation({ summary: 'Upload avatar for the authenticated user' })
+   @ApiParam({
+    name: 'avatarUrl',
+    description: 'Update avatar URL',
+    example: 'string123',
+  })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: 'Avatar updated successfully',
+  })
+   @ApiResponse({
+    status: HttpStatus.NOT_FOUND,
+    description: 'User not found',
+  })
+  updateAvatar(@Param("id") id: string,@Body('avatarUrl') avatarUrl: string) {
+    return this.usersService.updateAvatar(id, avatarUrl);
   }
 
   @Delete(':id')

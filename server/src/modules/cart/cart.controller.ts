@@ -81,4 +81,23 @@ export class CartController {
       );
     }
   }
+
+  @Delete("item/:itemId")
+  @ApiOperation({ summary: 'Remove item from cart' })
+  @ApiParam({ name: 'itemId', description: 'Cart Item ID' })
+  @ApiResponse({ status: 200, description: 'Item removed from cart successfully' })
+  @ApiResponse({ status: 404, description: 'Cart item not found' })
+  async removeItemFromCart(@Param("itemId") itemId: string) {
+    try {
+      const result = await this.cartService.removeItemFromCart(itemId);
+      return {
+        data: { success: true, data : result, message: 'Xóa sản phẩm khỏi giỏ hàng thành công' }
+      };
+    } catch (error) {
+      throw new HttpException(
+        { success: false, message: 'Lỗi khi xóa sản phẩm khỏi giỏ hàng', detail: error.message },
+        HttpStatus.INTERNAL_SERVER_ERROR
+      );
+    }
+  }
 }

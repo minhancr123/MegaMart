@@ -1,20 +1,306 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
-// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
-
 generator client {
   provider = "prisma-client-js"
 }
 
 datasource db {
-  provider   = "postgresql"
-  url        = env("DATABASE_URL")
-  directUrl  = env("DIRECT_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
 
-// enums
+model User {
+  id           String    @id @default(cuid())
+  email        String    @unique
+  passwordHash String
+  avatarUrl    String?  
+  name         String?
+  role         UserRole  @default(USER)
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  carts        Cart[]
+  orders       Order[]
+  addresses    Address[]
+  reviews      Review[]
+  wishlist     WishlistItem[]
+  compareItems CompareItem[]
+  voucherUsage VoucherUsage[]
+  posts        Post[]
+}
+
+model Address {
+  id        String   @id @default(cuid())
+  userId    String
+  fullName  String
+  phone     String
+  address   String
+  province  String?
+  district  String?
+  ward      String?
+  label     String?  // "Nhà", "Văn phòng", etc.
+  isDefault Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([userId, isDefault])
+}
+
+model Product {
+  id          String         @id @default(cuid())
+  slug        String         @unique
+  name        String
+  description String?
+  brand       String?
+  categoryId  String?
+  soldCount   Int            @default(0)
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+  deletedAt   DateTime?
+  category    Category?      @relation(fields: [categoryId], references: [id])
+  images      ProductImage[]
+  variants    Variant[]
+  reviews     Review[]
+  wishlist    WishlistItem[]
+  compare     CompareItem[]
+
+  @@index([createdAt])
+}
+
+model ProductImage {
+  id           String  @id @default(cuid())
+  productId    String
+  url          String
+  alt          String?
+  isPrimary    Boolean @default(false)
+  displayOrder Int     @default(0)
+  product      Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@index([productId])
+  @@index([isPrimary])
+}
+
+model Category {
+  id        String     @id @default(cuid())
+  name      String
+  slug      String     @unique
+  parentId  String?
+  deletedAt DateTime?
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+  parent    Category?  @relation("CategoryHierarchy", fields: [parentId], references: [id])
+  children  Category[] @relation("CategoryHierarchy")
+  products  Product[]
+
+  @@index([slug])
+  @@index([parentId])
+}
+
+model Variant {
+  id         String      @id @default(cuid())
+  productId  String
+  sku        String      @unique
+  price      BigInt
+  stock      Int         @default(0)
+  attributes Json?
+  createdAt  DateTime    @default(now())
+  updatedAt  DateTime    @updatedAt
+  cartItems  CartItem[]
+  orderItems OrderItem[]
+  product    Product     @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@index([sku])
+  @@index([productId])
+}
+
+model Cart {
+  id        String     @id @default(cuid())
+  userId    String?
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+  user      User?      @relation(fields: [userId], references: [id])
+  items     CartItem[]
+}
+
+model CartItem {
+  id        String   @id @default(cuid())
+  cartId    String
+  variantId String
+  quantity  Int      @default(1)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  cart      Cart     @relation(fields: [cartId], references: [id], onDelete: Cascade)
+  variant   Variant  @relation(fields: [variantId], references: [id])
+
+  @@unique([cartId, variantId])
+  @@index([cartId])
+}
+
+model Order {
+  id              String      @id @default(cuid())
+  code            String      @unique
+  userId          String?
+  status          OrderStatus @default(PENDING)
+  total           BigInt
+  discountAmount  BigInt      @default(0)
+  voucherCode     String?
+  voucherId       String?
+  vatAmount       BigInt      @default(0)
+  shippingFee     BigInt      @default(0)
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+  shippingAddress Json?
+  billingAddress  Json?
+  user            User?       @relation(fields: [userId], references: [id])
+  items           OrderItem[]
+  payments        Payment[]
+  voucher         Voucher?    @relation(fields: [voucherId], references: [id])
+  voucherUsages   VoucherUsage[]
+
+  @@index([userId, status])
+  @@index([createdAt(sort: Desc)])
+  @@index([code])
+  @@index([voucherId])
+}
+
+model OrderItem {
+  id        String   @id @default(cuid())
+  orderId   String
+  variantId String
+  price     BigInt
+  quantity  Int
+  createdAt DateTime @default(now())
+  order     Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  variant   Variant  @relation(fields: [variantId], references: [id])
+
+  @@index([orderId])
+  @@index([variantId])
+}
+
+model Payment {
+  id        String          @id @default(cuid())
+  orderId   String
+  provider  PaymentProvider
+  amount    BigInt
+  currency  String          @default("VND")
+  status    PaymentStatus   @default(PENDING)
+  raw       Json?
+  createdAt DateTime        @default(now())
+  updatedAt DateTime        @updatedAt
+  order     Order           @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@index([orderId])
+  @@index([status])
+}
+
+model Voucher {
+  id            String        @id @default(cuid())
+  code          String        @unique
+  title         String
+  description   String?
+  type          VoucherType
+  value         Int           // percent (1-100) or fixed amount in VND
+  maxDiscount   Int?          // cap for percent vouchers
+  minOrderValue Int?          // apply if subtotal >= min
+  usageLimit    Int?          // total usage across all users
+  usagePerUser  Int?          // per-user limit
+  usedCount     Int           @default(0)
+  startDate     DateTime?
+  endDate       DateTime?
+  active        Boolean       @default(true)
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+  usages        VoucherUsage[]
+  orders        Order[]
+
+  @@index([code])
+  @@index([active])
+  @@index([startDate])
+  @@index([endDate])
+}
+
+model VoucherUsage {
+  id         String   @id @default(cuid())
+  voucherId  String
+  userId     String
+  orderId    String?
+  usedAt     DateTime @default(now())
+  voucher    Voucher  @relation(fields: [voucherId], references: [id], onDelete: Cascade)
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  order      Order?   @relation(fields: [orderId], references: [id], onDelete: SetNull)
+
+  @@unique([voucherId, userId, orderId])
+  @@index([voucherId])
+  @@index([userId])
+}
+
+model Review {
+  id         String   @id @default(cuid())
+  userId     String
+  productId  String
+  rating     Int
+  comment    String?
+  images     Json?
+  approved   Boolean  @default(true)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  product    Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@index([productId])
+  @@index([userId])
+  @@index([approved])
+}
+
+model WishlistItem {
+  id        String   @id @default(cuid())
+  userId    String
+  productId String
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, productId])
+  @@index([userId])
+  @@index([productId])
+}
+
+model CompareItem {
+  id        String   @id @default(cuid())
+  userId    String
+  productId String
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, productId])
+  @@index([userId])
+  @@index([productId])
+}
+
+model Post {
+  id          String     @id @default(cuid())
+  title       String
+  slug        String     @unique
+  content     String     @db.Text
+  excerpt     String?
+  thumbnail   String?
+  type        PostType   @default(NEWS)
+  status      PostStatus @default(DRAFT)
+  authorId    String
+  publishedAt DateTime?
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+  author      User       @relation(fields: [authorId], references: [id], onDelete: Cascade)
+
+  @@index([slug])
+  @@index([authorId])
+  @@index([status])
+  @@index([type])
+  @@index([publishedAt])
+  @@index([createdAt(sort: Desc)])
+}
+
 enum UserRole {
   USER
   ADMIN
@@ -42,158 +328,33 @@ enum PaymentStatus {
   REFUNDED
 }
 
-
-// Users
-model User {
-  id           String   @id @default(cuid())
-  email        String   @unique
-  passwordHash String
-  name         String?
-  role         UserRole @default(USER)
-  carts        Cart[]
-  orders       Order[]
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+enum VoucherType {
+  PERCENT
+  FIXED
+  FREESHIP
 }
 
-// Products
-model Product {
-  id          String        @id @default(cuid())
-  slug        String        @unique
-  name        String
-  description String?
-  brand       String?
-  categoryId  String?
-  category    Category?     @relation(fields: [categoryId], references: [id])
-  images      ProductImage[]
-  variants    Variant[]
-  createdAt   DateTime      @default(now())
-  updatedAt   DateTime      @updatedAt
-  deletedAt   DateTime?
-  @@index([createdAt])
+enum PostType {
+  NEWS
+  EVENT
 }
 
-model ProductImage {
-  id        String  @id @default(cuid())
-  productId String
-  url       String
-  alt       String?
-  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+enum PostStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
 }
 
-// Category
-model Category {
-  id        String      @id @default(cuid())
-  name      String
-  slug      String      @unique
-  parentId  String?
-  parent    Category?   @relation("CategoryHierarchy", fields: [parentId], references: [id])
-  children  Category[]  @relation("CategoryHierarchy")
-  products  Product[]
-  deletedAt DateTime?
-  createdAt DateTime    @default(now())
-  updatedAt DateTime    @updatedAt
-  
-  @@index([slug])
-  @@index([parentId])
-}
-
-
-// Variant
-model Variant {
-  id         String   @id @default(cuid())
-  productId  String
-  sku        String   @unique
-  // dùng BigInt cho tiền (đơn vị: VND)
-  price      BigInt
-  stock      Int      @default(0)
-  attributes Json?
-  product    Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
-  cartItems  CartItem[]
-  orderItems OrderItem[]
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
-  
-  @@index([sku])
-  @@index([productId])
-}
-
-// Cart
-model Cart {
-  id        String     @id @default(cuid())
-  userId    String?
-  user      User?      @relation(fields: [userId], references: [id], onDelete: SetNull)
-  createdAt DateTime   @default(now())
-  updatedAt DateTime   @updatedAt
-  items     CartItem[]
-}
-
-model CartItem {
-  id        String  @id @default(cuid())
-  cartId    String
-  variantId String
-  quantity  Int     @default(1)
-  cart      Cart    @relation(fields: [cartId], references: [id], onDelete: Cascade)
-  variant   Variant @relation(fields: [variantId], references: [id], onDelete: Restrict)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  
-  @@unique([cartId, variantId])
-  @@index([cartId])
-}
-
-// Orders
-model Order {
-  id          String        @id @default(cuid())
-  code        String        @unique
-  userId      String?
-  user        User?         @relation(fields: [userId], references: [id], onDelete: SetNull)
-  status      OrderStatus   @default(PENDING)
-  // dùng BigInt cho tổng tiền (đơn vị: VND)
-  total       BigInt
-  // rõ ràng hơn: nếu là phần trăm thì đặt tên vatPercent
-  vatAmount   BigInt        @default(0)
-  shippingFee BigInt        @default(0)
-  createdAt   DateTime      @default(now())
-  updatedAt   DateTime      @updatedAt
-  payments    Payment[]
-  items       OrderItem[]
-  shippingAddress Json?
-  billingAddress  Json?
-  
-  @@index([userId, status])
-  @@index([createdAt(sort: Desc)])
-  @@index([code])
-}
-
-// OrderItem
-model OrderItem {
-  id        String  @id @default(cuid())
-  orderId   String
-  variantId String
-  price     BigInt  // Giá tại thời điểm mua (đơn vị: VND)
-  quantity  Int
-  order     Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
-  variant   Variant @relation(fields: [variantId], references: [id], onDelete: Restrict)
-  createdAt DateTime @default(now())
-  
-  @@index([orderId])
-  @@index([variantId])
-}
-
-// Payment
-model Payment {
-  id        String        @id @default(cuid())
-  orderId   String
-  provider  PaymentProvider
-  amount    BigInt        // Số tiền thanh toán (đơn vị: VND)
-  currency  String        @default("VND")
-  status    PaymentStatus @default(PENDING)
-  raw       Json?         // Dữ liệu raw từ payment gateway
-  createdAt DateTime      @default(now())
-  updatedAt DateTime      @updatedAt
-  order     Order         @relation(fields: [orderId], references: [id], onDelete: Cascade)
-  
-  @@index([orderId])
-  @@index([status])
+model Settings {
+  id                    String   @id @default(cuid())
+  storeName             String   @default("MegaMart")
+  storeDescription      String?  @default("Cửa hàng công nghệ hàng đầu Việt Nam")
+  email                 String?  @default("contact@megamart.com")
+  phone                 String?  @default("1900 1234")
+  address               String?  @default("123 Đường ABC, Quận 1, TP.HCM")
+  maintenanceMode       Boolean  @default(false)
+  enableReviews         Boolean  @default(true)
+  enableRegistration    Boolean  @default(true)
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
 }

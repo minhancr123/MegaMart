@@ -10,9 +10,36 @@ export class ProductsService {
         
         return new Promise(async (resolve , reject) => {
             try {
-                const products =await this.prisma.product.findMany();
-                console.log(products);
-                resolve(products);
+                const products =await this.prisma.product.findMany({
+                    select: {
+                        id: true,
+                        name: true,
+                        slug: true,
+                        variants: {
+                            select: {
+                                sku: true
+                            },
+                            take: 1
+                        },
+                        _count: {
+                            select: {
+                                images: true
+                            }
+                        }
+                    }
+                });
+                
+                // Map SKU from first variant
+                const productsWithSku = products.map(p => ({
+                    id: p.id,
+                    name: p.name,
+                    slug: p.slug,
+                    sku: p.variants[0]?.sku || 'N/A',
+                    _count: p._count
+                }));
+                
+                console.log(productsWithSku);
+                resolve(productsWithSku);
             } catch (error) {
                 reject(error);
             }
@@ -32,7 +59,15 @@ export class ProductsService {
                     }
                 }
             },
-            include : {
+            select : {
+                id : true,
+                slug : true,
+                name : true,
+                description : true,
+                brand : true,
+                soldCount : true,
+                createdAt : true,
+                updatedAt : true,
                 category : {
                     select : {
                         id : true,
@@ -40,6 +75,7 @@ export class ProductsService {
                         slug : true
                     }
                 },
+                images : true,
                 variants : {
                     select: {
                         id : true,
@@ -89,14 +125,31 @@ export class ProductsService {
     {
         const skip = (page - 1) * limit;
 
+        // First, find the category and get all child category IDs
+        const category = await this.prisma.category.findUnique({
+            where: { slug: categorySlug },
+            include: {
+                children: {
+                    select: { id: true }
+                }
+            }
+        });
+
+        if (!category) {
+            return { products: [], total: 0, totalItems: 0 };
+        }
+
+        // Build list of category IDs (parent + all children)
+        const categoryIds = [category.id, ...category.children.map(c => c.id)];
+
         const [products , total] = await Promise.all([
             this.prisma.product.findMany({
                 skip,
                 take : limit,
                 where : {
                     deletedAt : null,
-                    category : {
-                        slug : categorySlug
+                    categoryId: {
+                        in: categoryIds
                     },
                     variants : {
                         some : {
@@ -106,7 +159,15 @@ export class ProductsService {
                         }
                     }
                 },
-                include : {
+                select : {
+                    id : true,
+                    slug : true,
+                    name : true,
+                    description : true,
+                    brand : true,
+                    soldCount : true,
+                    createdAt : true,
+                    updatedAt : true,
                     category : {
                         select :{
                             id : true,
@@ -146,8 +207,8 @@ export class ProductsService {
             this.prisma.product.count({
                 where : {
                     deletedAt : null,
-                    category : {
-                        slug : categorySlug
+                    categoryId: {
+                        in: categoryIds
                     },
                     variants : {
                         some : {
@@ -171,8 +232,16 @@ export class ProductsService {
                 id: id,
                 deletedAt: null
             },
-            include: {
-                variants: true, // Bỏ where clause vì Variant không có deletedAt
+            select: {
+                id: true,
+                slug: true,
+                name: true,
+                description: true,
+                brand: true,
+                soldCount: true,
+                createdAt: true,
+                updatedAt: true,
+                variants: true,
                 images: true,
                 category: {
                     select: {
@@ -189,6 +258,21 @@ export class ProductsService {
         }
 
         return this.formatProductResponse(product);
+    }
+
+    async createProduct(createProductDto: any) {
+        // TODO: Implement create product logic
+        throw new Error('Method not implemented yet');
+    }
+
+    async updateProduct(id: string, updateProductDto: any) {
+        // TODO: Implement update product logic
+        throw new Error('Method not implemented yet');
+    }
+
+    async deleteProduct(id: string) {
+        // TODO: Implement delete product logic (soft delete)
+        throw new Error('Method not implemented yet');
     }
 
     private formatProductResponse(product: any): ProductResponseDto {

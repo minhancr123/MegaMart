@@ -4,6 +4,7 @@ export interface Product {
   description?: string;
   price: number;
   imageUrl?: string;
+  soldCount?: number;
   variants?: Variant[];
   images?: ProductImage[];
   category?: Category;
@@ -22,6 +23,7 @@ export interface Variant {
 export interface ProductImage {
   id: string;
   url: string;
+  isPrimary: boolean;
   alt?: string;
 }
 

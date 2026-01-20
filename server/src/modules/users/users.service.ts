@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, ConflictException } from '@nestjs/common';
+import { Injectable, NotFoundException, ConflictException, HttpException } from '@nestjs/common';
 import { PrismaService } from 'src/prismaClient/prisma.service';
 import { CreateUserDto, UpdateUserDto } from './dto/user.dto';
 import { hash, compare } from 'bcryptjs';
@@ -120,6 +120,27 @@ export class UsersService {
 
         const { passwordHash, ...result } = user;
         return result;
+    }
+
+    async updateAvatar(userid: string, avatarUrl: string) {
+        const user = await this.findOne(userid);
+        if(!user)
+            throw new NotFoundException(`User with ID ${userid} not found`);
+
+        return this.prisma.user.update({
+            where: { id: userid },
+            data: { avatarUrl },
+            select: {
+                id: true,
+                email: true,
+                name: true,
+                role: true,
+                avatarUrl: true,
+                createdAt: true,
+                updatedAt: true,
+            },
+        });
+        
     }
 }
     

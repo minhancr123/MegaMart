@@ -22,10 +22,16 @@ import {
     SelectValue,
 } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Trash2, Plus, Loader2, Upload, Image as ImageIcon } from "lucide-react";
+import { Trash2, Plus, Loader2, Upload, Image as ImageIcon, Star } from "lucide-react";
 import { useEffect, useState } from "react";
 import axiosClient from "@/lib/axiosClient";
 import { toast } from "sonner";
+
+const productImageSchema = z.object({
+    url: z.string().url("URL hình ảnh không hợp lệ"),
+    isPrimary: z.boolean().optional(),
+    alt: z.string().optional(),
+});
 
 const productSchema = z.object({
     name: z.string().min(1, "Tên sản phẩm là bắt buộc"),
@@ -42,7 +48,7 @@ const productSchema = z.object({
             attributes: z.any().optional(), // JSON string or object
         })
     ).min(1, "Phải có ít nhất 1 biến thể"),
-    images: z.array(z.string().url("URL hình ảnh không hợp lệ")).optional(),
+    images: z.array(productImageSchema).optional(),
 });
 
 type ProductFormValues = z.infer<typeof productSchema>;
@@ -60,7 +66,7 @@ export function ProductForm({ initialData, onSubmit, loading }: ProductFormProps
     const [productId, setProductId] = useState(initialData?.id || null);
 
     const form = useForm<ProductFormValues>({
-        resolver: zodResolver(productSchema),
+        resolver: zodResolver(productSchema) as any,
         defaultValues: initialData || {
             name: "",
             slug: "",
@@ -77,13 +83,19 @@ export function ProductForm({ initialData, onSubmit, loading }: ProductFormProps
         name: "variants",
     });
 
-    const control = form.control as any;
-
     const images = form.watch("images") || [];
 
     useEffect(() => {
+        console.log("Current images:", images);
+    }, [images]);
+
+    useEffect(() => {
         fetchCategories();
-    }, []);
+        // Update productId when initialData changes
+        if (initialData?.id) {
+            setProductId(initialData.id);
+        }
+    }, [initialData]);
 
     const fetchCategories = async () => {
         try {
@@ -95,10 +107,13 @@ export function ProductForm({ initialData, onSubmit, loading }: ProductFormProps
             const cats = res.data || [];
             const flattened: any[] = [];
 
-            const traverse = (items: any[]) => {
+            const traverse = (items: any[], level = 0) => {
                 items.forEach(item => {
-                    flattened.push(item);
-                    if (item.children) traverse(item.children);
+                    flattened.push({
+                        ...item,
+                        displayName: level > 0 ? `${'\u00A0\u00A0'.repeat(level)}└ ${item.name}` : item.name
+                    });
+                    if (item.children) traverse(item.children, level + 1);
                 });
             };
 
@@ -117,7 +132,8 @@ export function ProductForm({ initialData, onSubmit, loading }: ProductFormProps
             return;
         }
 
-        if (images.includes(imageInput)) {
+        // Check if URL already exists
+        if (images.some(img => img.url === imageInput)) {
             toast.error("URL ảnh này đã tồn tại");
             return;
         }
@@ -131,10 +147,14 @@ export function ProductForm({ initialData, onSubmit, loading }: ProductFormProps
 
             // axiosClient interceptor returns response.data directly
             const result = response.data || response;
-            
+
             if (result.success) {
-                // Update form with new image URL
-                form.setValue("images", [...images, imageInput]);
+                // Update form with new image object
+                const newImage = {
+                    url: imageInput,
+                    isPrimary: images.length === 0, // First image is primary
+                };
+                form.setValue("images", [...images, newImage]);
                 setImageInput("");
                 toast.success("Thêm ảnh thành công");
             } else {
@@ -173,12 +193,32 @@ export function ProductForm({ initialData, onSubmit, loading }: ProductFormProps
                     }
                 );
 
-                return response.data.imageUrl;
+                // Handle different response structures
+                const imageUrl = response.data?.imageUrl ||
+                    (response as any).imageUrl ||
+                    response.data?.url ||
+                    (response as any).url ||
+                    response.data?.data?.imageUrl ||
+                    response.data?.data?.url;
+
+                if (!imageUrl) {
+                    console.error('Upload response:', response);
+                    throw new Error('No image URL in response');
+                }
+
+                return imageUrl;
             });
 
             const uploadedUrls = await Promise.all(uploadPromises);
             const currentImages = form.getValues("images") || [];
-            form.setValue("images", [...currentImages, ...uploadedUrls]);
+
+            // Convert URLs to image objects
+            const newImages = uploadedUrls.map((url: string, index: number) => ({
+                url,
+                isPrimary: currentImages.length === 0 && index === 0, // First image is primary if no existing images
+            }));
+
+            form.setValue("images", [...currentImages, ...newImages]);
 
             toast.success(`Upload thành công ${uploadedUrls.length} ảnh`);
         } catch (error) {
@@ -194,7 +234,20 @@ export function ProductForm({ initialData, onSubmit, loading }: ProductFormProps
     const handleRemoveImage = (index: number) => {
         const newImages = [...images];
         newImages.splice(index, 1);
+        // If removed image was primary and there are other images, make first one primary
+        if (newImages.length > 0 && !newImages.some(img => img.isPrimary)) {
+            newImages[0].isPrimary = true;
+        }
         form.setValue("images", newImages);
+    };
+
+    const handleSetPrimaryImage = (index: number) => {
+        const newImages = images.map((img, idx) => ({
+            ...img,
+            isPrimary: idx === index,
+        }));
+        form.setValue("images", newImages);
+        toast.success("Đã đặt làm ảnh chính");
     };
 
     return (
@@ -249,7 +302,7 @@ export function ProductForm({ initialData, onSubmit, loading }: ProductFormProps
 
                                 <div className="grid grid-cols-2 gap-4">
                                     <FormField
-                                        control={control}
+                                        control={form.control}
                                         name="categoryId"
                                         render={({ field }) => (
                                             <FormItem>
@@ -263,7 +316,7 @@ export function ProductForm({ initialData, onSubmit, loading }: ProductFormProps
                                                     <SelectContent>
                                                         {categories.map((cat) => (
                                                             <SelectItem key={cat.id} value={cat.id}>
-                                                                {cat.name}
+                                                                {cat.displayName || cat.name}
                                                             </SelectItem>
                                                         ))}
                                                     </SelectContent>
@@ -274,7 +327,7 @@ export function ProductForm({ initialData, onSubmit, loading }: ProductFormProps
                                     />
 
                                     <FormField
-                                        control={control}
+                                        control={form.control}
                                         name="brand"
                                         render={({ field }) => (
                                             <FormItem>
@@ -289,7 +342,7 @@ export function ProductForm({ initialData, onSubmit, loading }: ProductFormProps
                                 </div>
 
                                 <FormField
-                                    control={control}
+                                    control={form.control}
                                     name="description"
                                     render={({ field }) => (
                                         <FormItem>
@@ -318,7 +371,7 @@ export function ProductForm({ initialData, onSubmit, loading }: ProductFormProps
                                     <div key={field.id} className="grid grid-cols-12 gap-4 items-end border p-4 rounded-lg bg-gray-50">
                                         <div className="col-span-3">
                                             <FormField
-                                                control={control}
+                                                control={form.control}
                                                 name={`variants.${index}.sku`}
                                                 render={({ field }) => (
                                                     <FormItem>
@@ -333,7 +386,7 @@ export function ProductForm({ initialData, onSubmit, loading }: ProductFormProps
                                         </div>
                                         <div className="col-span-3">
                                             <FormField
-                                                control={control}
+                                                control={form.control}
                                                 name={`variants.${index}.price`}
                                                 render={({ field }) => (
                                                     <FormItem>
@@ -348,7 +401,7 @@ export function ProductForm({ initialData, onSubmit, loading }: ProductFormProps
                                         </div>
                                         <div className="col-span-2">
                                             <FormField
-                                                control={control}
+                                                control={form.control}
                                                 name={`variants.${index}.stock`}
                                                 render={({ field }) => (
                                                     <FormItem>
@@ -363,7 +416,7 @@ export function ProductForm({ initialData, onSubmit, loading }: ProductFormProps
                                         </div>
                                         <div className="col-span-3">
                                             <FormField
-                                                control={control}
+                                                control={form.control}
                                                 name={`variants.${index}.attributes`}
                                                 render={({ field }) => (
                                                     <FormItem>
@@ -417,11 +470,10 @@ export function ProductForm({ initialData, onSubmit, loading }: ProductFormProps
                                     />
                                     <label
                                         htmlFor="image-upload"
-                                        className={`flex flex-col items-center justify-center w-full h-32 border-2 border-dashed rounded-lg cursor-pointer transition-colors ${
-                                            uploadingImage || !productId
-                                                ? "bg-gray-100 border-gray-300 cursor-not-allowed"
-                                                : "border-blue-300 bg-blue-50 hover:bg-blue-100"
-                                        }`}
+                                        className={`flex flex-col items-center justify-center w-full h-32 border-2 border-dashed rounded-lg cursor-pointer transition-colors ${uploadingImage || !productId
+                                            ? "bg-gray-100 border-gray-300 cursor-not-allowed"
+                                            : "border-blue-300 bg-blue-50 hover:bg-blue-100"
+                                            }`}
                                     >
                                         {uploadingImage ? (
                                             <div className="flex flex-col items-center">
@@ -458,16 +510,41 @@ export function ProductForm({ initialData, onSubmit, loading }: ProductFormProps
 
                                 {/* Image Grid */}
                                 <div className="grid grid-cols-2 gap-2 mt-4">
-                                    {images.map((url, index) => (
-                                        <div key={index} className="relative group aspect-square rounded-md overflow-hidden border bg-gray-100">
-                                            <img src={url} alt="" className="w-full h-full object-cover" />
-                                            <button
-                                                type="button"
-                                                onClick={() => handleRemoveImage(index)}
-                                                className="absolute top-1 right-1 bg-black/50 text-white p-1 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
-                                            >
-                                                <Trash2 className="w-3 h-3" />
-                                            </button>
+                                    {images.map((image, index) => (
+                                        <div key={index} className="relative group aspect-square rounded-md overflow-hidden border-2 bg-gray-100" style={{
+                                            borderColor: image.isPrimary ? '#3b82f6' : '#e5e7eb'
+                                        }}>
+                                            <img src={image.url} alt={image.alt || ""} className="w-full h-full object-cover" />
+
+                                            {/* Primary Badge */}
+                                            {image.isPrimary && (
+                                                <div className="absolute top-2 left-2 bg-blue-600 text-white text-xs px-2 py-1 rounded-full font-medium flex items-center gap-1">
+                                                    <Star className="w-3 h-3 fill-white" />
+                                                    Ảnh chính
+                                                </div>
+                                            )}
+
+                                            {/* Action Buttons */}
+                                            <div className="absolute top-2 right-2 flex flex-col gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                {!image.isPrimary && (
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => handleSetPrimaryImage(index)}
+                                                        className="bg-blue-600 hover:bg-blue-700 text-white p-1.5 rounded-full shadow-lg"
+                                                        title="Đặt làm ảnh chính"
+                                                    >
+                                                        <Star className="w-3.5 h-3.5" />
+                                                    </button>
+                                                )}
+                                                <button
+                                                    type="button"
+                                                    onClick={() => handleRemoveImage(index)}
+                                                    className="bg-red-600 hover:bg-red-700 text-white p-1.5 rounded-full shadow-lg"
+                                                    title="Xóa ảnh"
+                                                >
+                                                    <Trash2 className="w-3.5 h-3.5" />
+                                                </button>
+                                            </div>
                                         </div>
                                     ))}
                                 </div>

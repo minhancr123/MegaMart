@@ -3,6 +3,7 @@ import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
 import { ProductsService } from './products.service';
 import { AuthGuard } from '@nestjs/passport';
 import { JwtAuthGuard } from 'src/guards/auth.gaurd';
+import { UpdateProductDto, CreateProductWithVariantsDto } from './dto/update-product.dto';
 
 @ApiTags("products")
 @Controller('products')
@@ -12,8 +13,8 @@ export class ProductsController {
 
     @UseGuards(JwtAuthGuard)
     @Get()
-    async findAll(): Promise<any> {
-        const res = await this.productsService.findAll();
+    async findAll(@Query('search') search?: string): Promise<any> {
+        const res = await this.productsService.findAll(search);
         return res;
     }
 
@@ -88,7 +89,7 @@ export class ProductsController {
     @UseGuards(JwtAuthGuard)
     @ApiOperation({ summary: 'Create new product' })
     @ApiResponse({ status: 201, description: 'Product created successfully' })
-    async createProduct(@Body() createProductDto: any) {
+    async createProduct(@Body() createProductDto: CreateProductWithVariantsDto) {
         try {
             const product = await this.productsService.createProduct(createProductDto);
 
@@ -109,7 +110,7 @@ export class ProductsController {
     @UseGuards(JwtAuthGuard)
     @ApiOperation({ summary: 'Update product' })
     @ApiResponse({ status: 200, description: 'Product updated successfully' })
-    async updateProduct(@Param('id') id: string, @Body() updateProductDto: any) {
+    async updateProduct(@Param('id') id: string, @Body() updateProductDto: UpdateProductDto) {
         try {
             const product = await this.productsService.updateProduct(id, updateProductDto);
 

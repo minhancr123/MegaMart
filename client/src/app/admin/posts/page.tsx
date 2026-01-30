@@ -42,8 +42,24 @@ export default function PostsPage() {
             if (status !== "ALL") params.status = status;
 
             const res: any = await fetchPosts(params);
-            setPosts(res.data);
-            setTotalPages(res.meta.totalPages);
+            console.log('Posts response:', res);
+            
+            // Handle both array and object responses
+            let postsData = [];
+            let meta = { totalPages: 1 };
+            
+            if (Array.isArray(res)) {
+                postsData = res;
+                meta = { totalPages: 1 };
+            } else if (res?.data) {
+                postsData = Array.isArray(res.data) ? res.data : res.data.data || [];
+                meta = res.data.meta || res.meta || meta;
+            } else {
+                postsData = res;
+            }
+            
+            setPosts(postsData);
+            setTotalPages(meta.totalPages);
         } catch (error) {
             console.error("Failed to load posts", error);
             toast.error("Không thể tải danh sách bài viết");

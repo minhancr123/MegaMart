@@ -7,19 +7,19 @@ export const getRevenueStats = async (period: TimePeriod = 'week', date?: string
     if (date) params.date = date;
 
     const res = await axiosClient.get("/analytics/revenue-stats", { params });
-    return res;
+    return res.data?.data ?? res.data ?? res;
 };
 
 export const getOrderStatusDistribution = async () => {
     const res = await axiosClient.get("/analytics/order-status-distribution");
-    return res;
+    return res.data?.data ?? res.data ?? res;
 };
 
 export const getTopSellingProducts = async (period: TimePeriod = 'week', limit: number = 10) => {
     const res = await axiosClient.get("/analytics/top-selling-products", {
         params: { period, limit },
     });
-    return res;
+    return res.data?.data ?? res.data ?? res;
 };
 
 // Product Management

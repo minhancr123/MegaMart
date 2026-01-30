@@ -1,4 +1,4 @@
-import { IsString, IsOptional, IsEnum } from 'class-validator';
+import { IsString, IsOptional, IsEnum, IsArray } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
 
 export enum PostType {
@@ -26,6 +26,11 @@ export class CreatePostDto {
     @IsString()
     thumbnail?: string;
 
+    @ApiProperty({ required: false })
+    @IsOptional()
+    @IsString()
+    excerpt?: string;
+
     @ApiProperty({ enum: PostType, default: PostType.NEWS })
     @IsOptional()
     @IsEnum(PostType)
@@ -35,4 +40,10 @@ export class CreatePostDto {
     @IsOptional()
     @IsEnum(PostStatus)
     status?: PostStatus;
+
+    @ApiProperty({ type: [String], required: false, description: 'Array of tag names' })
+    @IsOptional()
+    @IsArray()
+    @IsString({ each: true })
+    tags?: string[];
 }

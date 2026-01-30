@@ -25,6 +25,7 @@ model User {
   compareItems CompareItem[]
   voucherUsage VoucherUsage[]
   posts        Post[]
+  auditLogs    AuditLog[]
 }
 
 model Address {
@@ -81,36 +82,48 @@ model ProductImage {
 }
 
 model Category {
-  id        String     @id @default(cuid())
-  name      String
-  slug      String     @unique
-  parentId  String?
-  deletedAt DateTime?
-  createdAt DateTime   @default(now())
-  updatedAt DateTime   @updatedAt
-  parent    Category?  @relation("CategoryHierarchy", fields: [parentId], references: [id])
-  children  Category[] @relation("CategoryHierarchy")
-  products  Product[]
+  id          String     @id @default(cuid())
+  name        String
+  slug        String     @unique
+  description String?    @db.Text
+  image       String?
+  parentId    String?
+  active      Boolean    @default(true)
+  deletedAt   DateTime?
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+  parent      Category?  @relation("CategoryHierarchy", fields: [parentId], references: [id])
+  children    Category[] @relation("CategoryHierarchy")
+  products    Product[]
 
   @@index([slug])
   @@index([parentId])
+  @@index([active])
 }
 
 model Variant {
-  id         String      @id @default(cuid())
-  productId  String
-  sku        String      @unique
-  price      BigInt
-  stock      Int         @default(0)
-  attributes Json?
-  createdAt  DateTime    @default(now())
-  updatedAt  DateTime    @updatedAt
-  cartItems  CartItem[]
-  orderItems OrderItem[]
-  product    Product     @relation(fields: [productId], references: [id], onDelete: Cascade)
+  id                  String               @id @default(cuid())
+  productId           String
+  sku                 String               @unique
+  price               BigInt
+  salePrice           BigInt?              // Giá sau khi giảm (nếu có sale)
+  discountPercent     Int?                 // % giảm giá (0-100)
+  saleStartDate       DateTime?            // Ngày bắt đầu sale
+  saleEndDate         DateTime?            // Ngày kết thúc sale
+  stock               Int                  @default(0)
+  attributes          Json?
+  createdAt           DateTime             @default(now())
+  updatedAt           DateTime             @updatedAt
+  cartItems           CartItem[]
+  orderItems          OrderItem[]
+  flashSaleItems      FlashSaleItem[]
+  warehouseInventories WarehouseInventory[]
+  stockMovementItems  StockMovementItem[]
+  product             Product              @relation(fields: [productId], references: [id], onDelete: Cascade)
 
   @@index([sku])
   @@index([productId])
+  @@index([saleStartDate, saleEndDate])
 }
 
 model Cart {
@@ -292,6 +305,7 @@ model Post {
   createdAt   DateTime   @default(now())
   updatedAt   DateTime   @updatedAt
   author      User       @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  postTags    PostTag[]
 
   @@index([slug])
   @@index([authorId])
@@ -299,6 +313,30 @@ model Post {
   @@index([type])
   @@index([publishedAt])
   @@index([createdAt(sort: Desc)])
+}
+
+model Tag {
+  id        String    @id @default(cuid())
+  name      String    @unique
+  slug      String    @unique
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  postTags  PostTag[]
+
+  @@index([slug])
+}
+
+model PostTag {
+  id        String   @id @default(cuid())
+  postId    String
+  tagId     String
+  createdAt DateTime @default(now())
+  post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+  tag       Tag      @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@unique([postId, tagId])
+  @@index([postId])
+  @@index([tagId])
 }
 
 enum UserRole {
@@ -358,3 +396,234 @@ model Settings {
   createdAt             DateTime @default(now())
   updatedAt             DateTime @updatedAt
 }
+
+// ==================== MARKETING MODELS ====================
+
+model Banner {
+  id           String    @id @default(cuid())
+  title        String
+  description  String?
+  imageUrl     String
+  linkUrl      String?
+  displayOrder Int       @default(0)
+  active       Boolean   @default(true)
+  startDate    DateTime?
+  endDate      DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  @@index([active, displayOrder])
+  @@index([startDate, endDate])
+}
+
+model FlashSale {
+  id          String          @id @default(cuid())
+  name        String
+  description String?
+  startTime   DateTime
+  endTime     DateTime
+  active      Boolean         @default(true)
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+  items       FlashSaleItem[]
+
+  @@index([active])
+  @@index([startTime, endTime])
+}
+
+model FlashSaleItem {
+  id          String    @id @default(cuid())
+  flashSaleId String
+  variantId   String
+  salePrice   BigInt
+  quantity    Int       // Số lượng giới hạn cho flash sale
+  soldCount   Int       @default(0)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  flashSale   FlashSale @relation(fields: [flashSaleId], references: [id], onDelete: Cascade)
+  variant     Variant   @relation(fields: [variantId], references: [id])
+
+  @@unique([flashSaleId, variantId])
+  @@index([flashSaleId])
+  @@index([variantId])
+}
+
+// ==================== AUDIT LOG ====================
+
+model AuditLog {
+  id        String   @id @default(cuid())
+  userId    String
+  action    String   // CREATE, UPDATE, DELETE
+  entity    String   // Product, Order, User, Banner, etc.
+  entityId  String
+  oldData   Json?    // Dữ liệu trước khi thay đổi
+  newData   Json?    // Dữ liệu sau khi thay đổi
+  ipAddress String?
+  userAgent String?
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+  @@index([entity, entityId])
+  @@index([action])
+  @@index([createdAt(sort: Desc)])
+}
+
+// ==================== INVENTORY MANAGEMENT ====================
+
+// Kho hàng / Chi nhánh
+model Warehouse {
+  id          String             @id @default(cuid())
+  name        String
+  code        String             @unique // Mã kho: KHO-HCM, KHO-HN
+  address     String?
+  phone       String?
+  isActive    Boolean            @default(true)
+  createdAt   DateTime           @default(now())
+  updatedAt   DateTime           @updatedAt
+  inventories WarehouseInventory[]
+  stockMovements StockMovement[]
+
+  @@index([code])
+  @@index([isActive])
+}
+
+// Tồn kho theo kho và variant
+model WarehouseInventory {
+  id           String    @id @default(cuid())
+  warehouseId  String
+  variantId    String
+  quantity     Int       @default(0)
+  minQuantity  Int       @default(5)   // Số lượng tối thiểu cảnh báo
+  maxQuantity  Int?                     // Số lượng tối đa
+  location     String?                  // Vị trí trong kho: A1-01, B2-05
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  warehouse    Warehouse @relation(fields: [warehouseId], references: [id], onDelete: Cascade)
+  variant      Variant   @relation(fields: [variantId], references: [id], onDelete: Cascade)
+
+  @@unique([warehouseId, variantId])
+  @@index([warehouseId])
+  @@index([variantId])
+  @@index([quantity])
+}
+
+// Nhà cung cấp
+model Supplier {
+  id           String          @id @default(cuid())
+  name         String
+  code         String          @unique
+  email        String?
+  phone        String?
+  address      String?
+  taxCode      String?         // Mã số thuế
+  contactName  String?         // Người liên hệ
+  notes        String?
+  isActive     Boolean         @default(true)
+  createdAt    DateTime        @default(now())
+  updatedAt    DateTime        @updatedAt
+  stockMovements StockMovement[]
+
+  @@index([code])
+  @@index([isActive])
+}
+
+// Enum for stock movement types
+enum StockMovementType {
+  IMPORT        // Nhập kho
+  EXPORT        // Xuất kho
+  TRANSFER_IN   // Chuyển kho đến
+  TRANSFER_OUT  // Chuyển kho đi
+  ADJUSTMENT    // Điều chỉnh
+  RETURN        // Trả hàng
+  DAMAGE        // Hư hỏng
+  SALE          // Bán hàng (tự động)
+}
+
+// Phiếu nhập/xuất kho
+model StockMovement {
+  id            String            @id @default(cuid())
+  code          String            @unique   // PN-2024-001, PX-2024-001
+  type          StockMovementType
+  warehouseId   String
+  supplierId    String?           // Cho nhập kho
+  toWarehouseId String?           // Cho chuyển kho
+  orderId       String?           // Cho xuất kho bán hàng
+  notes         String?
+  status        String            @default("PENDING") // PENDING, COMPLETED, CANCELLED
+  totalAmount   BigInt?           // Tổng tiền (cho nhập kho)
+  createdBy     String            // User ID tạo phiếu
+  completedAt   DateTime?
+  createdAt     DateTime          @default(now())
+  updatedAt     DateTime          @updatedAt
+  warehouse     Warehouse         @relation(fields: [warehouseId], references: [id])
+  supplier      Supplier?         @relation(fields: [supplierId], references: [id])
+  items         StockMovementItem[]
+
+  @@index([code])
+  @@index([type])
+  @@index([warehouseId])
+  @@index([supplierId])
+  @@index([status])
+  @@index([createdAt(sort: Desc)])
+}
+
+// Chi tiết phiếu nhập/xuất
+model StockMovementItem {
+  id              String        @id @default(cuid())
+  stockMovementId String
+  variantId       String
+  quantity        Int
+  unitPrice       BigInt?       // Giá nhập (cho nhập kho)
+  notes           String?
+  createdAt       DateTime      @default(now())
+  stockMovement   StockMovement @relation(fields: [stockMovementId], references: [id], onDelete: Cascade)
+  variant         Variant       @relation(fields: [variantId], references: [id])
+
+  @@index([stockMovementId])
+  @@index([variantId])
+}
+
+// User Event Tracking
+model UserEvent {
+  id          String    @id @default(cuid())
+  userId      String?   // Optional - for guest users
+  sessionId   String    // Browser session ID
+  eventType   EventType
+  eventName   String    // e.g., "view_product", "add_to_cart", "search"
+  metadata    Json?     // Additional data: productId, searchTerm, etc.
+  userAgent   String?
+  ipAddress   String?
+  referrer    String?
+  pageUrl     String?
+  createdAt   DateTime  @default(now())
+
+  @@index([userId])
+  @@index([sessionId])
+  @@index([eventType])
+  @@index([eventName])
+  @@index([createdAt])
+}
+
+enum EventType {
+  PAGE_VIEW
+  PRODUCT_VIEW
+  CATEGORY_VIEW
+  SEARCH
+  ADD_TO_CART
+  REMOVE_FROM_CART
+  ADD_TO_WISHLIST
+  CHECKOUT_START
+  CHECKOUT_COMPLETE
+  PAYMENT_SUCCESS
+  PAYMENT_FAILED
+  REVIEW_SUBMIT
+  CLICK_BANNER
+  CLICK_FLASH_SALE
+  APPLY_VOUCHER
+  SHARE_PRODUCT
+  FILTER_PRODUCTS
+  SORT_PRODUCTS
+  CUSTOM
+}
+

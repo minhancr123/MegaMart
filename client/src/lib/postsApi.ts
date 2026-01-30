@@ -7,7 +7,8 @@ export const fetchPosts = async (params: any = {}) => {
 
 export const fetchPostById = async (id: string) => {
     const res = await axiosClient.get(`/posts/${id}`);
-    return res;
+    // Handle both direct object and nested data
+    return res?.data || res;
 };
 
 export const createPost = async (data: any) => {

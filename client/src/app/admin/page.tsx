@@ -38,9 +38,9 @@ export default function AdminDashboard() {
                 getTopSellingProducts(selectedPeriod, 5)
             ]);
 
-            setStats(revenueData);
-            setOrderDistribution(distributionData);
-            setTopProducts(topProductsData);
+            setStats((revenueData as any)?.data?.data ?? revenueData);
+            setOrderDistribution((distributionData as any)?.data?.data ?? distributionData);
+            setTopProducts((topProductsData as any)?.data?.data ?? topProductsData);
         } catch (error) {
             console.error("Failed to load dashboard data", error);
             toast.error("Không thể tải dữ liệu thống kê");
@@ -219,7 +219,7 @@ export default function AdminDashboard() {
                             <XAxis dataKey="name" />
                             <YAxis />
                             <Tooltip
-                                formatter={(value: any, name: string) => {
+                                formatter={(value: any, name: string = '') => {
                                     if (name === 'revenue') {
                                         return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(value);
                                     }

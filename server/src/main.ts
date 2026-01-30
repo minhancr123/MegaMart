@@ -1,6 +1,9 @@
 import { NestFactory } from '@nestjs/core';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
+import { ValidationPipe } from '@nestjs/common';
+import helmet from 'helmet';
 import { AppModule } from './app.module';
+import { GlobalExceptionFilter } from './filters/global-exception.filter';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
@@ -8,10 +11,37 @@ async function bootstrap() {
   // Set global API prefix
   app.setGlobalPrefix('api');
 
-  // Enable CORS
+  // ============ SECURITY CONFIGURATIONS ============
+  
+  // 1. Helmet - HTTP Security Headers
+  app.use(helmet({
+    crossOriginResourcePolicy: { policy: "cross-origin" },
+    crossOriginOpenerPolicy: { policy: "same-origin-allow-popups" },
+  }));
+
+  // 2. Global Validation Pipe - Sanitize all inputs
+  app.useGlobalPipes(new ValidationPipe({
+    whitelist: true,              // Strip non-whitelisted properties
+    forbidNonWhitelisted: true,   // Throw error if non-whitelisted properties
+    transform: true,              // Auto-transform payloads to DTO instances
+    transformOptions: {
+      enableImplicitConversion: true,
+    },
+  }));
+
+  // 3. Global Exception Filter - Safe error handling
+  app.useGlobalFilters(new GlobalExceptionFilter());
+
+  // 4. Dynamic CORS - Read from environment
+  const allowedOrigins = process.env.FRONTEND_URL 
+    ? process.env.FRONTEND_URL.split(',').map(url => url.trim())
+    : ['http://localhost:3000', 'http://localhost:3001'];
+    
   app.enableCors({
-    origin: ['http://localhost:3000', 'http://localhost:3001'],
+    origin: allowedOrigins,
     credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
   });
 
   // Setup Swagger

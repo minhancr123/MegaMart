@@ -1,11 +1,12 @@
 "use client";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
-import { LayoutDashboard, Package, ShoppingCart, Users, Settings, LogOut, FileText } from "lucide-react";
+import { usePathname, useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
+import { LayoutDashboard, Package, ShoppingCart, Users, Settings, LogOut, FileText, Image, Zap, History, Warehouse, FolderTree, Tag, Activity, Menu } from "lucide-react";
+
 import { Button } from "@/components/ui/button";
 import { useAuthStore } from "@/store/authStore";
-import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger, SheetClose } from "@/components/ui/sheet";
 
 export default function AdminLayout({
     children,
@@ -16,6 +17,7 @@ export default function AdminLayout({
     const { user, hasHydrated, logout } = useAuthStore();
     const router = useRouter();
     const [isChecking, setIsChecking] = useState(true);
+    const [mobileOpen, setMobileOpen] = useState(false);
 
     const sidebarItems = [
         {
@@ -27,6 +29,11 @@ export default function AdminLayout({
             title: "Sản phẩm",
             href: "/admin/products",
             icon: Package,
+        },
+        {
+            title: "Danh mục",
+            href: "/admin/categories",
+            icon: FolderTree,
         },
         {
             title: "Đơn hàng",
@@ -42,6 +49,36 @@ export default function AdminLayout({
             title: "Tin tức & Sự kiện",
             href: "/admin/posts",
             icon: FileText,
+        },
+        {
+            title: "Banners",
+            href: "/admin/banners",
+            icon: Image,
+        },
+        {
+            title: "Flash Sale",
+            href: "/admin/flash-sales",
+            icon: Zap,
+        },
+        {
+            title: "Quản lý Sale",
+            href: "/admin/sales",
+            icon: Tag,
+        },
+        {
+            title: "Analytics",
+            href: "/admin/analytics",
+            icon: Activity,
+        },
+        {
+            title: "Nhật ký hệ thống",
+            href: "/admin/audit-logs",
+            icon: History,
+        },
+        {
+            title: "Quản lý kho",
+            href: "/admin/inventory",
+            icon: Warehouse,
         },
         {
             title: "Cài đặt",
@@ -89,8 +126,8 @@ export default function AdminLayout({
     }
 
     return (
-        <div className="min-h-screen bg-gray-100 flex">
-            {/* Sidebar */}
+        <div className="min-h-screen bg-gray-100">
+            {/* Sidebar - Desktop */}
             <aside className="w-64 bg-white border-r border-gray-200 fixed h-full z-10 hidden md:block">
                 <div className="h-16 flex items-center px-6 border-b border-gray-200">
                     <Link href="/" className="text-2xl font-bold text-blue-600">
@@ -130,8 +167,59 @@ export default function AdminLayout({
                 </div>
             </aside>
 
+            {/* Mobile top bar with menu */}
+            <div className="md:hidden sticky top-0 z-20 bg-white border-b border-gray-200 px-4 py-3 flex items-center justify-between">
+                <Link href="/" className="text-xl font-bold text-blue-600">Mega<span className="text-gray-900">Admin</span></Link>
+                <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
+                    <SheetTrigger asChild>
+                        <Button variant="ghost" size="icon">
+                            <Menu className="h-5 w-5" />
+                        </Button>
+                    </SheetTrigger>
+                    <SheetContent side="left" className="p-0 w-[260px]">
+                        <SheetHeader className="px-4 pt-4 pb-2 text-left">
+                            <SheetTitle>Menu quản trị</SheetTitle>
+                        </SheetHeader>
+                        <div className="px-2 pb-4 space-y-1">
+                            {sidebarItems.map((item) => {
+                                const isActive = pathname === item.href;
+                                return (
+                                    <SheetClose asChild key={item.href}>
+                                        <Link
+                                            href={item.href}
+                                            className={`flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-colors ${isActive
+                                                ? "bg-blue-50 text-blue-600"
+                                                : "text-gray-700 hover:bg-gray-50 hover:text-gray-900"
+                                                }`}
+                                        >
+                                            <item.icon className="w-5 h-5" />
+                                            {item.title}
+                                        </Link>
+                                    </SheetClose>
+                                );
+                            })}
+                        </div>
+                        <div className="border-t px-4 py-3">
+                            <SheetClose asChild>
+                                <Button
+                                    variant="ghost"
+                                    className="w-full justify-start text-red-600 hover:text-red-700 hover:bg-red-50"
+                                    onClick={() => {
+                                        logout();
+                                        router.push("/");
+                                    }}
+                                >
+                                    <LogOut className="w-5 h-5 mr-2" />
+                                    Đăng xuất
+                                </Button>
+                            </SheetClose>
+                        </div>
+                    </SheetContent>
+                </Sheet>
+            </div>
+
             {/* Main Content */}
-            <main className="flex-1 md:ml-64 p-8">
+            <main className="flex-1 md:ml-64 p-4 md:p-8">
                 {children}
             </main>
         </div>

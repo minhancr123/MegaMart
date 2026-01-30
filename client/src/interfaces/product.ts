@@ -73,6 +73,7 @@ export interface Cart {
 export interface MainContentProps {
   featuredProducts: Product[];
   fetchCategories: Category[];
+  newsPosts?: any[];
 }
 
 export interface CartItemProps {

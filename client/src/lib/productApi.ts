@@ -18,13 +18,31 @@ const productsAPI = {
 export const fetchAllProducts = async () => {
   try {
     const res = await productsAPI.getAllProducts();
+    console.log('🔍 Raw API Response for all products:', res);
+    
+    // Handle different response structures
+    if (Array.isArray(res)) {
+      console.log('✅ Response is array, count:', res.length);
+      return res;
+    }
+    
     const apiRes = res as unknown as ApiResponse;
     if (apiRes.success && apiRes.data) {
-      return Array.isArray(apiRes.data) ? apiRes.data : [];
+      const products = Array.isArray(apiRes.data) ? apiRes.data : [];
+      console.log('✅ Response has data, count:', products.length);
+      return products;
     }
+    
+    // Fallback: check if res has data property directly
+    if ((res as any).data && Array.isArray((res as any).data)) {
+      console.log('✅ Response has direct data, count:', (res as any).data.length);
+      return (res as any).data;
+    }
+    
+    console.warn('⚠️ No products found in response');
     return [];
   } catch (error: any) {
-    console.error("Fetch all products error:", error);
+    console.error("❌ Fetch all products error:", error);
     return [];
   }
 };
@@ -51,15 +69,30 @@ export const fetchFeaturedProducts = async () => {
 export const fetchCategoriesList = async () => {
   try {
     const res = await productsAPI.getCategoriesList();
-    console.log("Categories response:", res);
+    console.log('🔍 Raw API Response for categories:', res);
+
+    // Handle different response structures
+    if (Array.isArray(res)) {
+      console.log('✅ Categories response is array, count:', res.length);
+      return res;
+    }
 
     // res đã được transform bởi interceptor thành ApiResponse  
     const apiRes = res as unknown as ApiResponse;
 
     if (apiRes.success && apiRes.data) {
-      return Array.isArray(apiRes.data) ? apiRes.data : [];
+      const categories = Array.isArray(apiRes.data) ? apiRes.data : [];
+      console.log('✅ Categories response has data, count:', categories.length);
+      return categories;
+    }
+    
+    // Fallback: check if res has data property directly
+    if ((res as any).data && Array.isArray((res as any).data)) {
+      console.log('✅ Categories response has direct data, count:', (res as any).data.length);
+      return (res as any).data;
     }
 
+    console.warn('⚠️ No categories found in response');
     return [];
   } catch (error: any) {
     console.error("Fetch categories error:", error);

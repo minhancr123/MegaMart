@@ -4,6 +4,7 @@ import PostForm from "@/components/admin/PostForm";
 import { fetchPostById } from "@/lib/postsApi";
 import { useParams } from "next/navigation";
 import { toast } from "sonner";
+import { ChevronDownCircleIcon, ChevronLeft, Link } from "lucide-react";
 
 export default function EditPostPage() {
     const params = useParams();
@@ -37,7 +38,6 @@ export default function EditPostPage() {
 
     return (
         <div className="space-y-6">
-            <h1 className="text-3xl font-bold">Chỉnh sửa bài viết</h1>
             <PostForm initialData={post} />
         </div>
     );

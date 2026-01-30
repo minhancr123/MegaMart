@@ -1,7 +1,6 @@
 "use client";
 
 import { Product, Variant } from "@/interfaces/product";
-import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -13,20 +12,19 @@ import {
 import {
   ShoppingCart,
   Eye,
-  Star,
   Package2,
-  TrendingUp,
-  AlertCircle,
   ChevronDown,
   Heart,
   Scale,
-  Sparkles
+  Sparkles,
+  Star
 } from "lucide-react";
 import { useState } from "react";
 import Link from "next/link";
 import { useWishlistStore } from "@/store/wishlistStore";
 import { useCompareStore } from "@/store/compareStore";
 import { motion } from "framer-motion";
+import { getPrimaryImageUrl } from "@/lib/imageUtils";
 
 interface ProductCardProps {
   product: Product;
@@ -54,13 +52,12 @@ export const ProductCard = ({ product, onAddToCart, onViewDetails }: ProductCard
 
   const getVariantStats = () => {
     if (!product.variants || product.variants.length === 0) {
-      // Nếu không có variants, dùng giá của product chính
       const basePrice = product.price || 0;
-      return { 
-        minPrice: basePrice, 
-        maxPrice: basePrice, 
-        totalStock: 0, 
-        variantCount: 0 
+      return {
+        minPrice: basePrice,
+        maxPrice: basePrice,
+        totalStock: 0,
+        variantCount: 0
       };
     }
 
@@ -68,9 +65,9 @@ export const ProductCard = ({ product, onAddToCart, onViewDetails }: ProductCard
     const stocks = product.variants.map(v => Number(v.stock) || 0);
 
     if (prices.length === 0) {
-      return { 
-        minPrice: product.price || 0, 
-        maxPrice: product.price || 0, 
+      return {
+        minPrice: product.price || 0,
+        maxPrice: product.price || 0,
         totalStock: stocks.reduce((sum, stock) => sum + stock, 0),
         variantCount: product.variants.length
       };
@@ -86,26 +83,24 @@ export const ProductCard = ({ product, onAddToCart, onViewDetails }: ProductCard
 
   const getPriceRange = () => {
     const stats = getVariantStats();
-    
+
     if (!stats.minPrice || stats.minPrice === 0) {
       return 'Liên hệ';
     }
-    
+
     if (stats.minPrice === stats.maxPrice) {
       return formatPrice(stats.minPrice);
     }
     return `${formatPrice(stats.minPrice)} - ${formatPrice(stats.maxPrice)}`;
   };
 
-  const getStockStatus = (stock: number) => {
-    if (stock === 0) return { text: "Hết hàng", variant: "destructive", icon: AlertCircle };
-    if (stock <= 5) return { text: `Còn ${stock}`, variant: "secondary", icon: Package2 };
-    return { text: "Còn hàng", variant: "default", icon: Package2 };
-  };
-
   const stats = getVariantStats();
-  const stockStatus = getStockStatus(stats.totalStock);
-  const StockIcon = stockStatus.icon;
+
+  // Get product image - prioritize primary image, fallback to first image
+  const productImage = product.imageUrl || 
+                       (product as any).image || 
+                       getPrimaryImageUrl(product.images) || 
+                       '';
 
   const handleAddToCart = () => {
     if (selectedVariant && onAddToCart) {
@@ -120,240 +115,211 @@ export const ProductCard = ({ product, onAddToCart, onViewDetails }: ProductCard
   };
 
   return (
-    <Card className="group relative flex flex-col border-2 border-gray-100 bg-white hover:border-blue-300 hover:shadow-xl transition-all duration-200 min-h-[650px]">
-      {/* Gradient overlay on hover */}
-      <div className="absolute inset-0 bg-gradient-to-t from-blue-600/5 via-purple-500/3 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none z-10"></div>
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      whileInView={{ opacity: 1, y: 0 }}
+      viewport={{ once: true }}
+      className="group"
+    >
+      <div className="relative flex flex-col bg-white rounded-2xl border border-slate-200 hover:border-indigo-300 hover:shadow-xl transition-all duration-300 overflow-hidden h-full">
+        {/* Product Image */}
+        <Link href={`/product/${product.id}`} className="relative block overflow-hidden bg-slate-50 rounded-t-2xl">
+          <div className="aspect-square relative">
+            {productImage ? (
+              <img
+                src={productImage}
+                alt={product.name}
+                className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
+              />
+            ) : (
+              <div className="w-full h-full bg-gradient-to-br from-slate-100 to-slate-200 flex items-center justify-center">
+                <Package2 className="h-20 w-20 text-slate-300" />
+              </div>
+            )}
 
-      {/* Product Image */}
-      <div className="relative flex-shrink-0 bg-gradient-to-br from-gray-50 to-blue-50/20">
-        {product.imageUrl ? (
-          <img
-            src={product.imageUrl}
-            alt={product.name}
-            className="w-full h-52 object-cover transition-transform duration-300 group-hover:scale-105"
-          />
-        ) : (
-          <div className="w-full h-52 bg-gradient-to-br from-gray-200 to-gray-300 flex items-center justify-center">
-            <Package2 className="h-16 w-16 text-gray-400" />
+            {/* Overlay gradient on hover */}
+            <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
           </div>
-        )}
 
-        {/* Variant Count Badge */}
-        {product.variants && product.variants.length > 0 && (
-          <Badge
-            className="absolute top-3 left-3 bg-gradient-to-r from-blue-600 to-indigo-600 text-white border-none shadow-lg"
-          >
-            <Sparkles className="h-3 w-3 mr-1" />
-            {stats.variantCount} biến thể
-          </Badge>
-        )}
+          {/* Badges */}
+          <div className="absolute top-3 left-3 flex flex-col gap-2">
+            {product.variants && product.variants.length > 0 && (
+              <Badge className="bg-gradient-to-r from-indigo-600 to-purple-600 text-white border-none shadow-lg backdrop-blur-sm">
+                <Sparkles className="h-3 w-3 mr-1" />
+                {stats.variantCount} biến thể
+              </Badge>
+            )}
+          </div>
 
-        {/* Stock Status Badge */}
-        <Badge
-          className={`absolute top-3 right-3 shadow-lg ${
-            stats.totalStock === 0 
-              ? 'bg-red-500 text-white' 
-              : stats.totalStock <= 5 
-              ? 'bg-orange-500 text-white' 
-              : 'bg-green-500 text-white'
-          }`}
-        >
-          <StockIcon className="h-3 w-3 mr-1" />
-          {stockStatus.text}
-        </Badge>
+          <div className="absolute top-3 right-3">
+            <Badge
+              className={`shadow-lg backdrop-blur-sm ${stats.totalStock === 0
+                  ? 'bg-red-500/90 text-white'
+                  : stats.totalStock <= 5
+                    ? 'bg-orange-500/90 text-white'
+                    : 'bg-green-500/90 text-white'
+                }`}
+            >
+              {stats.totalStock === 0 ? 'Hết hàng' : stats.totalStock <= 5 ? `Còn ${stats.totalStock}` : 'Còn hàng'}
+            </Badge>
+          </div>
 
-        {/* Quick actions: wishlist & compare */}
-        <div className="absolute bottom-3 right-3 flex flex-col gap-2 z-20 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
-          <button
-            onClick={() => wishlist.toggle(product)}
-            className={`h-10 w-10 rounded-full bg-white shadow-lg hover:shadow-xl hover:scale-105 transition-all duration-200 flex items-center justify-center ${wishlist.exists(product.id) ? "text-red-500 bg-red-50" : "text-gray-600"}`}
-            aria-label="Yêu thích"
-          >
-            <Heart className="h-5 w-5" fill={wishlist.exists(product.id) ? "currentColor" : "none"} />
-          </button>
-          <button
-            onClick={() => compare.toggle(product)}
-            className={`h-10 w-10 rounded-full bg-white shadow-lg hover:shadow-xl hover:scale-105 transition-all duration-200 flex items-center justify-center ${compare.exists(product.id) ? "text-blue-600 bg-blue-50" : "text-gray-600"}`}
-            aria-label="So sánh"
-          >
-            <Scale className="h-5 w-5" />
-          </button>
-        </div>
-      </div>
+          {/* Quick actions - moved to top */}
+          <div className="absolute top-16 right-3 flex flex-col gap-2 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+            <button
+              onClick={(e) => {
+                e.preventDefault();
+                wishlist.toggle(product);
+              }}
+              className={`h-10 w-10 rounded-xl bg-white/90 backdrop-blur-sm shadow-lg hover:shadow-xl hover:scale-110 transition-all duration-200 flex items-center justify-center ${wishlist.exists(product.id) ? "text-red-500" : "text-slate-600"}`}
+            >
+              <Heart className="h-5 w-5" fill={wishlist.exists(product.id) ? "currentColor" : "none"} />
+            </button>
+            <button
+              onClick={(e) => {
+                e.preventDefault();
+                compare.toggle(product);
+              }}
+              className={`h-10 w-10 rounded-xl bg-white/90 backdrop-blur-sm shadow-lg hover:shadow-xl hover:scale-110 transition-all duration-200 flex items-center justify-center ${compare.exists(product.id) ? "text-indigo-600" : "text-slate-600"}`}
+            >
+              <Scale className="h-5 w-5" />
+            </button>
+          </div>
+        </Link>
 
-      <CardHeader className="pb-3 flex-shrink-0 px-4">
-        <h3 className="font-bold text-sm group-hover:text-blue-600 transition-colors leading-tight line-clamp-2 min-h-[2.5rem] flex items-start">
-          <Link href={`/product/${product.id}`} className="hover:underline">
-            {product.name}
+        {/* Content */}
+        <div className="flex-1 flex flex-col p-5">
+          {/* Title */}
+          <Link href={`/product/${product.id}`}>
+            <h3 className="font-bold text-slate-900 group-hover:text-indigo-600 transition-colors leading-tight line-clamp-2 mb-3 h-12">
+              {product.name}
+            </h3>
           </Link>
-        </h3>
-        {product.description && (
-          <p className="text-xs text-gray-600 line-clamp-2 leading-relaxed mt-2 min-h-[2.5rem]">
-            {product.description}
-          </p>
-        )}
-      </CardHeader>
 
-      <CardContent className="pb-3 flex-1 flex flex-col px-4 space-y-3 overflow-auto">
-        {/* Price Range */}
-        <div className="flex-shrink-0 bg-gradient-to-r from-red-50 to-orange-50 p-3 rounded-lg border border-red-100">
-          <div className="text-xs text-gray-600 mb-1">Giá bán</div>
-          <div className="text-base font-bold text-red-600 leading-tight break-words">
-            {getPriceRange()}
-          </div>
-          {stats.variantCount > 1 && (
-            <div className="text-xs text-gray-500 mt-1">
-              Từ {stats.variantCount} biến thể
+          {/* Category */}
+          {product.category && (
+            <div className="mb-3">
+              <Badge variant="outline" className="text-slate-600 text-xs border-slate-200">
+                {product.category.name}
+              </Badge>
             </div>
           )}
-        </div>
 
-        {/* Variants Dropdown */}
-        <div className="flex-shrink-0">
-          {product.variants && product.variants.length > 0 && (
-            <div className="space-y-2.5">
-              <div className="text-xs font-semibold text-gray-700 flex items-center gap-2">
-                <Package2 className="h-4 w-4 text-blue-600" />
-                Chọn biến thể:
-              </div>
+          {/* Rating (dynamic) */}
+          <div className="flex items-center gap-2 mb-3">
+            <div className="flex items-center gap-0.5">
+              {[...Array(5)].map((_, i) => {
+                const rating = (product as any).rating || 4.2;
+                const isFilled = i < Math.floor(rating);
+                const isHalf = !isFilled && i < rating && i >= Math.floor(rating);
 
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button
-                    variant="outline"
-                    className="w-full justify-between text-left py-3 px-3 hover:bg-blue-50 hover:border-blue-300 transition-all min-h-[4rem]"
-                  >
-                    <div className="flex-1 min-w-0 pr-2">
-                      {selectedVariant ? (
-                        <div className="space-y-1">
-                          <div className="font-semibold text-xs text-gray-900 truncate">
-                            {selectedVariant.sku}
-                          </div>
-                          {selectedVariant.attributes && (
-                            <div className="text-xs text-gray-500 truncate">
-                              {Object.entries(selectedVariant.attributes)
-                                .map(([key, value]) => `${key}: ${value}`)
-                                .join(", ")}
-                            </div>
-                          )}
-                          <div className="text-red-600 font-bold text-sm truncate">
-                            {formatPrice(Number(selectedVariant.price))}
-                          </div>
-                        </div>
-                      ) : (
-                        <span className="text-gray-500 text-xs">Chọn biến thể...</span>
-                      )}
-                    </div>
-                    <ChevronDown className="h-4 w-4 flex-shrink-0 text-blue-600" />
-                  </Button>
-                </DropdownMenuTrigger>
+                return (
+                  <Star
+                    key={i}
+                    className={`w-3.5 h-3.5 ${isFilled
+                        ? 'text-yellow-400 fill-yellow-400'
+                        : isHalf
+                          ? 'text-yellow-400 fill-yellow-200'
+                          : 'text-slate-200 fill-slate-200'
+                      }`}
+                  />
+                );
+              })}
+            </div>
+            <span className="text-xs text-slate-500">
+              {(product as any).rating ? `(${((product as any).rating).toFixed(1)})` : '(4.2)'}
+            </span>
+          </div>
 
-                  <DropdownMenuContent className="w-80 max-h-[320px] overflow-y-auto">
-                    {product.variants.map((variant) => (
-                      <DropdownMenuItem
-                        key={variant.id}
-                        className={`
-                          cursor-pointer p-3 focus:bg-blue-50 rounded-md m-1
-                          ${variant.stock === 0 ? 'opacity-50 cursor-not-allowed' : ''}
-                          ${selectedVariant?.id === variant.id ? 'bg-blue-100 border-2 border-blue-400' : 'border border-transparent'}
-                        `}
-                        onSelect={() => variant.stock > 0 && setSelectedVariant(variant)}
-                        disabled={variant.stock === 0}
-                      >
-                        <div className="w-full space-y-1.5">
-                          <div className="flex justify-between items-center gap-2">
-                            <span className="font-semibold text-xs text-gray-900 truncate flex-1">
-                              SKU: {variant.sku}
-                            </span>
-                            <span className="text-red-600 font-bold text-sm whitespace-nowrap flex-shrink-0">
-                              {formatPrice(Number(variant.price))}
-                            </span>
-                            {selectedVariant?.id === variant.id && (
-                              <Badge className="bg-blue-600 text-white text-xs whitespace-nowrap flex-shrink-0">
-                                ✓ Đã chọn
-                              </Badge>
-                            )}
-                          </div>
-
-                          {variant.attributes && (
-                            <div className="text-xs text-gray-600 line-clamp-2">
-                              {Object.entries(variant.attributes)
-                                .map(([key, value]) => `${key}: ${value}`)
-                                .join(", ")}
-                            </div>
-                          )}
-
-                          <div className="flex justify-between items-center">
-                            <span className="text-xs font-medium text-gray-700">
-                              Tồn kho: <span className="text-blue-600">{variant.stock}</span>
-                            </span>
-                            {variant.stock === 0 && (
-                              <Badge className="bg-red-500 text-white text-xs whitespace-nowrap">
-                                Hết hàng
-                              </Badge>
-                            )}
-                            {variant.stock > 0 && variant.stock <= 5 && (
-                              <Badge className="bg-orange-500 text-white text-xs whitespace-nowrap">
-                                Sắp hết
-                              </Badge>
-                            )}
-                          </div>
-                        </div>
-                      </DropdownMenuItem>
-                    ))}
-                  </DropdownMenuContent>
-                </DropdownMenu>
-
-                {/* Selected variant summary */}
-                {selectedVariant && (
-                  <div className="text-xs bg-gradient-to-r from-blue-50 to-indigo-50 p-3 rounded-lg border border-blue-200">
-                    <div className="flex justify-between items-center mb-1.5">
-                      <span className="font-medium text-gray-700">Đã chọn:</span>
-                      <span className="font-bold text-blue-700 truncate ml-2 max-w-[60%]">{selectedVariant.sku}</span>
-                    </div>
-                    <div className="flex justify-between items-center">
-                      <span className="font-medium text-gray-700">Tồn kho:</span>
-                      <span className={`font-bold ${selectedVariant.stock > 5 ? 'text-green-600' : selectedVariant.stock > 0 ? 'text-orange-600' : 'text-red-600'}`}>
-                        {selectedVariant.stock}
-                      </span>
-                    </div>
-                  </div>
-                )}
+          {/* Price */}
+          <div className="mb-4">
+            <div className="text-lg font-bold text-indigo-600">
+              {getPriceRange()}
+            </div>
+            {stats.variantCount > 1 && (
+              <div className="text-xs text-slate-500 mt-1">
+                Từ {stats.variantCount} biến thể
               </div>
             )}
           </div>
 
-          {/* Category */}
-          {product.category && (
-            <div className="flex-shrink-0 mt-2">
-              <Badge variant="outline" className="text-gray-600 text-xs">
-                📁 {product.category.name}
-              </Badge>
+          {/* Variant Selector */}
+          {product.variants && product.variants.length > 0 && (
+            <div className="mb-4">
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className="w-full justify-between text-left hover:bg-indigo-50 hover:border-indigo-300 transition-all rounded-xl"
+                  >
+                    <div className="flex-1 min-w-0 truncate">
+                      {selectedVariant ? (
+                        <span className="font-medium text-sm">{selectedVariant.sku}</span>
+                      ) : (
+                        <span className="text-slate-500 text-sm">Chọn biến thể</span>
+                      )}
+                    </div>
+                    <ChevronDown className="h-4 w-4 flex-shrink-0 text-indigo-600" />
+                  </Button>
+                </DropdownMenuTrigger>
+
+                <DropdownMenuContent className="w-72 max-h-80 overflow-y-auto">
+                  {product.variants.map((variant) => (
+                    <DropdownMenuItem
+                      key={variant.id}
+                      className={`cursor-pointer p-3 ${selectedVariant?.id === variant.id ? 'bg-indigo-50' : ''}`}
+                      onSelect={() => variant.stock > 0 && setSelectedVariant(variant)}
+                      disabled={variant.stock === 0}
+                    >
+                      <div className="w-full space-y-1">
+                        <div className="flex justify-between items-center">
+                          <span className="font-semibold text-xs">{variant.sku}</span>
+                          <span className="text-indigo-600 font-bold text-sm">
+                            {formatPrice(Number(variant.price))}
+                          </span>
+                        </div>
+                        {variant.attributes && (
+                          <div className="text-xs text-slate-600">
+                            {Object.entries(variant.attributes).map(([key, value]) => `${key}: ${value}`).join(", ")}
+                          </div>
+                        )}
+                        <div className="text-xs">
+                          <span className={variant.stock > 0 ? 'text-green-600' : 'text-red-600'}>
+                            {variant.stock > 0 ? `Còn ${variant.stock}` : 'Hết hàng'}
+                          </span>
+                        </div>
+                      </div>
+                    </DropdownMenuItem>
+                  ))}
+                </DropdownMenuContent>
+              </DropdownMenu>
             </div>
           )}
-        </CardContent>
 
-        <CardFooter className="pt-4 pb-4 gap-2 flex-shrink-0 bg-gradient-to-t from-gray-50 to-transparent px-4 border-t border-gray-100">
-          <Button
-            variant="outline"
-            size="sm"
-            className="flex-1 hover:bg-blue-50 hover:text-blue-700 hover:border-blue-300 transition-all font-semibold"
-            onClick={handleViewDetails}
-          >
-            <Eye className="h-4 w-4 mr-1" />
-            Chi tiết
-          </Button>
+          {/* Actions */}
+          <div className="mt-auto flex gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              className="flex-1 hover:bg-slate-50 hover:border-slate-300 transition-all rounded-xl"
+              onClick={handleViewDetails}
+            >
+              <Eye className="h-4 w-4 mr-1" />
+              Chi tiết
+            </Button>
 
-          <Button
-            size="sm"
-            className="flex-1 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 shadow-md hover:shadow-lg transition-all font-semibold"
-            onClick={handleAddToCart}
-            disabled={!selectedVariant || selectedVariant.stock === 0}
-          >
-            <ShoppingCart className="h-4 w-4 mr-1" />
-            Thêm giỏ
-          </Button>
-        </CardFooter>
-      </Card>
+            <Button
+              size="sm"
+              className="flex-1 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 shadow-md hover:shadow-lg transition-all rounded-xl"
+              onClick={handleAddToCart}
+              disabled={!selectedVariant || selectedVariant.stock === 0}
+            >
+              <ShoppingCart className="h-4 w-4 mr-1" />
+              Thêm vào giỏ
+            </Button>
+          </div>
+        </div>
+      </div>
+    </motion.div>
   );
 };

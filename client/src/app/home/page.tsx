@@ -41,14 +41,27 @@ async function getCategoriesList() : Promise<Category[]> {
     }
 }
 
+async function getLatestPosts() : Promise<any[]> {
+  try {
+    const res: any = await axiosClient.get('/posts', { params: { limit: 3, status: 'PUBLISHED' } });
+    if (Array.isArray(res)) return res;
+    if (res?.data) return Array.isArray(res.data) ? res.data : res.data.data || [];
+    return res;
+  } catch (error: any) {
+    console.error('Failed to fetch latest posts:', error);
+    return [];
+  }
+}
+
 export default async function Home() {
     const featuredProducts = await getFeaturedProducts();
     const fetchCategories = await getCategoriesList();
+    const latestPosts = await getLatestPosts();
     console.log("Home page - Featured Products:", featuredProducts);
     console.log("Home page - Categories:", fetchCategories);
   return (
     <div className="min-h-screen bg-gray-50">
-      <MainContent featuredProducts={featuredProducts} fetchCategories={fetchCategories} />
+      <MainContent featuredProducts={featuredProducts} fetchCategories={fetchCategories} newsPosts={latestPosts} />
     </div>
   );
 }

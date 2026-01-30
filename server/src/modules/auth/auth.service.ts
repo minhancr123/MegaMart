@@ -28,7 +28,11 @@ export class AuthService {
 
   async signIn(user: User): Promise<{ accessToken: string; user: UserResponseDto }> {
     const { passwordHash, ...safeUser } = user;
-    const payload = { email: safeUser.email, sub: safeUser.id };
+    const payload = { 
+      email: safeUser.email, 
+      sub: safeUser.id,
+      role: safeUser.role || 'USER' // Include role in JWT payload
+    };
     const accessToken = await this.JwtService.signAsync(payload);
     return { accessToken, user: safeUser };
   }

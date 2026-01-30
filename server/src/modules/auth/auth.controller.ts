@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete, HttpException, HttpStatus, UseGuards, Request } from '@nestjs/common';
+import { Controller, Get, Post, Body, Patch, Param, Delete, HttpException, HttpStatus, UseGuards, Request, Res } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { CreateAuthDto } from './dto/create-auth.dto';
 import { UpdateAuthDto } from './dto/update-auth.dto';
@@ -7,6 +7,7 @@ import { CreateUserDto } from '../users/dto/user.dto';
 import { UsersService } from '../users/users.service';
 import { LocalAuthGuard } from 'src/guards/local-auth.guard';
 import { JwtAuthGuard } from 'src/guards/jwt-auth.guard';
+import type { Response } from 'express';
 
 @ApiTags('auth')
 @Controller('auth')
@@ -27,12 +28,12 @@ export class AuthController {
   @Post('signin')
   @ApiOperation({ summary: 'Signin an existing user' })
   @ApiBody({schema : {type : 'object', properties : {email : {type : 'string'}, password : {type : 'string'}}}})
-  async signIn(@Request() req) {
+  async signIn(@Request() req, @Res({passthrough : true}) res : Response) {
     // User đã được validate trong LocalStrategy và được gán vào req.user
     try {
       console.log("req.body: ", req.body);
       const { accessToken, user } = await this.authService.signIn(req.user);
-      
+      res.cookie('token', accessToken, { httpOnly: true, path: '/' , maxAge : 7 * 24 * 60 * 60 });
       return { 
         success: true, 
         accessToken, 

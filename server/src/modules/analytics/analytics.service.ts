@@ -183,4 +183,180 @@ export class AnalyticsService {
                 return String(d.getFullYear());
         }
     }
+
+    // ============ USER EVENT TRACKING ============
+
+    async trackEvent(dto: any) {
+        return this.prisma.userEvent.create({
+            data: {
+                eventType: dto.eventType,
+                eventName: dto.eventName,
+                sessionId: dto.sessionId,
+                userId: dto.userId,
+                metadata: dto.metadata || {},
+                userAgent: dto.userAgent,
+                ipAddress: dto.ipAddress,
+                referrer: dto.referrer,
+                pageUrl: dto.pageUrl,
+            },
+        });
+    }
+
+    async getEventStats(startDate?: Date, endDate?: Date) {
+        const where = {
+            createdAt: {
+                gte: startDate,
+                lte: endDate,
+            },
+        };
+
+        const [totalEvents, eventsByType, topPages, topProducts] = await Promise.all([
+            // Total events
+            this.prisma.userEvent.count({ where }),
+
+            // Events by type
+            this.prisma.userEvent.groupBy({
+                by: ['eventType'],
+                where,
+                _count: true,
+                orderBy: {
+                    _count: {
+                        eventType: 'desc',
+                    },
+                },
+            }),
+
+            // Top pages
+            this.prisma.userEvent.groupBy({
+                by: ['pageUrl'],
+                where: {
+                    ...where,
+                    pageUrl: { not: null },
+                },
+                _count: true,
+                orderBy: {
+                    _count: {
+                        pageUrl: 'desc',
+                    },
+                },
+                take: 10,
+            }),
+
+            // Top products (from PRODUCT_VIEW events)
+            this.prisma.userEvent.findMany({
+                where: {
+                    ...where,
+                    eventType: 'PRODUCT_VIEW',
+                },
+                select: {
+                    metadata: true,
+                },
+            }),
+        ]);
+
+        // Process top products
+        const productViews: Record<string, number> = {};
+        topProducts.forEach((event) => {
+            const productId = (event.metadata as any)?.productId;
+            if (productId) {
+                productViews[productId] = (productViews[productId] || 0) + 1;
+            }
+        });
+
+        const topProductsList = Object.entries(productViews)
+            .sort((a, b) => b[1] - a[1])
+            .slice(0, 10)
+            .map(([productId, count]) => ({ productId, views: count }));
+
+        return {
+            totalEvents,
+            eventsByType,
+            topPages: topPages.map((p) => ({
+                url: p.pageUrl,
+                views: p._count,
+            })),
+            topProducts: topProductsList,
+        };
+    }
+
+    async getUserJourney(sessionId: string) {
+        return this.prisma.userEvent.findMany({
+            where: { sessionId },
+            orderBy: { createdAt: 'asc' },
+        });
+    }
+
+    async getConversionFunnel(startDate?: Date, endDate?: Date) {
+        const where = {
+            createdAt: {
+                gte: startDate,
+                lte: endDate,
+            },
+        };
+
+        const [
+            productViews,
+            addToCarts,
+            checkoutStarts,
+            checkoutCompletes,
+            paymentSuccesses,
+        ] = await Promise.all([
+            this.prisma.userEvent.count({
+                where: { ...where, eventType: 'PRODUCT_VIEW' },
+            }),
+            this.prisma.userEvent.count({
+                where: { ...where, eventType: 'ADD_TO_CART' },
+            }),
+            this.prisma.userEvent.count({
+                where: { ...where, eventType: 'CHECKOUT_START' },
+            }),
+            this.prisma.userEvent.count({
+                where: { ...where, eventType: 'CHECKOUT_COMPLETE' },
+            }),
+            this.prisma.userEvent.count({
+                where: { ...where, eventType: 'PAYMENT_SUCCESS' },
+            }),
+        ]);
+
+        return {
+            productViews,
+            addToCarts,
+            addToCartRate: productViews > 0 ? (addToCarts / productViews) * 100 : 0,
+            checkoutStarts,
+            checkoutRate: addToCarts > 0 ? (checkoutStarts / addToCarts) * 100 : 0,
+            checkoutCompletes,
+            completionRate: checkoutStarts > 0 ? (checkoutCompletes / checkoutStarts) * 100 : 0,
+            paymentSuccesses,
+            conversionRate: productViews > 0 ? (paymentSuccesses / productViews) * 100 : 0,
+        };
+    }
+
+    async getSearchAnalytics(startDate?: Date, endDate?: Date) {
+        const searchEvents = await this.prisma.userEvent.findMany({
+            where: {
+                eventType: 'SEARCH',
+                createdAt: {
+                    gte: startDate,
+                    lte: endDate,
+                },
+            },
+            select: {
+                metadata: true,
+            },
+        });
+
+        const searchTerms: Record<string, number> = {};
+        searchEvents.forEach((event) => {
+            const searchTerm = (event.metadata as any)?.searchTerm;
+            if (searchTerm) {
+                searchTerms[searchTerm] = (searchTerms[searchTerm] || 0) + 1;
+            }
+        });
+
+        return Object.entries(searchTerms)
+            .sort((a, b) => b[1] - a[1])
+            .slice(0, 20)
+            .map(([term, count]) => ({ term, count }));
+    }
 }
+

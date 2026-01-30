@@ -472,3 +472,104 @@ html {
     @apply bg-background text-foreground;
   }
 }
+
+/* ========== REACT QUILL EDITOR STYLES ========== */
+.ql-container {
+  font-family: inherit;
+  font-size: 1rem;
+}
+
+.ql-editor {
+  min-height: 300px;
+  font-size: 1rem;
+  line-height: 1.6;
+}
+
+.ql-editor.ql-blank::before {
+  color: #9ca3af;
+  font-style: normal;
+}
+
+/* Fix double toolbar issue - chỉ hiển thị toolbar đầu tiên */
+.ql-toolbar.ql-snow ~ .ql-toolbar.ql-snow {
+  display: none !important;
+}
+
+.ql-toolbar {
+  border-top-left-radius: 0.5rem;
+  border-top-right-radius: 0.5rem;
+  background-color: #f9fafb;
+  border-color: #e5e7eb !important;
+}
+
+.ql-container {
+  border-bottom-left-radius: 0.5rem;
+  border-bottom-right-radius: 0.5rem;
+  border-color: #e5e7eb !important;
+}
+
+.ql-toolbar button {
+  transition: all 0.2s;
+}
+
+.ql-toolbar button:hover {
+  background-color: #e5e7eb;
+}
+
+.ql-toolbar button.ql-active {
+  background-color: #dbeafe;
+  color: #2563eb;
+}
+
+.ql-stroke {
+  stroke: #374151 !important;
+}
+
+.ql-fill {
+  fill: #374151 !important;
+}
+
+.ql-picker-label {
+  color: #374151 !important;
+}
+
+/* Dark mode support for Quill */
+.dark .ql-toolbar {
+  background-color: #1f2937;
+  border-color: #374151 !important;
+}
+
+.dark .ql-container {
+  background-color: #111827;
+  border-color: #374151 !important;
+  color: #f9fafb;
+}
+
+.dark .ql-editor {
+  color: #f9fafb;
+}
+
+.dark .ql-editor.ql-blank::before {
+  color: #6b7280;
+}
+
+.dark .ql-stroke {
+  stroke: #d1d5db !important;
+}
+
+.dark .ql-fill {
+  fill: #d1d5db !important;
+}
+
+.dark .ql-picker-label {
+  color: #d1d5db !important;
+}
+
+.dark .ql-toolbar button:hover {
+  background-color: #374151;
+}
+
+.dark .ql-toolbar button.ql-active {
+  background-color: #1e3a8a;
+  color: #60a5fa;
+}

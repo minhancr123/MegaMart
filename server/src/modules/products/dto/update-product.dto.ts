@@ -1,6 +1,32 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsOptional, IsString, IsNumber, Min, IsArray, ValidateNested } from 'class-validator';
+import { IsOptional, IsString, IsNumber, Min, IsArray, ValidateNested, IsBoolean } from 'class-validator';
 import { Type } from 'class-transformer';
+
+export class UpdateProductImageDto {
+    @ApiProperty({ required: false })
+    @IsOptional()
+    @IsString()
+    id?: string;
+
+    @ApiProperty()
+    @IsString()
+    url: string;
+
+    @ApiProperty({ required: false })
+    @IsOptional()
+    @IsString()
+    alt?: string;
+
+    @ApiProperty({ required: false, description: 'Set this image as primary (shown on homepage)' })
+    @IsOptional()
+    @IsBoolean()
+    isPrimary?: boolean;
+
+    @ApiProperty({ required: false })
+    @IsOptional()
+    @IsNumber()
+    displayOrder?: number;
+}
 
 export class UpdateVariantDto {
     @ApiProperty({ required: false })
@@ -56,6 +82,14 @@ export class UpdateProductDto {
     @IsString()
     categoryId?: string;
 
+    @ApiProperty({ 
+        required: false, 
+        description: 'Set specific image ID as primary. This will override isPrimary flags in images array.'
+    })
+    @IsOptional()
+    @IsString()
+    primaryImageId?: string;
+
     @ApiProperty({ required: false, type: [UpdateVariantDto] })
     @IsOptional()
     @IsArray()
@@ -63,10 +97,14 @@ export class UpdateProductDto {
     @Type(() => UpdateVariantDto)
     variants?: UpdateVariantDto[];
 
-    @ApiProperty({ required: false, type: [String] })
+    @ApiProperty({ 
+        required: false, 
+        type: [UpdateProductImageDto],
+        description: 'Can be array of URLs (strings) or array of image objects with isPrimary flag'
+    })
     @IsOptional()
     @IsArray()
-    images?: string[]; // Array of image URLs
+    images?: (string | UpdateProductImageDto)[]; // Array of image URLs or image objects
 }
 
 export class CreateProductWithVariantsDto {

@@ -45,7 +45,11 @@ export default function EditProductPage() {
                     stock: v.stock,
                     attributes: v.attributes || {}
                 })) || [],
-                images: product.images?.map((img: any) => img.url) || []
+                images: product.images?.map((img: any) => ({
+                    url: img.url,
+                    isPrimary: img.isPrimary || false,
+                    alt: img.alt || ""
+                })) || []
             };
 
             setInitialData(formData);

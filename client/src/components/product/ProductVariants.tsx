@@ -20,9 +20,9 @@ export const ProductVariants = ({ product, onAddToCart }: ProductVariantsProps) 
   const [quantity, setQuantity] = useState(1);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
 
-  const productImages = product.images?.filter((image) => !image.isPrimary) || [];
+  const productImages = product.images || [];
   const hasImages = productImages.length > 0;
-  const mainImage = hasImages
+  const mainImage = hasImages 
     ? productImages[currentImageIndex]?.url || "/placeholder-product.png"
     : "/placeholder-product.png";
 
@@ -46,13 +46,13 @@ export const ProductVariants = ({ product, onAddToCart }: ProductVariantsProps) 
   };
 
   const handlePreviousImage = () => {
-    setCurrentImageIndex((prev) =>
+    setCurrentImageIndex((prev) => 
       prev === 0 ? productImages.length - 1 : prev - 1
     );
   };
 
   const handleNextImage = () => {
-    setCurrentImageIndex((prev) =>
+    setCurrentImageIndex((prev) => 
       prev === productImages.length - 1 ? 0 : prev + 1
     );
   };
@@ -243,7 +243,7 @@ export const ProductVariants = ({ product, onAddToCart }: ProductVariantsProps) 
                     </div>
                     {selectedVariant?.id === variant.id && (
                       <div className="text-sm text-blue-600 mt-1 font-medium">
-                        Đã chọn
+                         Đã chọn
                       </div>
                     )}
                   </div>

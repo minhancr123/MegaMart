@@ -2,7 +2,7 @@
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Eye, EyeOff, Loader2, Lock, Mail, User, ShoppingBag, ArrowRight, Facebook, Chrome } from "lucide-react";
+import { Eye, EyeOff, Loader2, Lock, Mail, User, ArrowRight } from "lucide-react";
 import Link from "next/link";
 import { useState, useEffect } from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -11,7 +11,23 @@ import { useForm } from 'react-hook-form'
 import { useAuthStore } from "@/store/authStore";
 import { toast } from "sonner";
 import { useRouter, useSearchParams } from "next/navigation";
-import Image from "next/image";
+import dynamic from 'next/dynamic';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Logo, LogoDark } from "@/components/ui/Logo";
+
+// Dynamically import the 3D scene to avoid SSR issues with Three.js
+const IPhoneScene = dynamic(() => import('@/components/auth/IPhoneScene'), {
+    ssr: false,
+    loading: () => (
+        <div className="w-full h-full bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex items-center justify-center">
+            <div className="flex flex-col items-center gap-4">
+                <div className="w-16 h-16 border-4 border-indigo-200 border-t-indigo-600 rounded-full animate-spin" />
+                <span className="text-white/60 text-sm">Đang tải 3D...</span>
+            </div>
+        </div>
+    )
+});
+
 
 const loginschema = z.object({
     email: z.string().min(1, { message: 'Email không được để trống' }).email({ message: 'Email không hợp lệ' }),
@@ -68,7 +84,7 @@ export default function AuthPage() {
 
             if (islogin) {
                 console.log("Login data: ", data);
-                const result = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/auth/signin`, {
+                const result = await fetch('http://localhost:3001/api/auth/signin', {
                     headers: { 'Content-Type': 'application/json' },
                     method: 'POST',
                     body: JSON.stringify(data)
@@ -85,7 +101,7 @@ export default function AuthPage() {
 
                 console.log("Login data: ", resData);
             } else {
-                const result = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/auth/signup`, {
+                const result = await fetch('http://localhost:3001/api/auth/signup', {
                     headers: { 'Content-Type': 'application/json' },
                     method: 'POST',
                     body: JSON.stringify(data)
@@ -111,197 +127,221 @@ export default function AuthPage() {
     }
 
     return (
-        <div className="min-h-screen w-full flex bg-white">
-            {/* Left Side - Image & Branding */}
-            <div className="hidden lg:flex lg:w-1/2 bg-blue-50 relative flex-col justify-between p-12 overflow-hidden">
-                <div className="z-10 relative">
-                    <Link href="/" className="flex items-center gap-2 text-2xl font-bold text-blue-600 transition-opacity hover:opacity-80">
-                        <ShoppingBag className="w-8 h-8" />
-                        Mega Shop
-                    </Link>
-                    <div className="mt-16 space-y-6">
-                        <h1 className="text-4xl xl:text-5xl font-bold text-gray-900 leading-tight">
-                            Khám phá thế giới <br /> mua sắm trực tuyến
-                        </h1>
-                        <p className="text-lg text-gray-600 max-w-md">
-                            Hàng ngàn sản phẩm chất lượng, ưu đãi hấp dẫn và giao hàng nhanh chóng đang chờ đón bạn.
-                        </p>
-                        <div className="flex gap-4 pt-4">
-                            <div className="flex -space-x-4">
-                                {[1, 2, 3, 4].map((i) => (
-                                    <div key={i} className="w-10 h-10 rounded-full border-2 border-white bg-gray-200 flex items-center justify-center text-xs font-medium text-gray-500">
-                                        U{i}
-                                    </div>
-                                ))}
-                            </div>
-                            <div className="flex flex-col justify-center">
-                                <div className="flex text-yellow-400 text-sm">★★★★★</div>
-                                <div className="text-sm text-gray-600">Hơn 10k+ khách hàng tin dùng</div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
+        <div className="min-h-screen flex overflow-hidden bg-gradient-to-br from-slate-50 to-indigo-50/50">
+            {/* Left Side - 3D Scene */}
+            <div className="hidden lg:block lg:w-3/5 relative bg-slate-950 overflow-hidden">
                 <div className="absolute inset-0 z-0">
-                    <Image
-                        src="/images/auth-banner.png"
-                        alt="Shopping Banner"
-                        fill
-                        className="object-cover object-center opacity-90"
-                        priority
-                    />
-                    <div className="absolute inset-0 bg-gradient-to-r from-white/90 via-white/40 to-transparent" />
+                    <IPhoneScene />
+                </div>
+                <div className="absolute inset-0 bg-gradient-to-b from-transparent to-slate-950/80 z-10 pointer-events-none" />
+
+                <div className="absolute top-10 left-10 z-20">
+                    <Link href="/" className="flex items-center gap-2 transition-transform hover:scale-105 duration-300">
+                        <LogoDark />
+                    </Link>
                 </div>
 
-                <div className="z-10 relative text-sm text-gray-500 font-medium">
-                    © 2026 Mega Shop. All rights reserved.
+                <div className="absolute bottom-20 left-10 z-20 max-w-xl text-white">
+                    <motion.h1
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: 0.5 }}
+                        className="text-5xl font-bold mb-6 leading-tight"
+                    >
+                        Trải nghiệm mua sắm <br />
+                        <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 to-purple-400">
+                            Tương lai
+                        </span>
+                    </motion.h1>
+                    <motion.p
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: 0.7 }}
+                        className="text-lg text-slate-300 mb-8"
+                    >
+                        Khám phá hàng ngàn sản phẩm chất lượng cao với ưu đãi hấp dẫn mỗi ngày. Đăng nhập để bắt đầu hành trình mua sắm của bạn.
+                    </motion.p>
+
+                    <motion.div
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        transition={{ delay: 0.9 }}
+                        className="flex gap-4"
+                    >
+                        <div className="flex -space-x-2">
+                            {[1, 2, 3, 4].map((i) => (
+                                <div key={i} className="w-10 h-10 rounded-full border-2 border-slate-900 bg-slate-700 flex items-center justify-center text-xs text-white">
+                                    U{i}
+                                </div>
+                            ))}
+                        </div>
+                        <div className="flex flex-col justify-center">
+                            <div className="flex items-center gap-1">
+                                {[1, 2, 3, 4, 5].map(i => <div key={i} className="w-4 h-4 text-yellow-400">★</div>)}
+                            </div>
+                            <span className="text-sm text-slate-400">Được tin dùng bởi hơn 10k+ khách hàng</span>
+                        </div>
+                    </motion.div>
                 </div>
             </div>
 
             {/* Right Side - Form */}
-            <div className="w-full lg:w-1/2 flex items-center justify-center p-6 sm:p-12 overflow-y-auto">
-                <div className="w-full max-w-md space-y-8">
-                    {/* Mobile Logo */}
-                    <div className="lg:hidden text-center mb-8">
-                        <Link href="/" className="inline-flex items-center gap-2 text-2xl font-bold text-blue-600">
-                            <ShoppingBag className="w-8 h-8" />
-                            Mega Shop
-                        </Link>
-                    </div>
+            <div className="w-full lg:w-2/5 flex items-center justify-center p-6 relative">
+                {/* Mobile Background (visible only on small screens) */}
+                <div className="absolute inset-0 lg:hidden z-0 bg-slate-950">
+                    <IPhoneScene />
+                    <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
+                </div>
 
-                    <div className="text-center lg:text-left space-y-2">
-                        <h2 className="text-3xl font-bold text-gray-900 tracking-tight">
-                            {islogin ? 'Chào mừng trở lại!' : 'Tạo tài khoản mới'}
-                        </h2>
-                        <p className="text-gray-500">
-                            {islogin
-                                ? 'Nhập thông tin đăng nhập để tiếp tục.'
-                                : 'Đăng ký miễn phí và bắt đầu mua sắm ngay hôm nay.'}
-                        </p>
-                    </div>
-
-                    {/* Social Login */}
-                    <div className="grid grid-cols-2 gap-4">
-                        <Button variant="outline" className="w-full h-11 font-medium text-gray-700 hover:bg-gray-50">
-                            <Chrome className="w-5 h-5 mr-2 text-red-500" />
-                            Google
-                        </Button>
-                        <Button variant="outline" className="w-full h-11 font-medium text-gray-700 hover:bg-gray-50">
-                            <Facebook className="w-5 h-5 mr-2 text-blue-600" />
-                            Facebook
-                        </Button>
-                    </div>
-
-                    <div className="relative">
-                        <div className="absolute inset-0 flex items-center">
-                            <span className="w-full border-t border-gray-200" />
+                <div className="w-full max-w-md z-10">
+                    <motion.div
+                        initial={{ opacity: 0, scale: 0.95 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        className="bg-white/90 lg:bg-white/50 backdrop-blur-xl border border-white/20 shadow-2xl rounded-2xl p-8"
+                    >
+                        <div className="text-center mb-8 lg:hidden">
+                            <Link className="inline-flex items-center justify-center mb-2" href={'/'}>
+                                <Logo />
+                            </Link>
                         </div>
-                        <div className="relative flex justify-center text-xs uppercase">
-                            <span className="bg-white px-2 text-gray-500">Hoặc tiếp tục với email</span>
-                        </div>
-                    </div>
 
-                    {/* Form */}
-                    <form className="space-y-5" onSubmit={currentForm.handleSubmit(onSubmit)}>
-                        {!islogin && (
+                        <div className="mb-8">
+                            <h2 className="text-3xl font-bold text-slate-900 mb-2">
+                                {islogin ? 'Chào mừng trở lại!' : 'Tạo tài khoản mới'}
+                            </h2>
+                            <p className="text-slate-500">
+                                {islogin ? 'Nhập thông tin đăng nhập của bạn để tiếp tục.' : 'Điền thông tin bên dưới để đăng ký tài khoản.'}
+                            </p>
+                        </div>
+
+                        <div className="flex p-1 bg-slate-100/50 rounded-xl mb-8 relative">
+                            <div
+                                className="absolute top-1 bottom-1 w-[calc(50%-4px)] bg-white rounded-lg shadow-sm transition-all duration-300 ease-in-out"
+                                style={{ left: islogin ? '4px' : 'calc(50%)' }}
+                            />
+                            <button
+                                className={`flex-1 py-2.5 text-sm font-medium rounded-lg relative z-10 transition-colors ${islogin ? 'text-indigo-600' : 'text-slate-500 hover:text-slate-700'}`}
+                                onClick={() => setIsLogin(true)}
+                            >
+                                Đăng nhập
+                            </button>
+                            <button
+                                className={`flex-1 py-2.5 text-sm font-medium rounded-lg relative z-10 transition-colors ${!islogin ? 'text-indigo-600' : 'text-slate-500 hover:text-slate-700'}`}
+                                onClick={() => setIsLogin(false)}
+                            >
+                                Đăng ký
+                            </button>
+                        </div>
+
+                        <form className="space-y-5" onSubmit={currentForm.handleSubmit(onSubmit)}>
+                            <AnimatePresence mode="wait">
+                                {!islogin && (
+                                    <motion.div
+                                        initial={{ opacity: 0, height: 0 }}
+                                        animate={{ opacity: 1, height: 'auto' }}
+                                        exit={{ opacity: 0, height: 0 }}
+                                        className="space-y-2 overflow-hidden"
+                                    >
+                                        <Label htmlFor="name" className="text-slate-700">Tên đầy đủ</Label>
+                                        <div className="relative group">
+                                            <User className="absolute left-3 top-3 text-slate-400 group-focus-within:text-indigo-500 transition-colors" size={18} />
+                                            <Input
+                                                id="name"
+                                                placeholder="Nguyễn Văn A"
+                                                className="pl-10 bg-white/50 border-slate-200 focus:border-indigo-500 focus:ring-indigo-500/20 transition-all"
+                                                {...registerform.register("name")}
+                                            />
+                                        </div>
+                                        {registerform.formState.errors.name && (
+                                            <p className="text-red-500 text-xs mt-1">{registerform.formState.errors.name.message}</p>
+                                        )}
+                                    </motion.div>
+                                )}
+                            </AnimatePresence>
+
                             <div className="space-y-2">
-                                <Label htmlFor="name">Tên đầy đủ</Label>
-                                <div className="relative">
-                                    <User className="absolute left-3 top-3 text-gray-400" size={18} />
+                                <Label htmlFor="email" className="text-slate-700">Email</Label>
+                                <div className="relative group">
+                                    <Mail className="absolute left-3 top-3 text-slate-400 group-focus-within:text-indigo-500 transition-colors" size={18} />
                                     <Input
-                                        id="name"
-                                        placeholder="Nguyễn Văn A"
-                                        className="pl-10 h-11 bg-gray-50 border-gray-200 focus:bg-white transition-all"
-                                        {...registerform.register("name")}
+                                        id="email"
+                                        type="email"
+                                        placeholder="name@example.com"
+                                        className="pl-10 bg-white/50 border-slate-200 focus:border-indigo-500 focus:ring-indigo-500/20 transition-all"
+                                        {...(islogin ? loginform.register("email") : registerform.register("email"))}
                                     />
                                 </div>
-                                {registerform.formState.errors.name && (
-                                    <p className="text-xs text-red-500 mt-1">{registerform.formState.errors.name.message}</p>
+                                {(islogin ? loginform.formState.errors.email : registerform.formState.errors.email) && (
+                                    <p className="text-red-500 text-xs mt-1">
+                                        {(islogin ? loginform.formState.errors.email?.message : registerform.formState.errors.email?.message)}
+                                    </p>
                                 )}
                             </div>
-                        )}
 
-                        <div className="space-y-2">
-                            <Label htmlFor="email">Email</Label>
-                            <div className="relative">
-                                <Mail className="absolute left-3 top-3 text-gray-400" size={18} />
-                                <Input
-                                    id="email"
-                                    type="email"
-                                    placeholder="name@example.com"
-                                    className="pl-10 h-11 bg-gray-50 border-gray-200 focus:bg-white transition-all"
-                                    {...(islogin ? loginform.register("email") : registerform.register("email"))}
-                                />
-                            </div>
-                            {(islogin ? loginform.formState.errors.email : registerform.formState.errors.email) && (
-                                <p className="text-xs text-red-500 mt-1">
-                                    {(islogin ? loginform.formState.errors.email?.message : registerform.formState.errors.email?.message)}
-                                </p>
-                            )}
-                        </div>
-
-                        <div className="space-y-2">
-                            <div className="flex items-center justify-between">
-                                <Label htmlFor="password">Mật khẩu</Label>
-                                {islogin && (
-                                    <Link href="/auth/forgot-password" className="text-xs font-medium text-blue-600 hover:text-blue-500">
-                                        Quên mật khẩu?
-                                    </Link>
+                            <div className="space-y-2">
+                                <div className="flex items-center justify-between">
+                                    <Label htmlFor="password" className="text-slate-700">Mật khẩu</Label>
+                                    {islogin && (
+                                        <Link href="/auth/forgot-password" className="text-xs text-indigo-600 hover:text-indigo-800 font-medium">
+                                            Quên mật khẩu?
+                                        </Link>
+                                    )}
+                                </div>
+                                <div className="relative group">
+                                    <Lock className="absolute left-3 top-3 text-slate-400 group-focus-within:text-indigo-500 transition-colors" size={18} />
+                                    <Input
+                                        id="password"
+                                        type={showPassword ? "text" : "password"}
+                                        placeholder="••••••••"
+                                        className="pl-10 pr-10 bg-white/50 border-slate-200 focus:border-indigo-500 focus:ring-indigo-500/20 transition-all"
+                                        {...(islogin ? loginform.register("password") : registerform.register("password"))}
+                                    />
+                                    <button
+                                        onClick={() => setShowPassword(!showPassword)}
+                                        className="absolute right-3 top-3 text-slate-400 hover:text-slate-600 transition-colors"
+                                        type="button"
+                                    >
+                                        {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                                    </button>
+                                </div>
+                                {(islogin ? loginform.formState.errors.password : registerform.formState.errors.password) && (
+                                    <p className="text-red-500 text-xs mt-1">
+                                        {(islogin ? loginform.formState.errors.password?.message : registerform.formState.errors.password?.message)}
+                                    </p>
                                 )}
                             </div>
-                            <div className="relative">
-                                <Lock className="absolute left-3 top-3 text-gray-400" size={18} />
-                                <Input
-                                    id="password"
-                                    type={showPassword ? "text" : "password"}
-                                    placeholder="••••••••"
-                                    className="pl-10 pr-10 h-11 bg-gray-50 border-gray-200 focus:bg-white transition-all"
-                                    {...(islogin ? loginform.register("password") : registerform.register("password"))}
-                                />
-                                <Button
-                                    onClick={() => setShowPassword(!showPassword)}
-                                    className="absolute right-1 top-1 h-9 w-9 text-gray-400 hover:text-gray-600"
-                                    variant="ghost"
-                                    size="icon"
-                                    type="button"
-                                >
-                                    {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
-                                </Button>
-                            </div>
-                            {(islogin ? loginform.formState.errors.password : registerform.formState.errors.password) && (
-                                <p className="text-xs text-red-500 mt-1">
-                                    {(islogin ? loginform.formState.errors.password?.message : registerform.formState.errors.password?.message)}
-                                </p>
-                            )}
+
+                            <Button
+                                type="submit"
+                                disabled={loading}
+                                className="w-full h-11 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white shadow-lg shadow-indigo-500/30 transition-all hover:scale-[1.02] active:scale-[0.98] rounded-xl font-medium text-base"
+                            >
+                                {loading ? (
+                                    <Loader2 className="animate-spin mr-2" />
+                                ) : (
+                                    <span className="flex items-center justify-center">
+                                        {islogin ? "Đăng nhập" : "Tạo tài khoản"}
+                                        <ArrowRight className="ml-2" size={18} />
+                                    </span>
+                                )}
+                            </Button>
+                        </form>
+
+                        <div className="mt-8 text-center">
+                            <p className="text-slate-500 text-sm">
+                                Bằng cách tiếp tục, bạn đồng ý với{' '}
+                                <Link href="/terms" className="text-indigo-600 hover:text-indigo-800 font-medium hover:underline">
+                                    Điều khoản dịch vụ
+                                </Link>{' '}
+                                và{' '}
+                                <Link href="/privacy" className="text-indigo-600 hover:text-indigo-800 font-medium hover:underline">
+                                    Chính sách bảo mật
+                                </Link>
+                            </p>
                         </div>
-
-                        <Button
-                            type="submit"
-                            className="w-full h-11 bg-blue-600 hover:bg-blue-700 text-white font-semibold shadow-lg shadow-blue-600/20 transition-all hover:shadow-blue-600/40"
-                            disabled={loading}
-                        >
-                            {loading ? <Loader2 className="animate-spin mr-2" /> : null}
-                            {islogin ? "Đăng nhập" : "Tạo tài khoản"}
-                            {!loading && <ArrowRight className="ml-2 w-4 h-4" />}
-                        </Button>
-                    </form>
-
-                    <div className="text-center text-sm text-gray-500">
-                        {islogin ? "Bạn chưa có tài khoản? " : "Bạn đã có tài khoản? "}
-                        <button
-                            onClick={() => {
-                                setIsLogin(!islogin);
-                                if (islogin) loginform.reset();
-                                else registerform.reset();
-                            }}
-                            className="font-semibold text-blue-600 hover:text-blue-500 hover:underline transition-all"
-                        >
-                            {islogin ? "Đăng ký ngay" : "Đăng nhập"}
-                        </button>
-                    </div>
+                    </motion.div>
                 </div>
             </div>
         </div>
     )
 }
-

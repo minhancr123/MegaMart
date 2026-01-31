@@ -8,7 +8,7 @@ import {
     TableHeader,
     TableRow,
 } from "@/components/ui/table";
-import { Edit, Plus, Trash2, Search, Loader2 } from "lucide-react";
+import { Edit, Plus, Trash2, Search, Loader2, Zap, Copy, FileSpreadsheet, Layers, ChevronDown } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import Link from "next/link";
 import { useState, useEffect } from "react";
@@ -17,6 +17,16 @@ import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { ConfirmDeleteDialog } from "@/components/ConfirmDeleteDialog";
 import { Pagination } from "@/components/ui/pagination";
+import { QuickAddProduct } from "@/components/admin/QuickAddProduct";
+import { CloneProduct } from "@/components/admin/CloneProduct";
+import { BulkImport } from "@/components/admin/BulkImport";
+import { ProductTemplates } from "@/components/admin/ProductTemplates";
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 export default function ProductsPage() {
     const [products, setProducts] = useState<any[]>([]);
@@ -27,6 +37,13 @@ export default function ProductsPage() {
     const [isDeleting, setIsDeleting] = useState(false);
     const [currentPage, setCurrentPage] = useState(1);
     const itemsPerPage = 10;
+    
+    // New dialogs
+    const [quickAddOpen, setQuickAddOpen] = useState(false);
+    const [cloneDialogOpen, setCloneDialogOpen] = useState(false);
+    const [productToClone, setProductToClone] = useState<any>(null);
+    const [bulkImportOpen, setBulkImportOpen] = useState(false);
+    const [templatesOpen, setTemplatesOpen] = useState(false);
 
     useEffect(() => {
         loadProducts();
@@ -68,6 +85,11 @@ export default function ProductsPage() {
         }
     };
 
+    const handleCloneClick = (product: any) => {
+        setProductToClone(product);
+        setCloneDialogOpen(true);
+    };
+
     const filteredProducts = products.filter(product =>
         product.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
         product.category?.name?.toLowerCase().includes(searchQuery.toLowerCase())
@@ -99,12 +121,37 @@ export default function ProductsPage() {
                     <h1 className="text-3xl font-bold text-gray-900">Sản phẩm</h1>
                     <p className="text-gray-500 mt-1">Quản lý danh sách sản phẩm của bạn ({products.length})</p>
                 </div>
-                <Link href="/admin/products/create">
-                    <Button className="bg-blue-600 hover:bg-blue-700">
-                        <Plus className="w-4 h-4 mr-2" />
-                        Thêm sản phẩm
-                    </Button>
-                </Link>
+                <div className="flex gap-2">
+                    <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                            <Button variant="outline" className="border-blue-200">
+                                <Plus className="w-4 h-4 mr-2" />
+                                Thêm sản phẩm
+                                <ChevronDown className="w-4 h-4 ml-2" />
+                            </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" className="w-56">
+                            <DropdownMenuItem onClick={() => setQuickAddOpen(true)}>
+                                <Zap className="w-4 h-4 mr-2 text-yellow-500" />
+                                Thêm nhanh
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => setTemplatesOpen(true)}>
+                                <Layers className="w-4 h-4 mr-2 text-purple-500" />
+                                Từ template
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => setBulkImportOpen(true)}>
+                                <FileSpreadsheet className="w-4 h-4 mr-2 text-green-500" />
+                                Import CSV
+                            </DropdownMenuItem>
+                            <DropdownMenuItem asChild>
+                                <Link href="/admin/products/create" className="cursor-pointer">
+                                    <Plus className="w-4 h-4 mr-2 text-blue-500" />
+                                    Tạo đầy đủ
+                                </Link>
+                            </DropdownMenuItem>
+                        </DropdownMenuContent>
+                    </DropdownMenu>
+                </div>
             </div>
 
             {/* Filters */}
@@ -171,6 +218,15 @@ export default function ProductsPage() {
                                         </TableCell>
                                         <TableCell className="text-right">
                                             <div className="flex justify-end gap-2">
+                                                <Button
+                                                    variant="ghost"
+                                                    size="icon"
+                                                    className="h-8 w-8 text-purple-600 hover:text-purple-700 hover:bg-purple-50"
+                                                    onClick={() => handleCloneClick(product)}
+                                                    title="Sao chép sản phẩm"
+                                                >
+                                                    <Copy className="w-4 h-4" />
+                                                </Button>
                                                 <Link href={`/admin/products/edit/${product.id}`}>
                                                     <Button variant="ghost" size="icon" className="h-8 w-8 text-blue-600 hover:text-blue-700 hover:bg-blue-50">
                                                         <Edit className="w-4 h-4" />
@@ -214,6 +270,36 @@ export default function ProductsPage() {
                 description="Bạn có chắc chắn muốn xóa sản phẩm"
                 itemName={productToDelete?.name}
                 isDeleting={isDeleting}
+            />
+
+            {/* Quick Add Dialog */}
+            <QuickAddProduct
+                open={quickAddOpen}
+                onOpenChange={setQuickAddOpen}
+                onSuccess={loadProducts}
+            />
+
+            {/* Clone Dialog */}
+            {productToClone && (
+                <CloneProduct
+                    product={productToClone}
+                    open={cloneDialogOpen}
+                    onOpenChange={setCloneDialogOpen}
+                    onSuccess={loadProducts}
+                />
+            )}
+
+            {/* Bulk Import Dialog */}
+            <BulkImport
+                open={bulkImportOpen}
+                onOpenChange={setBulkImportOpen}
+                onSuccess={loadProducts}
+            />
+
+            {/* Templates Dialog */}
+            <ProductTemplates
+                open={templatesOpen}
+                onOpenChange={setTemplatesOpen}
             />
         </div>
     );

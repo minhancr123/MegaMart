@@ -8,29 +8,13 @@ import {
     TableHeader,
     TableRow,
 } from "@/components/ui/table";
-import { Eye, Search, Filter, Loader2, Edit } from "lucide-react";
+import { Eye, Search, Filter, Loader2 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { useState, useEffect } from "react";
-import { fetchAdminOrders, updateOrderStatus } from "@/lib/adminApi";
+import { fetchAdminOrders } from "@/lib/adminApi";
 import { toast } from "sonner";
 import Link from "next/link";
-import {
-    Dialog,
-    DialogContent,
-    DialogDescription,
-    DialogFooter,
-    DialogHeader,
-    DialogTitle,
-} from "@/components/ui/dialog";
-import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-} from "@/components/ui/select";
-import { Label } from "@/components/ui/label";
 import { Pagination } from "@/components/ui/pagination";
 
 export default function OrdersPage() {
@@ -39,12 +23,6 @@ export default function OrdersPage() {
     const [searchQuery, setSearchQuery] = useState("");
     const [currentPage, setCurrentPage] = useState(1);
     const itemsPerPage = 10;
-
-    // Update Status State
-    const [statusDialogOpen, setStatusDialogOpen] = useState(false);
-    const [selectedOrder, setSelectedOrder] = useState<any>(null);
-    const [newStatus, setNewStatus] = useState("");
-    const [updating, setUpdating] = useState(false);
 
     useEffect(() => {
         loadOrders();
@@ -63,37 +41,17 @@ export default function OrdersPage() {
         }
     };
 
-    const handleEditStatus = (order: any) => {
-        setSelectedOrder(order);
-        setNewStatus(order.status);
-        setStatusDialogOpen(true);
-    };
-
-    const handleUpdateStatus = async () => {
-        if (!selectedOrder || !newStatus) return;
-
-        try {
-            setUpdating(true);
-            await updateOrderStatus(selectedOrder.id, newStatus);
-            toast.success("Cập nhật trạng thái thành công");
-            setStatusDialogOpen(false);
-            loadOrders(); // Reload
-        } catch (error) {
-            console.error("Failed to update status", error);
-            toast.error("Không thể cập nhật trạng thái");
-        } finally {
-            setUpdating(false);
-        }
-    };
-
     const getStatusBadge = (status: string) => {
         const map: any = {
             PENDING: { label: "Chờ xử lý", color: "bg-yellow-100 text-yellow-800" },
-            PAID: { label: "Đã thanh toán", color: "bg-green-100 text-green-800" },
-            SHIPPED: { label: "Đang giao", color: "bg-blue-100 text-blue-800" },
-            DELIVERED: { label: "Đã giao", color: "bg-green-100 text-green-800" },
+            CONFIRMED: { label: "Đã xác nhận", color: "bg-blue-100 text-blue-800" },
+            PROCESSING: { label: "Đang xử lý", color: "bg-indigo-100 text-indigo-800" },
+            SHIPPING: { label: "Đang giao hàng", color: "bg-orange-100 text-orange-800" },
+            DELIVERED: { label: "Đã giao", color: "bg-teal-100 text-teal-800" },
+            COMPLETED: { label: "Hoàn thành", color: "bg-green-100 text-green-800" },
+            PAID: { label: "Đã thanh toán", color: "bg-emerald-100 text-emerald-800" },
             CANCELED: { label: "Đã hủy", color: "bg-red-100 text-red-800" },
-            FAILED: { label: "Thất bại", color: "bg-red-100 text-red-800" },
+            FAILED: { label: "Thất bại", color: "bg-rose-100 text-rose-800" },
             REFUNDED: { label: "Đã hoàn tiền", color: "bg-purple-100 text-purple-800" },
         };
         const config = map[status] || { label: status, color: "bg-gray-100 text-gray-800" };
@@ -188,15 +146,7 @@ export default function OrdersPage() {
                                     <TableCell>{getStatusBadge(order.status)}</TableCell>
                                     <TableCell className="text-right">
                                         <div className="flex justify-end gap-2">
-                                            <Button
-                                                variant="ghost"
-                                                size="sm"
-                                                className="text-blue-600 hover:text-blue-700 hover:bg-blue-50"
-                                                onClick={() => handleEditStatus(order)}
-                                            >
-                                                <Edit className="w-4 h-4 mr-1" /> Sửa
-                                            </Button>
-                                            <Link href={`/profile/orders/${order.id}`}>
+                                            <Link href={`/admin/orders/${order.id}`}>
                                                 <Button variant="ghost" size="sm" className="text-gray-600 hover:text-gray-700 hover:bg-gray-50">
                                                     <Eye className="w-4 h-4 mr-1" /> Xem
                                                 </Button>
@@ -220,44 +170,6 @@ export default function OrdersPage() {
                     itemsPerPage={itemsPerPage}
                 />
             )}
-
-            {/* Update Status Dialog */}
-            <Dialog open={statusDialogOpen} onOpenChange={setStatusDialogOpen}>
-                <DialogContent className="sm:max-w-[425px]">
-                    <DialogHeader>
-                        <DialogTitle>Cập nhật trạng thái đơn hàng</DialogTitle>
-                        <DialogDescription>
-                            Thay đổi trạng thái cho đơn hàng #{selectedOrder?.code}
-                        </DialogDescription>
-                    </DialogHeader>
-                    <div className="grid gap-4 py-4">
-                        <div className="grid grid-cols-4 items-center gap-4">
-                            <Label htmlFor="status" className="text-right">
-                                Trạng thái
-                            </Label>
-                            <Select value={newStatus} onValueChange={setNewStatus}>
-                                <SelectTrigger className="col-span-3">
-                                    <SelectValue placeholder="Chọn trạng thái" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="PENDING">Chờ xử lý</SelectItem>
-                                    <SelectItem value="PAID">Đã thanh toán</SelectItem>
-                                    <SelectItem value="SHIPPED">Đang giao hàng</SelectItem>
-                                    <SelectItem value="DELIVERED">Đã giao hàng</SelectItem>
-                                    <SelectItem value="CANCELED">Đã hủy</SelectItem>
-                                    <SelectItem value="REFUNDED">Đã hoàn tiền</SelectItem>
-                                </SelectContent>
-                            </Select>
-                        </div>
-                    </div>
-                    <DialogFooter>
-                        <Button type="submit" onClick={handleUpdateStatus} disabled={updating}>
-                            {updating && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-                            Lưu thay đổi
-                        </Button>
-                    </DialogFooter>
-                </DialogContent>
-            </Dialog>
         </div>
     );
 }

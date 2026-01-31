@@ -4,11 +4,12 @@
 
 /**
  * Format price from database BigInt to number for API response
- * @param price - Price in VND as BigInt
- * @returns Price as number
+ * Database stores price in cents (VND * 100), so we divide by 100
+ * @param price - Price in cents as BigInt
+ * @returns Price in VND as number
  */
 export function formatPrice(price: bigint): number {
-  return Number(price);
+  return Number(price) / 100;
 }
 
 /**

@@ -38,13 +38,21 @@ export default function EditProductPage() {
                 description: product.description || "",
                 brand: product.brand || "",
                 categoryId: product.category?.id || "",
-                variants: product.variants?.map((v: any) => ({
-                    id: v.id,
-                    sku: v.sku,
-                    price: Number(v.price),
-                    stock: v.stock,
-                    attributes: v.attributes || {}
-                })) || [],
+                variants: product.variants?.map((v: any) => {
+                    const attributes = v.attributes || {};
+                    // Sync all colors to attributes.color (comma-separated)
+                    if (v.colors && Array.isArray(v.colors) && v.colors.length > 0) {
+                        attributes.color = v.colors.map((c: any) => c.name).join(", ");
+                    }
+                    return {
+                        id: v.id,
+                        sku: v.sku,
+                        price: Number(v.price),
+                        stock: v.stock,
+                        colors: v.colors || [],
+                        attributes
+                    };
+                }) || [],
                 images: product.images?.map((img: any) => ({
                     url: img.url,
                     isPrimary: img.isPrimary || false,
@@ -67,7 +75,9 @@ export default function EditProductPage() {
             setLoading(true);
             await updateProduct(id, data);
             toast.success("Cập nhật sản phẩm thành công");
-            router.push("/admin/products");
+            
+            // Reload product data instead of redirecting
+            await loadProduct();
         } catch (error) {
             console.error("Failed to update product", error);
             toast.error("Có lỗi xảy ra khi cập nhật sản phẩm");

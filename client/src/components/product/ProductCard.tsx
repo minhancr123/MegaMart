@@ -36,8 +36,18 @@ export const ProductCard = ({ product, onAddToCart, onViewDetails }: ProductCard
   const [selectedVariant, setSelectedVariant] = useState<Variant | null>(
     product.variants?.[0] || null
   );
+  const [selectedColorIndex, setSelectedColorIndex] = useState<number>(0);
   const wishlist = useWishlistStore();
   const compare = useCompareStore();
+
+  // Debug: Log colors data
+  console.log('Product:', product.name);
+  console.log('Variants:', product.variants?.map(v => ({
+    sku: (v as any).sku,
+    hasColors: !!(v as any).colors,
+    colorsLength: Array.isArray((v as any).colors) ? (v as any).colors.length : 'not array',
+    colors: (v as any).colors
+  })));
 
   const formatPrice = (price: number): string => {
     if (!price || isNaN(price)) {
@@ -96,11 +106,25 @@ export const ProductCard = ({ product, onAddToCart, onViewDetails }: ProductCard
 
   const stats = getVariantStats();
 
-  // Get product image - prioritize primary image, fallback to first image
-  const productImage = product.imageUrl || 
-                       (product as any).image || 
-                       getPrimaryImageUrl(product.images) || 
-                       '';
+  // Get product image - use selected variant's selected color image if available
+  const getProductImage = () => {
+    if (selectedVariant) {
+      const colors = (selectedVariant as any).colors;
+      if (colors && Array.isArray(colors) && colors.length > 0) {
+        const selectedColor = colors[selectedColorIndex];
+        if (selectedColor?.imageUrl) {
+          return selectedColor.imageUrl;
+        }
+      }
+    }
+    
+    return product.imageUrl || 
+           (product as any).image || 
+           getPrimaryImageUrl(product.images) || 
+           '';
+  };
+
+  const productImage = getProductImage();
 
   const handleAddToCart = () => {
     if (selectedVariant && onAddToCart) {
@@ -121,19 +145,19 @@ export const ProductCard = ({ product, onAddToCart, onViewDetails }: ProductCard
       viewport={{ once: true }}
       className="group"
     >
-      <div className="relative flex flex-col bg-white rounded-2xl border border-slate-200 hover:border-indigo-300 hover:shadow-xl transition-all duration-300 overflow-hidden h-full">
+      <div className="relative flex flex-col bg-white dark:bg-gray-900 rounded-2xl border border-slate-200 dark:border-gray-800 hover:border-indigo-300 dark:hover:border-indigo-700 hover:shadow-xl transition-all duration-300 overflow-hidden h-full">
         {/* Product Image */}
-        <Link href={`/product/${product.id}`} className="relative block overflow-hidden bg-slate-50 rounded-t-2xl">
+        <Link href={`/product/${product.id}`} className="relative block overflow-hidden bg-slate-50 dark:bg-gray-800 rounded-t-2xl">
           <div className="aspect-square relative">
             {productImage ? (
               <img
                 src={productImage}
                 alt={product.name}
-                className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
+                className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110 dark:brightness-90"
               />
             ) : (
-              <div className="w-full h-full bg-gradient-to-br from-slate-100 to-slate-200 flex items-center justify-center">
-                <Package2 className="h-20 w-20 text-slate-300" />
+              <div className="w-full h-full bg-gradient-to-br from-slate-100 to-slate-200 dark:from-gray-800 dark:to-gray-900 flex items-center justify-center">
+                <Package2 className="h-20 w-20 text-slate-300 dark:text-gray-600" />
               </div>
             )}
 
@@ -191,7 +215,7 @@ export const ProductCard = ({ product, onAddToCart, onViewDetails }: ProductCard
         <div className="flex-1 flex flex-col p-5">
           {/* Title */}
           <Link href={`/product/${product.id}`}>
-            <h3 className="font-bold text-slate-900 group-hover:text-indigo-600 transition-colors leading-tight line-clamp-2 mb-3 h-12">
+            <h3 className="font-bold text-slate-900 dark:text-white group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors leading-tight line-clamp-2 mb-3 h-12">
               {product.name}
             </h3>
           </Link>
@@ -199,7 +223,7 @@ export const ProductCard = ({ product, onAddToCart, onViewDetails }: ProductCard
           {/* Category */}
           {product.category && (
             <div className="mb-3">
-              <Badge variant="outline" className="text-slate-600 text-xs border-slate-200">
+              <Badge variant="outline" className="text-slate-600 dark:text-gray-400 text-xs border-slate-200 dark:border-gray-700">
                 {product.category.name}
               </Badge>
             </div>
@@ -234,18 +258,23 @@ export const ProductCard = ({ product, onAddToCart, onViewDetails }: ProductCard
           {/* Price */}
           <div className="mb-4">
             <div className="text-lg font-bold text-indigo-600">
-              {getPriceRange()}
+              {selectedVariant ? formatPrice(Number(selectedVariant.price)) : getPriceRange()}
             </div>
-            {stats.variantCount > 1 && (
+            {selectedVariant ? (
+              <div className="text-xs text-slate-500 mt-1">
+                {selectedVariant.sku}
+              </div>
+            ) : stats.variantCount > 1 ? (
               <div className="text-xs text-slate-500 mt-1">
                 Từ {stats.variantCount} biến thể
               </div>
-            )}
+            ) : null}
           </div>
 
           {/* Variant Selector */}
           {product.variants && product.variants.length > 0 && (
-            <div className="mb-4">
+            <div className="mb-4 space-y-3">
+              {/* SKU dropdown - select variant first */}
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button
@@ -268,7 +297,12 @@ export const ProductCard = ({ product, onAddToCart, onViewDetails }: ProductCard
                     <DropdownMenuItem
                       key={variant.id}
                       className={`cursor-pointer p-3 ${selectedVariant?.id === variant.id ? 'bg-indigo-50' : ''}`}
-                      onSelect={() => variant.stock > 0 && setSelectedVariant(variant)}
+                      onSelect={() => {
+                        if (variant.stock > 0) {
+                          setSelectedVariant(variant);
+                          setSelectedColorIndex(0); // Reset to first color
+                        }
+                      }}
                       disabled={variant.stock === 0}
                     >
                       <div className="w-full space-y-1">
@@ -293,6 +327,48 @@ export const ProductCard = ({ product, onAddToCart, onViewDetails }: ProductCard
                   ))}
                 </DropdownMenuContent>
               </DropdownMenu>
+
+              {/* Color swatches - only show colors of selected variant */}
+              {selectedVariant && (selectedVariant as any).colors && Array.isArray((selectedVariant as any).colors) && (selectedVariant as any).colors.length > 0 && (
+                <div className="space-y-2">
+                  <div className="text-xs font-medium text-slate-600">Màu sắc:</div>
+                  <div className="flex flex-wrap gap-2">
+                    {(selectedVariant as any).colors.map((color: any, index: number) => (
+                      <button
+                        key={index}
+                        onClick={() => setSelectedColorIndex(index)}
+                        className={`relative h-8 w-8 rounded-full border-2 transition-all ${
+                          selectedColorIndex === index
+                            ? 'border-indigo-600 ring-2 ring-indigo-200'
+                            : 'border-slate-300 hover:border-slate-400'
+                        } cursor-pointer`}
+                        style={{ backgroundColor: color.hex }}
+                        title={color.name}
+                      />
+                    ))}
+                  </div>
+                  {(selectedVariant as any).colors[selectedColorIndex] && (
+                    <div className="text-xs text-slate-600">
+                      Màu: {(selectedVariant as any).colors[selectedColorIndex].name}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Selected Variant Attributes */}
+              {selectedVariant && selectedVariant.attributes && Object.keys(selectedVariant.attributes).length > 0 && (
+                <div className="space-y-2 p-3 bg-slate-50 rounded-lg">
+                  <div className="text-xs font-medium text-slate-600">Thông số:</div>
+                  <div className="flex flex-wrap gap-2">
+                    {Object.entries(selectedVariant.attributes).map(([key, value]) => (
+                      <div key={key} className="flex items-center gap-1 text-xs">
+                        <span className="font-medium text-slate-700 capitalize">{key}:</span>
+                        <span className="text-slate-600">{value as string}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           )}
 

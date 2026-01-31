@@ -127,9 +127,9 @@ export default function AuthPage() {
     }
 
     return (
-        <div className="min-h-screen flex overflow-hidden bg-gradient-to-br from-slate-50 to-indigo-50/50">
+        <div className="min-h-screen flex overflow-hidden bg-gradient-to-br from-slate-50 to-indigo-50/50 dark:from-gray-950 dark:to-gray-900">
             {/* Left Side - 3D Scene */}
-            <div className="hidden lg:block lg:w-3/5 relative bg-slate-950 overflow-hidden">
+            <div className="hidden lg:block lg:w-3/5 relative bg-slate-950 dark:bg-black overflow-hidden">
                 <div className="absolute inset-0 z-0">
                     <IPhoneScene />
                 </div>
@@ -188,7 +188,7 @@ export default function AuthPage() {
             {/* Right Side - Form */}
             <div className="w-full lg:w-2/5 flex items-center justify-center p-6 relative">
                 {/* Mobile Background (visible only on small screens) */}
-                <div className="absolute inset-0 lg:hidden z-0 bg-slate-950">
+                <div className="absolute inset-0 lg:hidden z-0 bg-slate-950 dark:bg-black">
                     <IPhoneScene />
                     <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
                 </div>
@@ -197,7 +197,7 @@ export default function AuthPage() {
                     <motion.div
                         initial={{ opacity: 0, scale: 0.95 }}
                         animate={{ opacity: 1, scale: 1 }}
-                        className="bg-white/90 lg:bg-white/50 backdrop-blur-xl border border-white/20 shadow-2xl rounded-2xl p-8"
+                        className="bg-white/90 dark:bg-gray-900/90 lg:bg-white/50 lg:dark:bg-gray-900/50 backdrop-blur-xl border border-white/20 dark:border-gray-700/20 shadow-2xl rounded-2xl p-8"
                     >
                         <div className="text-center mb-8 lg:hidden">
                             <Link className="inline-flex items-center justify-center mb-2" href={'/'}>
@@ -206,27 +206,27 @@ export default function AuthPage() {
                         </div>
 
                         <div className="mb-8">
-                            <h2 className="text-3xl font-bold text-slate-900 mb-2">
+                            <h2 className="text-3xl font-bold text-slate-900 dark:text-white mb-2">
                                 {islogin ? 'Chào mừng trở lại!' : 'Tạo tài khoản mới'}
                             </h2>
-                            <p className="text-slate-500">
+                            <p className="text-slate-500 dark:text-gray-400">
                                 {islogin ? 'Nhập thông tin đăng nhập của bạn để tiếp tục.' : 'Điền thông tin bên dưới để đăng ký tài khoản.'}
                             </p>
                         </div>
 
-                        <div className="flex p-1 bg-slate-100/50 rounded-xl mb-8 relative">
+                        <div className="flex p-1 bg-slate-100/50 dark:bg-gray-800/50 rounded-xl mb-8 relative">
                             <div
-                                className="absolute top-1 bottom-1 w-[calc(50%-4px)] bg-white rounded-lg shadow-sm transition-all duration-300 ease-in-out"
+                                className="absolute top-1 bottom-1 w-[calc(50%-4px)] bg-white dark:bg-gray-700 rounded-lg shadow-sm transition-all duration-300 ease-in-out"
                                 style={{ left: islogin ? '4px' : 'calc(50%)' }}
                             />
                             <button
-                                className={`flex-1 py-2.5 text-sm font-medium rounded-lg relative z-10 transition-colors ${islogin ? 'text-indigo-600' : 'text-slate-500 hover:text-slate-700'}`}
+                                className={`flex-1 py-2.5 text-sm font-medium rounded-lg relative z-10 transition-colors ${islogin ? 'text-indigo-600 dark:text-indigo-400' : 'text-slate-500 dark:text-gray-400 hover:text-slate-700 dark:hover:text-gray-300'}`}
                                 onClick={() => setIsLogin(true)}
                             >
                                 Đăng nhập
                             </button>
                             <button
-                                className={`flex-1 py-2.5 text-sm font-medium rounded-lg relative z-10 transition-colors ${!islogin ? 'text-indigo-600' : 'text-slate-500 hover:text-slate-700'}`}
+                                className={`flex-1 py-2.5 text-sm font-medium rounded-lg relative z-10 transition-colors ${!islogin ? 'text-indigo-600 dark:text-indigo-400' : 'text-slate-500 dark:text-gray-400 hover:text-slate-700 dark:hover:text-gray-300'}`}
                                 onClick={() => setIsLogin(false)}
                             >
                                 Đăng ký

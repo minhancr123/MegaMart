@@ -21,11 +21,88 @@ import {
     SelectTrigger,
     SelectValue,
 } from "@/components/ui/select";
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+} from "@/components/ui/dialog";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Trash2, Plus, Loader2, Upload, Image as ImageIcon, Star } from "lucide-react";
 import { useEffect, useState } from "react";
 import axiosClient from "@/lib/axiosClient";
 import { toast } from "sonner";
+import { AIGenerateDescription } from "./AIGenerateDescription";
+
+// Hàm chuyển đổi mã hex sang tên màu tiếng Việt chi tiết
+const getColorName = (hex: string): string => {
+    if (!hex) return "Chưa chọn";
+    
+    // Phân tích RGB
+    const r = parseInt(hex.slice(1, 3), 16);
+    const g = parseInt(hex.slice(3, 5), 16);
+    const b = parseInt(hex.slice(5, 7), 16);
+
+    // Tính độ sáng (0-255)
+    const brightness = (r + g + b) / 3;
+    
+    // Tính độ bão hòa
+    const max = Math.max(r, g, b);
+    const min = Math.min(r, g, b);
+    const saturation = max === 0 ? 0 : (max - min) / max;
+
+    // Xác định màu cơ bản
+    let colorName = "";
+
+    // Màu xám (không có màu)
+    if (saturation < 0.1) {
+        if (brightness > 240) return "Trắng";
+        if (brightness > 200) return "Xám nhạt";
+        if (brightness > 160) return "Xám";
+        if (brightness > 80) return "Xám đậm";
+        if (brightness > 40) return "Xám tối";
+        return "Đen";
+    }
+
+    // Xác định màu chính dựa trên RGB
+    const rDiff = r - Math.max(g, b);
+    const gDiff = g - Math.max(r, b);
+    const bDiff = b - Math.max(r, g);
+
+    // Đỏ
+    if (rDiff > 30) {
+        if (g > 100 && b < 100) return brightness > 180 ? "Cam nhạt" : brightness < 100 ? "Cam đậm" : "Cam";
+        else if (g > 150) return "Vàng cam";
+        else if (b > 100) return brightness > 180 ? "Hồng" : "Hồng đậm";
+        else return brightness > 180 ? "Đỏ nhạt" : brightness < 100 ? "Đỏ đậm" : "Đỏ";
+    }
+    // Xanh lá
+    else if (gDiff > 30) {
+        if (r > 100) return "Vàng lá";
+        else if (b > 100) return "Xanh lục";
+        else return brightness > 180 ? "Xanh nhạt" : brightness < 100 ? "Xanh đậm" : "Xanh lá";
+    }
+    // Xanh dương
+    else if (bDiff > 30) {
+        if (r > 100) return brightness > 180 ? "Tím nhạt" : brightness < 100 ? "Tím đậm" : "Tím";
+        else if (g > 100) return "Xanh ngọc";
+        else return brightness > 180 ? "Xanh nhạt" : brightness < 100 ? "Xanh đậm" : "Xanh dương";
+    }
+    // Màu trộn
+    else if (r > 150 && g > 150 && b < 100) {
+        return brightness > 200 ? "Vàng nhạt" : brightness < 100 ? "Vàng đậm" : "Vàng";
+    } else if (r > 150 && b > 150 && g < 100) {
+        return "Hồng tím";
+    } else if (g > 150 && b > 150 && r < 100) {
+        return "Xanh lơ";
+    } else if (r > 100 && g > 50 && b < 80) {
+        return brightness > 150 ? "Nâu nhạt" : "Nâu";
+    } else {
+        return "Hỗn hợp";
+    }
+};
 
 const productImageSchema = z.object({
     url: z.string().url("URL hình ảnh không hợp lệ"),
@@ -45,6 +122,11 @@ const productSchema = z.object({
             sku: z.string().min(1, "SKU là bắt buộc"),
             price: z.coerce.number().min(0, "Giá phải lớn hơn hoặc bằng 0"),
             stock: z.coerce.number().min(0, "Tồn kho phải lớn hơn hoặc bằng 0"),
+            colors: z.array(z.object({
+                hex: z.string(),
+                name: z.string(),
+                imageUrl: z.string().optional()
+            })).optional(),
             attributes: z.any().optional(), // JSON string or object
         })
     ).min(1, "Phải có ít nhất 1 biến thể"),
@@ -64,6 +146,34 @@ export function ProductForm({ initialData, onSubmit, loading }: ProductFormProps
     const [imageInput, setImageInput] = useState("");
     const [uploadingImage, setUploadingImage] = useState(false);
     const [productId, setProductId] = useState(initialData?.id || null);
+    
+    // Dialog state for adding attributes
+    const [attrDialog, setAttrDialog] = useState<{
+        open: boolean;
+        variantIndex: number | null;
+        key: string;
+        value: string;
+    }>({
+        open: false,
+        variantIndex: null,
+        key: "",
+        value: ""
+    });
+
+    // Dialog state for adding colors
+    const [colorDialog, setColorDialog] = useState<{
+        open: boolean;
+        variantIndex: number | null;
+        hex: string;
+        name: string;
+        imageUrl: string;
+    }>({
+        open: false,
+        variantIndex: null,
+        hex: "#000000",
+        name: "",
+        imageUrl: ""
+    });
 
     const form = useForm<ProductFormValues>({
         resolver: zodResolver(productSchema) as any,
@@ -73,7 +183,7 @@ export function ProductForm({ initialData, onSubmit, loading }: ProductFormProps
             description: "",
             brand: "",
             categoryId: "",
-            variants: [{ sku: "", price: 0, stock: 0, attributes: {} }],
+            variants: [{ sku: "", price: 0, stock: 0, colors: [], attributes: {} }],
             images: [],
         },
     });
@@ -94,6 +204,21 @@ export function ProductForm({ initialData, onSubmit, loading }: ProductFormProps
         // Update productId when initialData changes
         if (initialData?.id) {
             setProductId(initialData.id);
+        }
+        
+        // Load template from sessionStorage
+        const templateData = sessionStorage.getItem('productTemplate');
+        if (templateData && !initialData) {
+            try {
+                const template = JSON.parse(templateData);
+                if (template.attributes) {
+                    form.setValue('variants.0.attributes', template.attributes);
+                }
+                sessionStorage.removeItem('productTemplate'); // Clear after use
+                toast.success(`Đã áp dụng template ${template.name}`);
+            } catch (error) {
+                console.error('Failed to load template', error);
+            }
         }
     }, [initialData]);
 
@@ -250,9 +375,31 @@ export function ProductForm({ initialData, onSubmit, loading }: ProductFormProps
         toast.success("Đã đặt làm ảnh chính");
     };
 
+    const handleSubmit = (data: ProductFormValues) => {
+        // Sync all colors to attributes.color (comma-separated) for each variant
+        const processedData = {
+            ...data,
+            variants: data.variants.map(variant => {
+                const attributes = variant.attributes || {};
+                
+                // If variant has colors, sync all colors to attributes
+                if (variant.colors && variant.colors.length > 0) {
+                    attributes.color = variant.colors.map(c => c.name).join(", ");
+                }
+                
+                return {
+                    ...variant,
+                    attributes
+                };
+            })
+        };
+        
+        return onSubmit(processedData);
+    };
+
     return (
         <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
+            <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-8">
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                     {/* Main Info */}
                     <div className="md:col-span-2 space-y-6">
@@ -346,7 +493,14 @@ export function ProductForm({ initialData, onSubmit, loading }: ProductFormProps
                                     name="description"
                                     render={({ field }) => (
                                         <FormItem>
-                                            <FormLabel>Mô tả</FormLabel>
+                                            <div className="flex items-center justify-between mb-2">
+                                                <FormLabel>Mô tả</FormLabel>
+                                                <AIGenerateDescription
+                                                    productName={form.watch("name")}
+                                                    category={categories.find(c => c.id === form.watch("categoryId"))?.name}
+                                                    onGenerated={(desc) => form.setValue("description", desc)}
+                                                />
+                                            </div>
                                             <FormControl>
                                                 <Textarea placeholder="Mô tả chi tiết sản phẩm..." className="min-h-[150px]" {...field} />
                                             </FormControl>
@@ -361,88 +515,218 @@ export function ProductForm({ initialData, onSubmit, loading }: ProductFormProps
                             <CardHeader>
                                 <CardTitle className="flex justify-between items-center">
                                     <span>Biến thể (Variants)</span>
-                                    <Button type="button" variant="outline" size="sm" onClick={() => append({ sku: "", price: 0, stock: 0, attributes: {} })}>
+                                    <Button type="button" variant="outline" size="sm" onClick={() => append({ sku: "", price: 0, stock: 0, colors: [], attributes: {} })}>
                                         <Plus className="w-4 h-4 mr-2" /> Thêm biến thể
                                     </Button>
                                 </CardTitle>
                             </CardHeader>
                             <CardContent className="space-y-4">
                                 {fields.map((field, index) => (
-                                    <div key={field.id} className="grid grid-cols-12 gap-4 items-end border p-4 rounded-lg bg-gray-50">
-                                        <div className="col-span-3">
-                                            <FormField
-                                                control={form.control}
-                                                name={`variants.${index}.sku`}
-                                                render={({ field }) => (
-                                                    <FormItem>
-                                                        <FormLabel className="text-xs">SKU</FormLabel>
-                                                        <FormControl>
-                                                            <Input {...field} placeholder="SKU-001" />
-                                                        </FormControl>
-                                                        <FormMessage />
-                                                    </FormItem>
-                                                )}
-                                            />
+                                    <div key={field.id} className="border p-4 rounded-lg bg-gray-50 space-y-4">
+                                        <div className="grid grid-cols-12 gap-4 items-end">
+                                            <div className="col-span-3">
+                                                <FormField
+                                                    control={form.control}
+                                                    name={`variants.${index}.sku`}
+                                                    render={({ field }) => (
+                                                        <FormItem>
+                                                            <FormLabel className="text-xs">SKU</FormLabel>
+                                                            <FormControl>
+                                                                <Input {...field} placeholder="SKU-001" />
+                                                            </FormControl>
+                                                            <FormMessage />
+                                                        </FormItem>
+                                                    )}
+                                                />
+                                            </div>
+                                            <div className="col-span-3">
+                                                <FormField
+                                                    control={form.control}
+                                                    name={`variants.${index}.price`}
+                                                    render={({ field }) => (
+                                                        <FormItem>
+                                                            <FormLabel className="text-xs">Giá (VNĐ)</FormLabel>
+                                                            <FormControl>
+                                                                <Input type="number" {...field} />
+                                                            </FormControl>
+                                                            <FormMessage />
+                                                        </FormItem>
+                                                    )}
+                                                />
+                                            </div>
+                                            <div className="col-span-2">
+                                                <FormField
+                                                    control={form.control}
+                                                    name={`variants.${index}.stock`}
+                                                    render={({ field }) => (
+                                                        <FormItem>
+                                                            <FormLabel className="text-xs">Tồn kho</FormLabel>
+                                                            <FormControl>
+                                                                <Input type="number" {...field} />
+                                                            </FormControl>
+                                                            <FormMessage />
+                                                        </FormItem>
+                                                    )}
+                                                />
+                                            </div>
+                                            <div className="col-span-4">
+                                                <FormField
+                                                    control={form.control}
+                                                    name={`variants.${index}.attributes`}
+                                                    render={({ field }) => {
+                                                        const attributes = field.value || {};
+                                                        const entries = Object.entries(attributes);
+
+                                                        const addAttribute = () => {
+                                                            setAttrDialog({
+                                                                open: true,
+                                                                variantIndex: index,
+                                                                key: "",
+                                                                value: ""
+                                                            });
+                                                        };
+
+                                                        const removeAttribute = (key: string) => {
+                                                            const newAttrs = { ...attributes };
+                                                            delete newAttrs[key];
+                                                            field.onChange(newAttrs);
+                                                        };
+
+                                                        return (
+                                                            <FormItem>
+                                                                <FormLabel className="text-xs">Thuộc tính khác</FormLabel>
+                                                                <FormControl>
+                                                                    <div className="space-y-2">
+                                                                        <div className="flex flex-wrap gap-1.5">
+                                                                            {entries.map(([key, value]) => (
+                                                                                <span
+                                                                                    key={key}
+                                                                                    className="inline-flex items-center gap-1 px-2 py-1 bg-slate-100 border border-slate-200 rounded text-xs"
+                                                                                >
+                                                                                    <span className="font-medium text-slate-600">{key}:</span>
+                                                                                    <span className="text-slate-800">{value as string}</span>
+                                                                                    <button
+                                                                                        type="button"
+                                                                                        onClick={() => removeAttribute(key)}
+                                                                                        className="ml-1 text-red-500 hover:text-red-700"
+                                                                                    >
+                                                                                        ×
+                                                                                    </button>
+                                                                                </span>
+                                                                            ))}
+                                                                            <button
+                                                                                type="button"
+                                                                                onClick={addAttribute}
+                                                                                className="inline-flex items-center gap-1 px-2 py-1 border border-dashed border-slate-300 rounded text-xs text-slate-600 hover:border-slate-400 hover:text-slate-800"
+                                                                            >
+                                                                                <Plus className="w-3 h-3" />
+                                                                                Thêm
+                                                                            </button>
+                                                                        </div>
+                                                                    </div>
+                                                                </FormControl>
+                                                                <FormMessage />
+                                                            </FormItem>
+                                                        );
+                                                    }}
+                                                />
+                                            </div>
                                         </div>
-                                        <div className="col-span-3">
-                                            <FormField
-                                                control={form.control}
-                                                name={`variants.${index}.price`}
-                                                render={({ field }) => (
-                                                    <FormItem>
-                                                        <FormLabel className="text-xs">Giá (VNĐ)</FormLabel>
-                                                        <FormControl>
-                                                            <Input type="number" {...field} />
-                                                        </FormControl>
-                                                        <FormMessage />
-                                                    </FormItem>
-                                                )}
-                                            />
-                                        </div>
-                                        <div className="col-span-2">
-                                            <FormField
-                                                control={form.control}
-                                                name={`variants.${index}.stock`}
-                                                render={({ field }) => (
-                                                    <FormItem>
-                                                        <FormLabel className="text-xs">Tồn kho</FormLabel>
-                                                        <FormControl>
-                                                            <Input type="number" {...field} />
-                                                        </FormControl>
-                                                        <FormMessage />
-                                                    </FormItem>
-                                                )}
-                                            />
-                                        </div>
-                                        <div className="col-span-3">
-                                            <FormField
-                                                control={form.control}
-                                                name={`variants.${index}.attributes`}
-                                                render={({ field }) => (
-                                                    <FormItem>
-                                                        <FormLabel className="text-xs">Thuộc tính (JSON)</FormLabel>
-                                                        <FormControl>
-                                                            <Input
-                                                                placeholder='{"color":"Red"}'
-                                                                value={typeof field.value === 'object' ? JSON.stringify(field.value) : field.value}
-                                                                onChange={(e) => {
-                                                                    try {
-                                                                        field.onChange(JSON.parse(e.target.value));
-                                                                    } catch {
-                                                                        // Allow typing invalid json temporarily
-                                                                    }
-                                                                }}
-                                                            />
-                                                        </FormControl>
-                                                        <FormMessage />
-                                                    </FormItem>
-                                                )}
-                                            />
-                                        </div>
-                                        <div className="col-span-1">
-                                            <Button type="button" variant="ghost" size="icon" onClick={() => remove(index)} className="text-red-500 hover:text-red-700 hover:bg-red-50">
-                                                <Trash2 className="w-4 h-4" />
-                                            </Button>
+                                        <div className="grid grid-cols-12 gap-4">
+                                            <div className="col-span-11">
+                                                <FormField
+                                                    control={form.control}
+                                                    name={`variants.${index}.colors`}
+                                                    render={({ field }) => {
+                                                        const colors = field.value || [];
+
+                                                        const addColor = () => {
+                                                            setColorDialog({
+                                                                open: true,
+                                                                variantIndex: index,
+                                                                hex: "#000000",
+                                                                name: "",
+                                                                imageUrl: ""
+                                                            });
+                                                        };
+
+                                                        const removeColor = (colorIndex: number) => {
+                                                            const newColors = colors.filter((_: any, i: number) => i !== colorIndex);
+                                                            field.onChange(newColors);
+                                                            
+                                                            // Update attributes.color with remaining colors (comma-separated)
+                                                            const currentAttributes = form.getValues(`variants.${index}.attributes`) || {};
+                                                            if (newColors.length > 0) {
+                                                                const colorNames = newColors.map((c: any) => c.name).join(", ");
+                                                                form.setValue(`variants.${index}.attributes`, {
+                                                                    ...currentAttributes,
+                                                                    color: colorNames
+                                                                });
+                                                            } else {
+                                                                // Remove color from attributes if no colors left
+                                                                const { color, ...remainingAttributes } = currentAttributes;
+                                                                form.setValue(`variants.${index}.attributes`, remainingAttributes);
+                                                            }
+                                                        };
+
+                                                        return (
+                                                            <FormItem>
+                                                                <FormLabel className="text-xs">Màu sắc & Ảnh</FormLabel>
+                                                                <FormControl>
+                                                                    <div className="space-y-2">
+                                                                        {colors.length > 0 && (
+                                                                            <div className="grid grid-cols-2 gap-3">
+                                                                                {colors.map((color: any, colorIndex: number) => (
+                                                                                    <div
+                                                                                        key={colorIndex}
+                                                                                        className="flex items-center gap-2 p-2 border rounded bg-white"
+                                                                                    >
+                                                                                        <div
+                                                                                            className="w-8 h-8 rounded border border-gray-300 flex-shrink-0"
+                                                                                            style={{ backgroundColor: color.hex }}
+                                                                                        />
+                                                                                        <div className="flex-1 min-w-0">
+                                                                                            <p className="text-xs font-medium truncate">{color.name}</p>
+                                                                                            {color.imageUrl && (
+                                                                                                <img
+                                                                                                    src={color.imageUrl}
+                                                                                                    alt={color.name}
+                                                                                                    className="w-full h-12 object-cover rounded mt-1"
+                                                                                                />
+                                                                                            )}
+                                                                                        </div>
+                                                                                        <button
+                                                                                            type="button"
+                                                                                            onClick={() => removeColor(colorIndex)}
+                                                                                            className="text-red-500 hover:text-red-700 flex-shrink-0"
+                                                                                        >
+                                                                                            <Trash2 className="w-4 h-4" />
+                                                                                        </button>
+                                                                                    </div>
+                                                                                ))}
+                                                                            </div>
+                                                                        )}
+                                                                        <button
+                                                                            type="button"
+                                                                            onClick={addColor}
+                                                                            className="w-full py-2 border-2 border-dashed border-slate-300 rounded text-sm text-slate-600 hover:border-slate-400 hover:text-slate-800 flex items-center justify-center gap-2"
+                                                                        >
+                                                                            <Plus className="w-4 h-4" />
+                                                                            Thêm màu
+                                                                        </button>
+                                                                    </div>
+                                                                </FormControl>
+                                                                <FormMessage />
+                                                            </FormItem>
+                                                        );
+                                                    }}
+                                                />
+                                            </div>
+                                            <div className="col-span-1">
+                                                <Button type="button" variant="ghost" size="icon" onClick={() => remove(index)} className="text-red-500 hover:text-red-700 hover:bg-red-50">
+                                                    <Trash2 className="w-4 h-4" />
+                                                </Button>
+                                            </div>
                                         </div>
                                     </div>
                                 ))}
@@ -558,6 +842,210 @@ export function ProductForm({ initialData, onSubmit, loading }: ProductFormProps
                     </div>
                 </div>
             </form>
+
+            {/* Dialog for adding attributes */}
+            <Dialog open={attrDialog.open} onOpenChange={(open) => setAttrDialog({ ...attrDialog, open })}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>Thêm thuộc tính</DialogTitle>
+                        <DialogDescription>
+                            Thêm thuộc tính cho biến thể (ví dụ: size, storage, material...)
+                        </DialogDescription>
+                    </DialogHeader>
+                    <div className="space-y-4 py-4">
+                        <div className="space-y-2">
+                            <label className="text-sm font-medium">Tên thuộc tính</label>
+                            <Input
+                                placeholder="ví dụ: size, storage"
+                                value={attrDialog.key}
+                                onChange={(e) => setAttrDialog({ ...attrDialog, key: e.target.value })}
+                            />
+                        </div>
+                        <div className="space-y-2">
+                            <label className="text-sm font-medium">Giá trị</label>
+                            <Input
+                                placeholder="ví dụ: M, 128GB"
+                                value={attrDialog.value}
+                                onChange={(e) => setAttrDialog({ ...attrDialog, value: e.target.value })}
+                            />
+                        </div>
+                    </div>
+                    <DialogFooter>
+                        <Button
+                            type="button"
+                            variant="outline"
+                            onClick={() => setAttrDialog({ open: false, variantIndex: null, key: "", value: "" })}
+                        >
+                            Hủy
+                        </Button>
+                        <Button
+                            type="button"
+                            onClick={() => {
+                                if (attrDialog.key.trim() && attrDialog.value.trim() && attrDialog.variantIndex !== null) {
+                                    const currentAttrs = form.getValues(`variants.${attrDialog.variantIndex}.attributes`) || {};
+                                    form.setValue(`variants.${attrDialog.variantIndex}.attributes`, {
+                                        ...currentAttrs,
+                                        [attrDialog.key.trim()]: attrDialog.value.trim()
+                                    });
+                                    setAttrDialog({ open: false, variantIndex: null, key: "", value: "" });
+                                }
+                            }}
+                        >
+                            Thêm
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            {/* Dialog for adding colors */}
+            <Dialog open={colorDialog.open} onOpenChange={(open) => setColorDialog({ ...colorDialog, open })}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>Thêm màu sắc</DialogTitle>
+                        <DialogDescription>
+                            Thêm màu và ảnh cho biến thể này
+                        </DialogDescription>
+                    </DialogHeader>
+                    <div className="space-y-4 py-4">
+                        <div className="space-y-2">
+                            <label className="text-sm font-medium">Chọn màu</label>
+                            <div className="flex gap-2 items-center">
+                                <Input
+                                    type="color"
+                                    value={colorDialog.hex}
+                                    onChange={(e) => {
+                                        const hex = e.target.value;
+                                        setColorDialog({ 
+                                            ...colorDialog, 
+                                            hex,
+                                            name: getColorName(hex)
+                                        });
+                                    }}
+                                    className="w-20 h-10 cursor-pointer"
+                                />
+                                <div className="flex items-center gap-2 flex-1 px-3 h-10 bg-white border rounded-md">
+                                    <div
+                                        className="w-6 h-6 rounded border border-gray-300"
+                                        style={{ backgroundColor: colorDialog.hex }}
+                                    />
+                                    <span className="text-sm font-medium">{getColorName(colorDialog.hex)}</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div className="space-y-2">
+                            <label className="text-sm font-medium">Tên màu (tùy chỉnh)</label>
+                            <Input
+                                placeholder="ví dụ: Đỏ ruby, Xanh navy..."
+                                value={colorDialog.name}
+                                onChange={(e) => setColorDialog({ ...colorDialog, name: e.target.value })}
+                            />
+                        </div>
+                        <div className="space-y-2">
+                            <label className="text-sm font-medium">URL Ảnh (tùy chọn)</label>
+                            <div className="flex gap-2">
+                                <Input
+                                    placeholder="https://example.com/image.jpg"
+                                    value={colorDialog.imageUrl}
+                                    onChange={(e) => setColorDialog({ ...colorDialog, imageUrl: e.target.value })}
+                                    className="flex-1"
+                                />
+                                <label className="cursor-pointer">
+                                    <input
+                                        type="file"
+                                        accept="image/*"
+                                        className="hidden"
+                                        onChange={async (e) => {
+                                            const file = e.target.files?.[0];
+                                            if (!file) return;
+
+                                            if (!productId) {
+                                                toast.error("Vui lòng tạo sản phẩm trước");
+                                                return;
+                                            }
+
+                                            const formData = new FormData();
+                                            formData.append('file', file);
+
+                                            try {
+                                                const response = await axiosClient.post(
+                                                    `/admin/cloud-images/upload/${productId}`,
+                                                    formData,
+                                                    {
+                                                        headers: {
+                                                            'Content-Type': 'multipart/form-data',
+                                                        },
+                                                    }
+                                                );
+
+                                                const result = response.data || response;
+                                                if (result.success && result.data?.url) {
+                                                    setColorDialog({ ...colorDialog, imageUrl: result.data.url });
+                                                    toast.success("Upload ảnh thành công");
+                                                }
+                                            } catch (error) {
+                                                console.error("Upload failed:", error);
+                                                toast.error("Upload ảnh thất bại");
+                                            }
+                                        }}
+                                    />
+                                    <Button
+                                        type="button"
+                                        variant="outline"
+                                        size="sm"
+                                    >
+                                        <Upload className="w-4 h-4" />
+                                    </Button>
+                                </label>
+                            </div>
+                            {colorDialog.imageUrl && (
+                                <img
+                                    src={colorDialog.imageUrl}
+                                    alt="Preview"
+                                    className="w-full h-32 object-cover rounded border"
+                                />
+                            )}
+                        </div>
+                    </div>
+                    <DialogFooter>
+                        <Button
+                            type="button"
+                            variant="outline"
+                            onClick={() => setColorDialog({ open: false, variantIndex: null, hex: "#000000", name: "", imageUrl: "" })}
+                        >
+                            Hủy
+                        </Button>
+                        <Button
+                            type="button"
+                            onClick={() => {
+                                if (colorDialog.variantIndex !== null) {
+                                    const currentColors = form.getValues(`variants.${colorDialog.variantIndex}.colors`) || [];
+                                    const newColor = {
+                                        hex: colorDialog.hex,
+                                        name: colorDialog.name || getColorName(colorDialog.hex),
+                                        imageUrl: colorDialog.imageUrl || undefined
+                                    };
+                                    
+                                    const updatedColors = [...currentColors, newColor];
+                                    form.setValue(`variants.${colorDialog.variantIndex}.colors`, updatedColors);
+                                    
+                                    // Sync all colors to attributes.color (comma-separated)
+                                    const currentAttributes = form.getValues(`variants.${colorDialog.variantIndex}.attributes`) || {};
+                                    const colorNames = updatedColors.map(c => c.name).join(", ");
+                                    form.setValue(`variants.${colorDialog.variantIndex}.attributes`, {
+                                        ...currentAttributes,
+                                        color: colorNames
+                                    });
+                                    
+                                    setColorDialog({ open: false, variantIndex: null, hex: "#000000", name: "", imageUrl: "" });
+                                    toast.success("Đã thêm màu và cập nhật attributes");
+                                }
+                            }}
+                        >
+                            Thêm màu
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
         </Form>
     );
 }

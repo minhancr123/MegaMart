@@ -109,12 +109,12 @@ export default function ProfilePage() {
     };
 
     return (
-        <div className="max-w-3xl mx-auto p-4">
-            <h1 className="text-2xl font-bold mb-4 text-center">Hồ sơ của tôi</h1>
-            <div className="bg-white p-6 rounded-md shadow-sm">
+        <div className="max-w-3xl mx-auto p-4 dark:bg-gray-950 min-h-screen">
+            <h1 className="text-2xl font-bold mb-4 text-center dark:text-white">Hồ sơ của tôi</h1>
+            <div className="bg-white dark:bg-gray-900 p-6 rounded-md shadow-sm border dark:border-gray-800">
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-start">
                     <div className="md:col-span-1 relative flex flex-col items-center">
-                        <div className="relative w-32 h-32 bg-gray-100 rounded-full overflow-hidden mb-3 cursor-pointer" onClick={triggerFileInput}>
+                        <div className="relative w-32 h-32 bg-gray-100 dark:bg-gray-800 rounded-full overflow-hidden mb-3 cursor-pointer" onClick={triggerFileInput}>
 
                             {preview ? (
                                 <img src={preview} alt="preview" className="w-full h-full object-cover" />
@@ -128,12 +128,12 @@ export default function ProfilePage() {
                                 <Camera className='w-6 h-6 text-white'></Camera>
                             </div>
                         </div>
-                        <div className='absolute bottom-12 right-12 bg-white rounded-full p-2 shadow-md border border-gray-200 group-hover:bg-blue-50 transition-colors duration-300'>
-                            <Camera className='w-4 h-4 text-gray-300'></Camera>
+                        <div className='absolute bottom-12 right-12 bg-white dark:bg-gray-800 rounded-full p-2 shadow-md border border-gray-200 dark:border-gray-700 group-hover:bg-blue-50 dark:group-hover:bg-blue-950 transition-colors duration-300'>
+                            <Camera className='w-4 h-4 text-gray-300 dark:text-gray-500'></Camera>
                         </div>
                         <div className="text-center">
-                            <p className="text-sm font-medium text-gray-500">Ảnh đại diện</p>
-                            <p className="text-xs text-gray-400 mt-1">Hỗ trợ PNG, JPG, JPEG</p>
+                            <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Ảnh đại diện</p>
+                            <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">Hỗ trợ PNG, JPG, JPEG</p>
                         </div>
                         <input
                             type="file"
@@ -158,7 +158,7 @@ export default function ProfilePage() {
             </div>
             {/* Helpful hint when Cloudinary envs are missing */}
             {(!cloudName || !uploadPreset) && (
-                <p className="text-sm text-yellow-600 mt-3">Cloudinary chưa được cấu hình (NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME / NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET). Ứng dụng sẽ cố gắng tải ảnh lên server thay thế nếu có.</p>
+                <p className="text-sm text-yellow-600 dark:text-yellow-400 mt-3">Cloudinary chưa được cấu hình (NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME / NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET). Ứng dụng sẽ cố gắng tải ảnh lên server thay thế nếu có.</p>
             )}
         </div>
     );

@@ -174,7 +174,7 @@ export default function MainContent({
   };
 
   return (
-    <div className="w-full max-w-full overflow-x-hidden">
+    <div className="w-full max-w-full overflow-x-hidden dark:bg-gray-950">
       <div className="max-w-7xl mx-auto px-3 sm:px-4 md:px-6 lg:px-8 space-y-8 sm:space-y-12 pb-8 sm:pb-12">
       {/* Hero Section with Side Banners */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mt-4 sm:mt-6">
@@ -282,18 +282,18 @@ export default function MainContent({
         ].map((feature, idx) => (
           <motion.div
             key={idx}
-            className="flex items-center gap-3 sm:gap-4 p-3 sm:p-4 bg-white rounded-lg border border-gray-100 shadow-sm hover:shadow-md hover:-translate-y-1 transition-all duration-300"
+            className="flex items-center gap-3 sm:gap-4 p-3 sm:p-4 bg-white dark:bg-gray-900 rounded-lg border border-gray-100 dark:border-gray-800 shadow-sm hover:shadow-md hover:-translate-y-1 transition-all duration-300"
             variants={{
               hidden: { opacity: 0, y: 20 },
               visible: { opacity: 1, y: 0, transition: { duration: 0.4 } }
             }}
           >
-            <div className="w-10 h-10 sm:w-12 sm:h-12 bg-blue-50 rounded-full flex items-center justify-center text-blue-600 flex-shrink-0">
+            <div className="w-10 h-10 sm:w-12 sm:h-12 bg-blue-50 dark:bg-blue-950 rounded-full flex items-center justify-center text-blue-600 dark:text-blue-400 flex-shrink-0">
               <feature.icon className="w-5 h-5 sm:w-6 sm:h-6" />
             </div>
             <div className="min-w-0">
-              <h3 className="font-semibold text-gray-900 text-sm sm:text-base truncate">{feature.title}</h3>
-              <p className="text-xs sm:text-sm text-gray-500 truncate">{feature.desc}</p>
+              <h3 className="font-semibold text-gray-900 dark:text-white text-sm sm:text-base truncate">{feature.title}</h3>
+              <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400 truncate">{feature.desc}</p>
             </div>
           </motion.div>
         ))}
@@ -372,12 +372,12 @@ export default function MainContent({
                   return (
                     <div
                       key={item.id}
-                      className={`bg-white rounded-lg p-3 text-gray-900 shadow-md transform hover:-translate-y-1 transition-transform ${isUpcoming ? 'opacity-75' : 'cursor-pointer'}`}
+                      className={`bg-white dark:bg-gray-900 rounded-lg p-3 text-gray-900 dark:text-white shadow-md transform hover:-translate-y-1 transition-transform ${isUpcoming ? 'opacity-75' : 'cursor-pointer'}`}
                       onClick={() => !isUpcoming && handleViewDetails(product?.id)}
                     >
-                      <div className="relative aspect-square mb-3 bg-gray-100 rounded-md overflow-hidden group">
+                      <div className="relative aspect-square mb-3 bg-gray-100 dark:bg-gray-800 rounded-md overflow-hidden group">
                         {imageUrl ? (
-                          <img src={imageUrl} alt={product?.name} className="object-cover w-full h-full group-hover:scale-105 transition-transform duration-500" />
+                          <img src={imageUrl} alt={product?.name} className="object-cover w-full h-full group-hover:scale-105 transition-transform duration-500 dark:brightness-90" />
                         ) : (
                           <div className="w-full h-full flex items-center justify-center text-gray-400 text-xs">No Image</div>
                         )}

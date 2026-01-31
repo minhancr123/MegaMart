@@ -13,10 +13,15 @@ import { motion } from "framer-motion";
 
 const statusConfig: Record<string, { label: string; color: string }> = {
   PENDING: { label: "Chờ xử lý", color: "bg-yellow-100 text-yellow-800" },
-  PAID: { label: "Đã thanh toán", color: "bg-green-100 text-green-800" },
+  CONFIRMED: { label: "Đã xác nhận", color: "bg-blue-100 text-blue-800" },
+  PROCESSING: { label: "Đang xử lý", color: "bg-indigo-100 text-indigo-800" },
+  SHIPPING: { label: "Đang giao hàng", color: "bg-orange-100 text-orange-800" },
+  DELIVERED: { label: "Đã giao", color: "bg-teal-100 text-teal-800" },
+  COMPLETED: { label: "Hoàn thành", color: "bg-green-100 text-green-800" },
+  PAID: { label: "Đã thanh toán", color: "bg-emerald-100 text-emerald-800" },
   CANCELED: { label: "Đã hủy", color: "bg-red-100 text-red-800" },
-  FAILED: { label: "Thất bại", color: "bg-red-100 text-red-800" },
-  REFUNDED: { label: "Đã hoàn tiền", color: "bg-blue-100 text-blue-800" },
+  FAILED: { label: "Thất bại", color: "bg-rose-100 text-rose-800" },
+  REFUNDED: { label: "Đã hoàn tiền", color: "bg-purple-100 text-purple-800" },
 };
 
 export default function OrderDetailPage() {

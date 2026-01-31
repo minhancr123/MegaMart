@@ -75,6 +75,14 @@ export class CreateVariantDto {
   stock: number;
 
   @ApiProperty({
+    description: 'Array of colors with images',
+    example: [{ hex: '#ff0000', name: 'Đỏ', imageUrl: 'https://...' }],
+    required: false,
+  })
+  @IsOptional()
+  colors?: any;
+
+  @ApiProperty({
     description: 'Variant attributes (color, size, etc.)',
     example: { color: 'Natural Titanium', storage: '128GB' },
     required: false,
@@ -145,6 +153,7 @@ export class ProductResponseDto {
     sku: string;
     price: number; // Convert BigInt to number
     stock: number;
+    colors?: any;
     attributes?: any;
   }[];
 

@@ -7,6 +7,7 @@ import { LayoutDashboard, Package, ShoppingCart, Users, Settings, LogOut, FileTe
 import { Button } from "@/components/ui/button";
 import { useAuthStore } from "@/store/authStore";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger, SheetClose } from "@/components/ui/sheet";
+import { ThemeToggle } from "@/components/theme-toggle";
 
 export default function AdminLayout({
     children,
@@ -126,12 +127,12 @@ export default function AdminLayout({
     }
 
     return (
-        <div className="min-h-screen bg-gray-100">
+        <div className="min-h-screen bg-gray-100 dark:bg-gray-950">
             {/* Sidebar - Desktop */}
-            <aside className="w-64 bg-white border-r border-gray-200 fixed h-full z-10 hidden md:block">
-                <div className="h-16 flex items-center px-6 border-b border-gray-200">
+            <aside className="w-64 bg-white dark:bg-gray-900 border-r border-gray-200 dark:border-gray-800 fixed h-full z-10 hidden md:block">
+                <div className="h-16 flex items-center px-6 border-b border-gray-200 dark:border-gray-800">
                     <Link href="/" className="text-2xl font-bold text-blue-600">
-                        Mega<span className="text-gray-900">Admin</span>
+                        Mega<span className="text-gray-900 dark:text-white">Admin</span>
                     </Link>
                 </div>
                 <div className="p-4 space-y-1">
@@ -142,8 +143,8 @@ export default function AdminLayout({
                                 key={item.href}
                                 href={item.href}
                                 className={`flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-colors ${isActive
-                                    ? "bg-blue-50 text-blue-600"
-                                    : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
+                                    ? "bg-blue-50 dark:bg-blue-950 text-blue-600 dark:text-blue-400"
+                                    : "text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-gray-100"
                                     }`}
                             >
                                 <item.icon className="w-5 h-5" />
@@ -152,10 +153,10 @@ export default function AdminLayout({
                         );
                     })}
                 </div>
-                <div className="absolute bottom-0 w-full p-4 border-t border-gray-200">
+                <div className="absolute bottom-0 w-full p-4 border-t border-gray-200 dark:border-gray-800">
                     <Button
                         variant="ghost"
-                        className="w-full justify-start text-red-600 hover:text-red-700 hover:bg-red-50"
+                        className="w-full justify-start text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950"
                         onClick={() => {
                             logout();
                             router.push("/");
@@ -168,54 +169,57 @@ export default function AdminLayout({
             </aside>
 
             {/* Mobile top bar with menu */}
-            <div className="md:hidden sticky top-0 z-20 bg-white border-b border-gray-200 px-4 py-3 flex items-center justify-between">
-                <Link href="/" className="text-xl font-bold text-blue-600">Mega<span className="text-gray-900">Admin</span></Link>
-                <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
-                    <SheetTrigger asChild>
-                        <Button variant="ghost" size="icon">
-                            <Menu className="h-5 w-5" />
-                        </Button>
-                    </SheetTrigger>
-                    <SheetContent side="left" className="p-0 w-[260px]">
-                        <SheetHeader className="px-4 pt-4 pb-2 text-left">
-                            <SheetTitle>Menu quản trị</SheetTitle>
-                        </SheetHeader>
-                        <div className="px-2 pb-4 space-y-1">
-                            {sidebarItems.map((item) => {
-                                const isActive = pathname === item.href;
-                                return (
-                                    <SheetClose asChild key={item.href}>
-                                        <Link
-                                            href={item.href}
-                                            className={`flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-colors ${isActive
-                                                ? "bg-blue-50 text-blue-600"
-                                                : "text-gray-700 hover:bg-gray-50 hover:text-gray-900"
-                                                }`}
-                                        >
-                                            <item.icon className="w-5 h-5" />
-                                            {item.title}
-                                        </Link>
-                                    </SheetClose>
-                                );
-                            })}
-                        </div>
-                        <div className="border-t px-4 py-3">
-                            <SheetClose asChild>
-                                <Button
-                                    variant="ghost"
-                                    className="w-full justify-start text-red-600 hover:text-red-700 hover:bg-red-50"
-                                    onClick={() => {
-                                        logout();
-                                        router.push("/");
-                                    }}
-                                >
-                                    <LogOut className="w-5 h-5 mr-2" />
-                                    Đăng xuất
-                                </Button>
-                            </SheetClose>
-                        </div>
-                    </SheetContent>
-                </Sheet>
+            <div className="md:hidden sticky top-0 z-20 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 px-4 py-3 flex items-center justify-between">
+                <Link href="/" className="text-xl font-bold text-blue-600">Mega<span className="text-gray-900 dark:text-white">Admin</span></Link>
+                <div className="flex items-center gap-2">
+                    <ThemeToggle />
+                    <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
+                        <SheetTrigger asChild>
+                            <Button variant="ghost" size="icon">
+                                <Menu className="h-5 w-5" />
+                            </Button>
+                        </SheetTrigger>
+                        <SheetContent side="left" className="p-0 w-[260px]">
+                            <SheetHeader className="px-4 pt-4 pb-2 text-left">
+                                <SheetTitle>Menu quản trị</SheetTitle>
+                            </SheetHeader>
+                            <div className="px-2 pb-4 space-y-1">
+                                {sidebarItems.map((item) => {
+                                    const isActive = pathname === item.href;
+                                    return (
+                                        <SheetClose asChild key={item.href}>
+                                            <Link
+                                                href={item.href}
+                                                className={`flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-colors ${isActive
+                                                    ? "bg-blue-50 text-blue-600"
+                                                    : "text-gray-700 hover:bg-gray-50 hover:text-gray-900"
+                                                    }`}
+                                            >
+                                                <item.icon className="w-5 h-5" />
+                                                {item.title}
+                                            </Link>
+                                        </SheetClose>
+                                    );
+                                })}
+                            </div>
+                            <div className="border-t px-4 py-3">
+                                <SheetClose asChild>
+                                    <Button
+                                        variant="ghost"
+                                        className="w-full justify-start text-red-600 hover:text-red-700 hover:bg-red-50"
+                                        onClick={() => {
+                                            logout();
+                                            router.push("/");
+                                        }}
+                                    >
+                                        <LogOut className="w-5 h-5 mr-2" />
+                                        Đăng xuất
+                                    </Button>
+                                </SheetClose>
+                            </div>
+                        </SheetContent>
+                    </Sheet>
+                </div>
             </div>
 
             {/* Main Content */}

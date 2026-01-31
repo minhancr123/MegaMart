@@ -4,6 +4,12 @@ import { CreateOrderDto } from './dto/create-order.dto';
 import { UpdateOrderDto } from './dto/update-order.dto';
 import { OrderResponseDto } from './dto/order-response.dto';
 import { OrderStatus, PaymentStatus } from '@prisma/client';
+import { 
+  validateTransition, 
+  shouldRestoreStock, 
+  canUserCancel,
+  getStatusLabel 
+} from './order-status.helper';
 
 @Injectable()
 export class OrdersService {
@@ -214,30 +220,79 @@ export class OrdersService {
   // Update order status
   async updateOrderStatus(orderId: string, updateOrderDto: UpdateOrderDto): Promise<OrderResponseDto> {
     const order = await this.prisma.order.findUnique({
-      where: { id: orderId }
+      where: { id: orderId },
+      include: {
+        items: true
+      }
     });
 
     if (!order) {
       throw new NotFoundException('Không tìm thấy đơn hàng');
     }
 
-    const updatedOrder = await this.prisma.order.update({
-      where: { id: orderId },
-      data: {
-        status: updateOrderDto.status
-      },
-      include: {
-        items: {
-          include: {
-            variant: {
-              include: {
-                product: true
+    const newStatus = updateOrderDto.status;
+    
+    if (!newStatus) {
+      throw new HttpException(
+        { success: false, message: 'Trạng thái mới là bắt buộc' },
+        HttpStatus.BAD_REQUEST
+      );
+    }
+
+    const currentStatus = order.status;
+
+    // Validate state transition
+    validateTransition(currentStatus, newStatus);
+
+    // Use transaction to update order and create history
+    const updatedOrder = await this.prisma.$transaction(async (tx) => {
+      // Update order status
+      const updated = await tx.order.update({
+        where: { id: orderId },
+        data: {
+          status: newStatus
+        },
+        include: {
+          items: {
+            include: {
+              variant: {
+                include: {
+                  product: true
+                }
               }
             }
-          }
-        },
-        payments: true
+          },
+          payments: true
+        }
+      });
+
+      // Create status history
+      await tx.orderStatusHistory.create({
+        data: {
+          orderId,
+          fromStatus: currentStatus,
+          toStatus: newStatus,
+          changedBy: updateOrderDto.changedBy || null,
+          reason: updateOrderDto.reason || null,
+          note: updateOrderDto.note || null
+        }
+      });
+
+      // Restore stock if needed
+      if (shouldRestoreStock(newStatus)) {
+        for (const item of order.items) {
+          await tx.variant.update({
+            where: { id: item.variantId },
+            data: {
+              stock: {
+                increment: item.quantity
+              }
+            }
+          });
+        }
       }
+
+      return updated;
     });
 
     return this.formatOrderResponse(updatedOrder);
@@ -272,9 +327,9 @@ export class OrdersService {
       );
     }
 
-    if (order.status === OrderStatus.PAID) {
+    if (!canUserCancel(order.status)) {
       throw new HttpException(
-        { success: false, message: 'Không thể hủy đơn hàng đã thanh toán. Vui lòng liên hệ hỗ trợ.' },
+        { success: false, message: `Không thể hủy đơn hàng ở trạng thái "${getStatusLabel(order.status)}". Vui lòng liên hệ hỗ trợ.` },
         HttpStatus.BAD_REQUEST
       );
     }
@@ -312,6 +367,17 @@ export class OrdersService {
           }
         });
       }
+
+      // Create status history
+      await tx.orderStatusHistory.create({
+        data: {
+          orderId,
+          fromStatus: order.status,
+          toStatus: OrderStatus.CANCELED,
+          changedBy: userId || null,
+          reason: 'Người dùng hủy đơn hàng'
+        }
+      });
 
       // Update payment status
       await tx.payment.updateMany({

@@ -103,8 +103,15 @@ export const deleteUser = async (id: string) => {
 
 
 // Order Management
-export const updateOrderStatus = async (id: string, status: string) => {
-    const res = await axiosClient.patch(`/orders/${id}/status`, { status });
+export const updateOrderStatus = async (
+    id: string, 
+    status: string, 
+    options?: { reason?: string; note?: string; changedBy?: string }
+) => {
+    const res = await axiosClient.patch(`/orders/${id}/status`, { 
+        status,
+        ...options
+    });
     return res;
 };
 

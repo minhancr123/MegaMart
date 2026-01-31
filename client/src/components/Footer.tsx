@@ -6,7 +6,7 @@ import { LogoDark } from "@/components/ui/Logo";
 
 export default function Footer() {
   return (
-    <footer className="bg-slate-950 text-white pt-12 sm:pt-16 md:pt-20 pb-6 sm:pb-8 mt-12 sm:mt-16 md:mt-24 border-t border-slate-800 overflow-x-hidden">
+    <footer className="bg-slate-950 dark:bg-black text-white pt-12 sm:pt-16 md:pt-20 pb-6 sm:pb-8 mt-12 sm:mt-16 md:mt-24 border-t border-slate-800 dark:border-gray-900 overflow-x-hidden">
       <div className="max-w-7xl mx-auto px-3 sm:px-4 md:px-6 lg:px-8">
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8 sm:gap-10 md:gap-12 mb-12 sm:mb-16">
           {/* Company Info */}

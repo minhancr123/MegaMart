@@ -111,6 +111,7 @@ model Variant {
   saleStartDate       DateTime?            // Ngày bắt đầu sale
   saleEndDate         DateTime?            // Ngày kết thúc sale
   stock               Int                  @default(0)
+  colors              Json?                // Array các màu: [{hex: "#ff0000", name: "Đỏ", imageUrl: "..."}]
   attributes          Json?
   createdAt           DateTime             @default(now())
   updatedAt           DateTime             @updatedAt
@@ -169,11 +170,30 @@ model Order {
   payments        Payment[]
   voucher         Voucher?    @relation(fields: [voucherId], references: [id])
   voucherUsages   VoucherUsage[]
+  statusHistory   OrderStatusHistory[]
 
   @@index([userId, status])
   @@index([createdAt(sort: Desc)])
   @@index([code])
   @@index([voucherId])
+}
+
+model OrderStatusHistory {
+  id         String       @id @default(cuid())
+  orderId    String
+  order      Order        @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  
+  fromStatus OrderStatus?
+  toStatus   OrderStatus
+  
+  changedBy  String?      // Admin/System user ID
+  reason     String?      @db.Text
+  note       String?      @db.Text
+  
+  createdAt  DateTime     @default(now())
+  
+  @@index([orderId])
+  @@index([createdAt(sort: Desc)])
 }
 
 model OrderItem {
@@ -345,11 +365,16 @@ enum UserRole {
 }
 
 enum OrderStatus {
-  PENDING
-  PAID
-  FAILED
-  REFUNDED
-  CANCELED
+  PENDING       // Chờ xác nhận
+  CONFIRMED     // Đã xác nhận (admin confirm)
+  PROCESSING    // Đang chuẩn bị hàng
+  SHIPPING      // Đang giao hàng
+  DELIVERED     // Đã giao thành công
+  COMPLETED     // Hoàn thành (customer confirm)
+  PAID          // Đã thanh toán (legacy - for backward compatibility)
+  FAILED        // Thanh toán thất bại
+  REFUNDED      // Đã hoàn tiền
+  CANCELED      // Đã hủy
 }
 
 enum PaymentProvider {

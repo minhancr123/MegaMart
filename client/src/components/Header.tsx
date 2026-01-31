@@ -9,6 +9,7 @@ import { User, ShoppingCart, Menu, Search, LogInIcon, Handbag, ChevronDown, Hear
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { ThemeToggle } from "@/components/theme-toggle";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -76,7 +77,7 @@ export default function Header() {
   return (
     <div className="sticky top-0 z-50 w-full">
       {/* Top promo/quick-actions bar (desktop) */}
-      <div className="hidden lg:flex w-full bg-black text-white px-6 py-2 items-center justify-between">
+      <div className="hidden lg:flex w-full bg-black dark:bg-gray-950 text-white px-6 py-2 items-center justify-between">
         <span className="text-sm font-semibold tracking-wide">MegaMart · Ưu đãi và tiện ích mỗi ngày</span>
         <div className="flex items-center gap-3">
           <motion.div whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}>
@@ -107,9 +108,9 @@ export default function Header() {
         </div>
       </div>
 
-      <header className="w-full bg-white shadow-sm border-b relative z-30">
+      <header className="w-full bg-white dark:bg-gray-900 shadow-sm border-b dark:border-gray-800 relative z-30">
       {/* Top Bar - Mobile Only */}
-      <div className="bg-blue-600 text-white py-2 px-4 md:hidden">
+      <div className="bg-blue-600 dark:bg-blue-700 text-white py-2 px-4 md:hidden">
         <div className="flex items-center justify-between text-sm">
           <span>MegaMart - Mua sắm thông minh</span>
           {user && (
@@ -510,6 +511,9 @@ export default function Header() {
                   </Badge>
                 </motion.div>
               </motion.div>
+              
+              {/* Theme Toggle - Desktop */}
+              <ThemeToggle />
             </div>
 
                 {user?.id && (

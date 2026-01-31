@@ -62,6 +62,7 @@ export class ProductsService {
                                 sku: true,
                                 price: true,
                                 stock: true,
+                                colors: true,
                                 attributes: true
                             }
                         },
@@ -83,6 +84,7 @@ export class ProductsService {
                     variants: product.variants.map(variant => ({
                         ...variant,
                         price: Number(variant.price),
+                        colors: variant.colors || []
                     })),
                 }));
                 
@@ -131,6 +133,7 @@ export class ProductsService {
                         sku : true, 
                         price : true,
                         stock : true,
+                        colors : true,
                         attributes : true
                     },
                     where :{
@@ -237,6 +240,7 @@ export class ProductsService {
                             sku : true,
                             price : true,
                             stock : true,
+                            colors : true,
                             attributes : true
                         },
                         where : {
@@ -324,6 +328,7 @@ export class ProductsService {
                             sku: variant.sku,
                             price: BigInt(Math.round(variant.price * 100)),
                             stock: variant.stock || 0,
+            colors: variant.colors || null,
                             attributes: variant.attributes || {}
                         }))
                     },
@@ -408,9 +413,27 @@ export class ProductsService {
                         const variantUpdateData: any = {};
                         if (variantDto.sku) variantUpdateData.sku = variantDto.sku;
                         if (variantDto.price !== undefined) {
-                            variantUpdateData.price = BigInt(Math.round(variantDto.price * 100));
+                            // Parse price and validate
+                            const priceValue = Number(variantDto.price);
+                            console.log('Updating variant price:', { original: variantDto.price, parsed: priceValue });
+                            
+                            if (isNaN(priceValue) || priceValue < 0) {
+                                throw new Error(`Invalid price value: ${variantDto.price}`);
+                            }
+                            
+                            // Check if price is too large
+                            const priceInCents = Math.round(priceValue * 100);
+                            if (priceInCents > Number.MAX_SAFE_INTEGER) {
+                                throw new Error(`Price too large: ${priceValue}`);
+                            }
+                            
+                            variantUpdateData.price = BigInt(priceInCents);
                         }
                         if (variantDto.stock !== undefined) variantUpdateData.stock = variantDto.stock;
+                        if (variantDto.colors !== undefined) {
+                            // Ensure colors is either null or a valid JSON array
+                            variantUpdateData.colors = variantDto.colors ? JSON.parse(JSON.stringify(variantDto.colors)) : null;
+                        }
                         if (variantDto.attributes !== undefined) variantUpdateData.attributes = variantDto.attributes;
 
                         await this.prisma.variant.update({
@@ -425,8 +448,9 @@ export class ProductsService {
                                 sku: variantDto.sku,
                                 price: BigInt(Math.round(variantDto.price * 100)),
                                 stock: variantDto.stock || 0,
+                                colors: variantDto.colors ? JSON.parse(JSON.stringify(variantDto.colors)) : null,
                                 attributes: variantDto.attributes || {}
-                            }
+                            } as any
                         });
                     }
                 }
@@ -519,6 +543,7 @@ export class ProductsService {
 
             return this.formatProductResponse(finalProduct);
         } catch (error) {
+            console.error('Error updating product:', error);
             throw error;
         }
     }
@@ -553,7 +578,8 @@ export class ProductsService {
             ...product,
             variants: product.variants.map((variant: any) => ({
                 ...variant,
-                price: formatPrice(variant.price) // Convert BigInt to number
+                price: formatPrice(variant.price), // Convert BigInt to number
+                colors: variant.colors || []
             }))
         }
     }

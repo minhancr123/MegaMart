@@ -301,12 +301,12 @@ export default function ProductsPage() {
     );
 
     return (
-        <div className="py-8">
+        <div className="py-8 dark:bg-gray-950">
             <div className="max-w-7xl mx-auto px-4">
                 {/* Header */}
                 <div className="mb-8">
-                    <h1 className="text-4xl font-bold text-slate-900 mb-3">Tất cả sản phẩm</h1>
-                    <p className="text-slate-600">
+                    <h1 className="text-4xl font-bold text-slate-900 dark:text-white mb-3">Tất cả sản phẩm</h1>
+                    <p className="text-slate-600 dark:text-gray-400">
                         {loading ? 'Đang tải...' : `Khám phá ${filteredProducts.length} sản phẩm chất lượng cao`}
                     </p>
                 </div>
@@ -314,10 +314,10 @@ export default function ProductsPage() {
                 <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
                     {/* Desktop Filters */}
                     <aside className="hidden lg:block">
-                        <div className="sticky top-24 bg-white rounded-2xl border border-slate-200 p-6">
+                        <div className="sticky top-24 bg-white dark:bg-gray-900 rounded-2xl border border-slate-200 dark:border-gray-800 p-6">
                             <div className="flex items-center gap-2 mb-6">
-                                <SlidersHorizontal className="w-5 h-5 text-indigo-600" />
-                                <h2 className="text-lg font-bold text-slate-900">Bộ lọc</h2>
+                                <SlidersHorizontal className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
+                                <h2 className="text-lg font-bold text-slate-900 dark:text-white">Bộ lọc</h2>
                             </div>
                             <FilterPanel />
                         </div>

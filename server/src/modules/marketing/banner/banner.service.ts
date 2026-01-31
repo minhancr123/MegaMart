@@ -20,8 +20,22 @@ export class BannerService {
   }
 
   async findActive() {
+    const now = new Date();
+    
     return this.prisma.banner.findMany({
-      where: { active: true },
+      where: {
+        active: true,
+        OR: [
+          // No date restrictions
+          { startDate: null, endDate: null },
+          // Started and no end date
+          { startDate: { lte: now }, endDate: null },
+          // No start date but not ended
+          { startDate: null, endDate: { gte: now } },
+          // Within date range
+          { startDate: { lte: now }, endDate: { gte: now } },
+        ],
+      },
       orderBy: { displayOrder: 'asc' },
     });
   }

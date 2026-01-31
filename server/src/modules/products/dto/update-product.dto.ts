@@ -51,6 +51,10 @@ export class UpdateVariantDto {
     @Min(0)
     stock?: number;
 
+    @ApiProperty({ required: false, description: 'Array of colors with images' })
+    @IsOptional()
+    colors?: any;
+
     @ApiProperty({ required: false })
     @IsOptional()
     attributes?: any;

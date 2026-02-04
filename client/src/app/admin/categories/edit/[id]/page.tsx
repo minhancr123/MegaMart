@@ -29,6 +29,15 @@ const categorySchema = z.object({
   active: z.boolean(),
 });
 
+interface Category {
+  id: string;
+  name: string;
+  slug: string;
+  description?: string | null;
+  parentId?: string | null;
+  active: boolean;
+}
+
 type CategoryFormData = z.infer<typeof categorySchema>;
 
 export default function EditCategoryPage() {
@@ -38,7 +47,7 @@ export default function EditCategoryPage() {
   
   const [loading, setLoading] = useState(false);
   const [initialLoading, setInitialLoading] = useState(true);
-  const [categories, setCategories] = useState<any[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
 
   const {
     register,
@@ -66,7 +75,7 @@ export default function EditCategoryPage() {
         fetchAllCategories(),
       ]);
 
-      setCategories(allCategories.filter((c: any) => c.id !== id)); // Exclude self from parent options
+      setCategories(allCategories.filter((c: Category) => c.id !== id)); // Exclude self from parent options
 
       reset({
         name: categoryData.name,
@@ -108,9 +117,9 @@ export default function EditCategoryPage() {
       await updateCategory(id, data);
       toast.success("Cập nhật danh mục thành công");
       router.push("/admin/categories");
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Error updating category:", error);
-      toast.error(error.response?.data?.message || "Có lỗi xảy ra khi cập nhật danh mục");
+      toast.error(error instanceof Error ? error.message : "Có lỗi xảy ra khi cập nhật danh mục");
     } finally {
       setLoading(false);
     }

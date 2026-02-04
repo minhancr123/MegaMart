@@ -1,8 +1,7 @@
 "use client";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import {
   Table,
   TableBody,
@@ -27,7 +26,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
-import { Tag, Search, Plus, Edit, Trash2, Calendar, TrendingDown } from "lucide-react";
+import { Tag, Search, Plus, Edit, Trash2, Calendar } from "lucide-react";
 import { salesApi, SaleVariant } from "@/lib/salesApi";
 import { toast } from "sonner";
 import Image from "next/image";
@@ -40,9 +39,25 @@ export default function SalesManagementPage() {
   const [selectedSale, setSelectedSale] = useState<SaleVariant | null>(null);
   const [showRemoveDialog, setShowRemoveDialog] = useState(false);
 
-  useEffect(() => {
-    fetchSales();
+  const loadSales = useCallback(async () => {
+    try {
+      setLoading(true);
+      const response = await salesApi.getActiveSales();
+      // Response is already the SaleVariant[] array
+      const data = Array.isArray(response) ? response : [];
+      setSales(data);
+      setFilteredSales(data);
+    } catch (error: unknown) {
+      console.error("Error fetching sales:", error);
+      toast.error("Không thể tải danh sách sale");
+    } finally {
+      setLoading(false);
+    }
   }, []);
+
+  useEffect(() => {
+    loadSales();
+  }, [loadSales]);
 
   useEffect(() => {
     if (searchTerm) {
@@ -57,22 +72,6 @@ export default function SalesManagementPage() {
     }
   }, [searchTerm, sales]);
 
-  const fetchSales = async () => {
-    try {
-      setLoading(true);
-      const response = await salesApi.getActiveSales();
-      // Response structure: { data: SaleVariant[] }
-      const data = Array.isArray(response.data) ? response.data : (response.data?.data || []);
-      setSales(data);
-      setFilteredSales(data);
-    } catch (error) {
-      console.error("Error fetching sales:", error);
-      toast.error("Không thể tải danh sách sale");
-    } finally {
-      setLoading(false);
-    }
-  };
-
   const handleRemoveSale = async () => {
     if (!selectedSale) return;
 
@@ -81,8 +80,13 @@ export default function SalesManagementPage() {
       toast.success("Đã xóa sale thành công");
       setShowRemoveDialog(false);
       setSelectedSale(null);
-      fetchSales();
-    } catch (error) {
+      
+      // Reload sales after removal
+      const response = await salesApi.getActiveSales();
+      const data = Array.isArray(response) ? response : [];
+      setSales(data);
+      setFilteredSales(data);
+    } catch (error: unknown) {
       console.error("Error removing sale:", error);
       toast.error("Không thể xóa sale");
     }

@@ -12,12 +12,16 @@ export interface Product {
   updatedAt?: Date;
 }
 
+export interface VariantAttributes {
+  [key: string]: string;
+}
+
 export interface Variant {
   id: string;
   sku: string;
   price: number;
   stock: number;
-  attributes?: any;
+  attributes?: VariantAttributes;
 }
 
 export interface ProductImage {
@@ -84,5 +88,59 @@ export interface CartItemProps {
 
 export interface CartListProps {
   cart: Cart;
+}
+
+export interface PostAuthor {
+  id: string;
+  name: string;
+}
+
+export interface Post {
+  id: string;
+  title: string;
+  excerpt?: string;
+  content: string;
+  type: string;
+  status: string;
+  imageUrl?: string;
+  tags?: string[];
+  createdAt: string;
+  author?: PostAuthor;
+}
+
+export interface PostParams {
+  page?: number;
+  limit?: number;
+  search?: string;
+  type?: string;
+  status?: string;
+  sort?: string;
+}
+
+export interface PostCreateData {
+  title: string;
+  excerpt?: string;
+  content: string;
+  type: string;
+  status: string;
+  imageUrl?: string;
+  tags?: string[];
+}
+
+export interface PostUpdateData {
+  title?: string;
+  excerpt?: string;
+  content?: string;
+  type?: string;
+  status?: string;
+  imageUrl?: string;
+  tags?: string[];
+}
+
+export interface PaginationMeta {
+  total: number;
+  page: number;
+  limit: number;
+  totalPages: number;
 }
 

@@ -13,6 +13,20 @@ interface BulkImportProps {
   onSuccess: () => void;
 }
 
+interface ProductVariant {
+  sku: string;
+  price: number;
+  stock: number;
+  attributes: Record<string, unknown>;
+}
+
+interface ImportProduct {
+  name: string;
+  description: string;
+  categoryId: string;
+  variants: ProductVariant[];
+}
+
 export function BulkImport({ open, onOpenChange, onSuccess }: BulkImportProps) {
   const [loading, setLoading] = useState(false);
   const [file, setFile] = useState<File | null>(null);
@@ -50,9 +64,8 @@ MacBook Pro M3,Laptop chuyên nghiệp,category-id-here,MBP2024,45000000,30,"{""
     }
   };
 
-  const parseCSV = (text: string): any[] => {
+  const parseCSV = (text: string): ImportProduct[] => {
     const lines = text.split('\n').filter(line => line.trim());
-    const headers = lines[0].split(',').map(h => h.trim());
     
     const products = [];
     for (let i = 1; i < lines.length; i++) {
@@ -108,7 +121,7 @@ MacBook Pro M3,Laptop chuyên nghiệp,category-id-here,MBP2024,45000000,30,"{""
         try {
           await axiosClient.post("/products", product);
           success++;
-        } catch (error: any) {
+        } catch (error: unknown) {
           failed++;
           errors.push(`${product.name}: ${error.response?.data?.message || 'Unknown error'}`);
         }
@@ -125,7 +138,7 @@ MacBook Pro M3,Laptop chuyên nghiệp,category-id-here,MBP2024,45000000,30,"{""
         toast.error(`${failed} sản phẩm import thất bại`);
       }
       
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Failed to import", error);
       toast.error("Có lỗi xảy ra khi import");
     } finally {

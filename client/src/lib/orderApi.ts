@@ -1,10 +1,33 @@
 import axiosClient from './axiosClient';
 
-export const createOrder = async (payload: any) => {
+interface OrderItem {
+    variant?: {
+        product?: {
+            id: string;
+            name: string;
+        };
+    };
+    quantity: number;
+    price: number;
+}
+
+interface Order {
+    id: string;
+    total: number;
+    status: string;
+    items?: OrderItem[];
+    userId?: string;
+    createdAt?: string;
+    updatedAt?: string;
+}
+
+type OrderCreateData = Omit<Order, 'id' | 'createdAt' | 'updatedAt'>;
+
+export const createOrder = async (payload: OrderCreateData) => {
   try {
     const res = await axiosClient.post('/orders', payload);
     return res;
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Create order error:', error);
     throw error;
   }
@@ -14,7 +37,7 @@ export const fetchOrders = async () => {
   try {
     const res = await axiosClient.get('/orders');
     return res;
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Fetch orders error:', error);
     throw error;
   }
@@ -45,7 +68,7 @@ export const fetchOrdersByUser = async (userId: string) => {
     // Fallback
     console.log("Fallback to empty array");
     return [];
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Fetch orders by user error:', error);
     throw error;
   }
@@ -58,17 +81,17 @@ export const fetchOrderById = async (orderId: string) => {
     
     // Interceptor transform - có thể return object trực tiếp hoặc có wrapper
     // Nếu res có id property -> đó là order object
-    if ((res as any)?.id) {
+    if ((res as { id?: string })?.id) {
       return res;
     }
     
     // Nếu có data property
-    if ((res as any)?.data && typeof (res as any).data === 'object') {
-      return (res as any).data;
+    if ((res as { data?: unknown })?.data && typeof (res as { data?: unknown }).data === 'object') {
+      return (res as { data?: Order }).data;
     }
     
     return res;
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Fetch order by ID error:', error);
     throw error;
   }
@@ -78,7 +101,7 @@ export const cancelOrder = async (orderId: string) => {
   try {
     const res = await axiosClient.delete(`/orders/${orderId}`);
     return res;
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Cancel order error:', error);
     throw error;
   }

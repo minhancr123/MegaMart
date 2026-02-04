@@ -71,18 +71,22 @@ export default function CartPage() {
   if (!cart) {
     // Create empty cart structure for display
     const emptyCart = {
-      id: "",
-      userId: user?.id || "",
-      createdAt: new Date(),
-      updatedAt: new Date(),
-      items: []
+      success: true,
+      data: {
+        id: "",
+        userId: user?.id || "",
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        items: []
+      },
+      message: "Empty cart"
     };
 
     return (
       <div className="min-h-screen bg-gray-50">
         <div className="container mx-auto py-8">
           <h1 className="text-3xl font-bold text-gray-900 mb-8">Giỏ hàng của tôi</h1>
-          <CartList cart={emptyCart as any} />
+          <CartList cart={emptyCart} />
         </div>
       </div>
     );

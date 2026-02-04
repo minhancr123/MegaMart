@@ -1,12 +1,40 @@
 "use client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { DollarSign, Package, ShoppingCart, Users, TrendingUp, Loader2 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { DollarSign, Package, ShoppingCart, Users, Loader2 } from "lucide-react";
+import { useEffect, useState, useCallback } from "react";
 import { toast } from "sonner";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { getRevenueStats, getOrderStatusDistribution, getTopSellingProducts, TimePeriod } from "@/lib/analyticsApi";
 import { LineChart, Line, BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+
+interface RevenueStats {
+    totalRevenue: number;
+    totalOrders: number;
+    totalProducts: number;
+    totalUsers: number;
+    revenueChange?: number;
+    ordersChange?: number;
+    productsChange?: number;
+    usersChange?: number;
+}
+
+interface OrderDistribution {
+    status: string;
+    count: number;
+    percentage: number;
+}
+
+interface TopProduct {
+    id: string;
+    name: string;
+    soldCount: number;
+    revenue: number;
+}
+
+interface ChartDataItem {
+    date: string;
+    revenue: number;
+}
 
 const COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6'];
 
@@ -19,17 +47,13 @@ const PERIOD_LABELS: Record<TimePeriod, string> = {
 };
 
 export default function AdminDashboard() {
-    const [stats, setStats] = useState<any>(null);
-    const [orderDistribution, setOrderDistribution] = useState<any[]>([]);
-    const [topProducts, setTopProducts] = useState<any[]>([]);
+    const [stats, setStats] = useState<RevenueStats | null>(null);
+    const [orderDistribution, setOrderDistribution] = useState<OrderDistribution[]>([]);
+    const [topProducts, setTopProducts] = useState<TopProduct[]>([]);
     const [loading, setLoading] = useState(true);
     const [selectedPeriod, setSelectedPeriod] = useState<TimePeriod>('week');
 
-    useEffect(() => {
-        loadDashboardData();
-    }, [selectedPeriod]);
-
-    const loadDashboardData = async () => {
+    const loadDashboardData = useCallback(async () => {
         try {
             setLoading(true);
             const [revenueData, distributionData, topProductsData] = await Promise.all([
@@ -38,16 +62,20 @@ export default function AdminDashboard() {
                 getTopSellingProducts(selectedPeriod, 5)
             ]);
 
-            setStats((revenueData as any)?.data?.data ?? revenueData);
-            setOrderDistribution((distributionData as any)?.data?.data ?? distributionData);
-            setTopProducts((topProductsData as any)?.data?.data ?? topProductsData);
-        } catch (error) {
+            setStats(revenueData as unknown as RevenueStats);
+            setOrderDistribution(distributionData as unknown as OrderDistribution[]);
+            setTopProducts(topProductsData as unknown as TopProduct[]);
+        } catch (error: unknown) {
             console.error("Failed to load dashboard data", error);
             toast.error("Không thể tải dữ liệu thống kê");
         } finally {
             setLoading(false);
         }
-    };
+    }, [selectedPeriod]);
+
+    useEffect(() => {
+        loadDashboardData();
+    }, [loadDashboardData]);
 
     if (loading) {
         return (
@@ -93,7 +121,7 @@ export default function AdminDashboard() {
     ];
 
     const getStatusLabel = (status: string) => {
-        const labels: any = {
+        const labels: Record<string, string> = {
             PENDING: 'Chờ xử lý',
             PAID: 'Đã thanh toán',
             CANCELED: 'Đã hủy',
@@ -103,12 +131,12 @@ export default function AdminDashboard() {
         return labels[status] || status;
     };
 
-    const pieData = orderDistribution.map((item: any) => ({
+    const pieData = orderDistribution.map((item: OrderDistribution) => ({
         name: getStatusLabel(item.status),
         value: item.count
     }));
 
-    const chartData = stats?.chartData?.map((item: any) => ({
+    const chartData: ChartDataItem[] = stats?.chartData?.map((item: { date: string; revenue: number }) => ({
         date: new Date(item.date).toLocaleDateString('vi-VN', { month: 'short', day: 'numeric' }),
         revenue: item.revenue || 0
     })) || [];
@@ -169,7 +197,7 @@ export default function AdminDashboard() {
                                 <XAxis dataKey="date" />
                                 <YAxis tickFormatter={(value) => `${(value / 1000000).toFixed(1)}M`} />
                                 <Tooltip
-                                    formatter={(value: any) => new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(value)}
+                                    formatter={(value: number) => new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(value)}
                                 />
                                 <Legend />
                                 <Line type="monotone" dataKey="revenue" stroke="#3b82f6" strokeWidth={2} name="Doanh thu" />
@@ -219,7 +247,7 @@ export default function AdminDashboard() {
                             <XAxis dataKey="name" />
                             <YAxis />
                             <Tooltip
-                                formatter={(value: any, name: string = '') => {
+                                formatter={(value: number, name: string = '') => {
                                     if (name === 'revenue') {
                                         return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(value);
                                     }

@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -24,8 +24,22 @@ import { fetchPosts, deletePost } from "@/lib/postsApi";
 import { toast } from "sonner";
 import { format } from "date-fns";
 
+interface PostAuthor {
+    id: string;
+    name: string;
+}
+
+interface Post {
+    id: string;
+    title: string;
+    type: string;
+    status: string;
+    createdAt: string;
+    author?: PostAuthor;
+}
+
 export default function PostsPage() {
-    const [posts, setPosts] = useState([]);
+    const [posts, setPosts] = useState<Post[]>([]);
     const [loading, setLoading] = useState(true);
     const [search, setSearch] = useState("");
     const [type, setType] = useState("ALL");
@@ -33,44 +47,52 @@ export default function PostsPage() {
     const [page, setPage] = useState(1);
     const [totalPages, setTotalPages] = useState(1);
 
-    const loadPosts = async () => {
+    const loadPosts = useCallback(async () => {
         setLoading(true);
         try {
-            const params: any = { page, limit: 10 };
+            const params: Record<string, string | number> = { page, limit: 10 };
             if (search) params.search = search;
             if (type !== "ALL") params.type = type;
             if (status !== "ALL") params.status = status;
 
-            const res: any = await fetchPosts(params);
+            const res = await fetchPosts(params);
             console.log('Posts response:', res);
             
             // Handle both array and object responses
-            let postsData = [];
+            let postsData: Post[] = [];
             let meta = { totalPages: 1 };
             
             if (Array.isArray(res)) {
-                postsData = res;
+                postsData = res as Post[];
                 meta = { totalPages: 1 };
-            } else if (res?.data) {
-                postsData = Array.isArray(res.data) ? res.data : res.data.data || [];
-                meta = res.data.meta || res.meta || meta;
+            } else if ((res as { data?: unknown })?.data) {
+                const responseData = (res as { data: unknown }).data;
+                if (Array.isArray(responseData)) {
+                    postsData = responseData as Post[];
+                } else if ((responseData as { data?: Post[] })?.data) {
+                    postsData = (responseData as { data: Post[] }).data;
+                }
+                const responseMeta = (responseData as { meta?: { totalPages: number } })?.meta || (res as { meta?: { totalPages: number } })?.meta;
+                if (responseMeta) {
+                    meta = responseMeta;
+                }
             } else {
-                postsData = res;
+                postsData = res as Post[];
             }
             
             setPosts(postsData);
             setTotalPages(meta.totalPages);
-        } catch (error) {
+        } catch (error: unknown) {
             console.error("Failed to load posts", error);
             toast.error("Không thể tải danh sách bài viết");
         } finally {
             setLoading(false);
         }
-    };
+    }, [page, type, status, search]);
 
     useEffect(() => {
         loadPosts();
-    }, [page, type, status]);
+    }, [loadPosts]);
 
     const handleSearch = (e: React.FormEvent) => {
         e.preventDefault();
@@ -160,7 +182,7 @@ export default function PostsPage() {
                                 <TableCell colSpan={6} className="text-center py-8">Không có bài viết nào</TableCell>
                             </TableRow>
                         ) : (
-                            posts.map((post: any) => (
+                            posts.map((post: Post) => (
                                 <TableRow key={post.id}>
                                     <TableCell className="font-medium">{post.title}</TableCell>
                                     <TableCell>

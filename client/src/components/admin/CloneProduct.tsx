@@ -9,8 +9,28 @@ import { Loader2, Copy } from "lucide-react";
 import { toast } from "sonner";
 import axiosClient from "@/lib/axiosClient";
 
+interface ProductVariant {
+  sku: string;
+  price: number;
+  stock: number;
+  attributes: Record<string, unknown>;
+  colors?: unknown[];
+}
+
+interface ProductCategory {
+  name: string;
+}
+
+interface Product {
+  name: string;
+  description: string;
+  categoryId: string;
+  category?: ProductCategory;
+  variants?: ProductVariant[];
+}
+
 interface CloneProductProps {
-  product: any;
+  product: Product;
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSuccess: () => void;
@@ -34,7 +54,7 @@ export function CloneProduct({ product, open, onOpenChange, onSuccess }: ClonePr
         name: newName,
         description: product.description,
         categoryId: product.categoryId,
-        variants: product.variants?.map((v: any) => ({
+        variants: product.variants?.map((v: ProductVariant) => ({
           sku: `${v.sku}-COPY-${Date.now()}`,
           price: v.price,
           stock: v.stock,
@@ -48,7 +68,7 @@ export function CloneProduct({ product, open, onOpenChange, onSuccess }: ClonePr
       
       onSuccess();
       onOpenChange(false);
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Failed to clone product", error);
       toast.error(error?.response?.data?.message || "Không thể sao chép sản phẩm");
     } finally {
@@ -65,7 +85,7 @@ export function CloneProduct({ product, open, onOpenChange, onSuccess }: ClonePr
             Sao chép sản phẩm
           </DialogTitle>
           <DialogDescription>
-            Tạo bản sao của "{product?.name}" với tất cả thông tin và biến thể.
+            Tạo bản sao của &quot;{product?.name}&quot; với tất cả thông tin và biến thể.
           </DialogDescription>
         </DialogHeader>
 

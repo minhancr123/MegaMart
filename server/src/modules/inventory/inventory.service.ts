@@ -279,6 +279,12 @@ export class InventoryService {
         items: {
           include: {
             variant: {
+              select: {
+                id: true,
+                sku: true,
+                price: true,
+                attributes: true,
+              },
               include: {
                 product: { select: { id: true, name: true, images: { take: 1 } } },
               },

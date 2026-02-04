@@ -135,6 +135,8 @@ const productSchema = z.object({
 
 type ProductFormValues = z.infer<typeof productSchema>;
 
+export type { ProductFormValues };
+
 interface ProductFormProps {
     initialData?: any;
     onSubmit: (data: ProductFormValues) => Promise<void>;

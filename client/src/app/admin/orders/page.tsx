@@ -17,8 +17,45 @@ import { toast } from "sonner";
 import Link from "next/link";
 import { Pagination } from "@/components/ui/pagination";
 
+interface OrderUser {
+    id: string;
+    name: string;
+}
+
+interface OrderShippingAddress {
+    fullName: string;
+}
+
+interface OrderPayment {
+    provider: string;
+}
+
+interface Order {
+    id: string;
+    code: string;
+    createdAt: string;
+    total: number;
+    status: string;
+    shippingAddress?: OrderShippingAddress;
+    user?: OrderUser;
+    payments?: OrderPayment[];
+}
+
+const statusMap: Record<string, { label: string; color: string }> = {
+    PENDING: { label: "Chờ xử lý", color: "bg-yellow-100 text-yellow-800" },
+    CONFIRMED: { label: "Đã xác nhận", color: "bg-blue-100 text-blue-800" },
+    PROCESSING: { label: "Đang xử lý", color: "bg-indigo-100 text-indigo-800" },
+    SHIPPING: { label: "Đang giao hàng", color: "bg-orange-100 text-orange-800" },
+    DELIVERED: { label: "Đã giao", color: "bg-teal-100 text-teal-800" },
+    COMPLETED: { label: "Hoàn thành", color: "bg-green-100 text-green-800" },
+    PAID: { label: "Đã thanh toán", color: "bg-emerald-100 text-emerald-800" },
+    CANCELED: { label: "Đã hủy", color: "bg-red-100 text-red-800" },
+    FAILED: { label: "Thất bại", color: "bg-rose-100 text-rose-800" },
+    REFUNDED: { label: "Đã hoàn tiền", color: "bg-purple-100 text-purple-800" },
+};
+
 export default function OrdersPage() {
-    const [orders, setOrders] = useState<any[]>([]);
+    const [orders, setOrders] = useState<Order[]>([]);
     const [loading, setLoading] = useState(true);
     const [searchQuery, setSearchQuery] = useState("");
     const [currentPage, setCurrentPage] = useState(1);
@@ -33,7 +70,7 @@ export default function OrdersPage() {
             setLoading(true);
             const data = await fetchAdminOrders();
             setOrders(data);
-        } catch (error) {
+        } catch (error: unknown) {
             console.error("Failed to load orders", error);
             toast.error("Không thể tải danh sách đơn hàng");
         } finally {
@@ -42,19 +79,7 @@ export default function OrdersPage() {
     };
 
     const getStatusBadge = (status: string) => {
-        const map: any = {
-            PENDING: { label: "Chờ xử lý", color: "bg-yellow-100 text-yellow-800" },
-            CONFIRMED: { label: "Đã xác nhận", color: "bg-blue-100 text-blue-800" },
-            PROCESSING: { label: "Đang xử lý", color: "bg-indigo-100 text-indigo-800" },
-            SHIPPING: { label: "Đang giao hàng", color: "bg-orange-100 text-orange-800" },
-            DELIVERED: { label: "Đã giao", color: "bg-teal-100 text-teal-800" },
-            COMPLETED: { label: "Hoàn thành", color: "bg-green-100 text-green-800" },
-            PAID: { label: "Đã thanh toán", color: "bg-emerald-100 text-emerald-800" },
-            CANCELED: { label: "Đã hủy", color: "bg-red-100 text-red-800" },
-            FAILED: { label: "Thất bại", color: "bg-rose-100 text-rose-800" },
-            REFUNDED: { label: "Đã hoàn tiền", color: "bg-purple-100 text-purple-800" },
-        };
-        const config = map[status] || { label: status, color: "bg-gray-100 text-gray-800" };
+        const config = statusMap[status] || { label: status, color: "bg-gray-100 text-gray-800" };
         return <Badge className={`${config.color} border-none hover:${config.color}`}>{config.label}</Badge>;
     };
 

@@ -33,8 +33,17 @@ import {
 import { Label } from "@/components/ui/label";
 import { Pagination } from "@/components/ui/pagination";
 
+interface AdminUser {
+    id: string;
+    email: string;
+    name: string;
+    avatarUrl: string | null;
+    role?: string;
+    phone?: string;
+}
+
 export default function UsersPage() {
-    const [users, setUsers] = useState<any[]>([]);
+    const [users, setUsers] = useState<AdminUser[]>([]);
     const [loading, setLoading] = useState(true);
     const [searchQuery, setSearchQuery] = useState("");
     const [currentPage, setCurrentPage] = useState(1);
@@ -42,12 +51,12 @@ export default function UsersPage() {
 
     // Delete State
     const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-    const [userToDelete, setUserToDelete] = useState<any>(null);
+    const [userToDelete, setUserToDelete] = useState<AdminUser | null>(null);
     const [isDeleting, setIsDeleting] = useState(false);
 
     // Edit Role State
     const [editDialogOpen, setEditDialogOpen] = useState(false);
-    const [selectedUser, setSelectedUser] = useState<any>(null);
+    const [selectedUser, setSelectedUser] = useState<AdminUser | null>(null);
     const [newRole, setNewRole] = useState("");
     const [updating, setUpdating] = useState(false);
 
@@ -68,7 +77,7 @@ export default function UsersPage() {
         }
     };
 
-    const handleDeleteClick = (user: any) => {
+    const handleDeleteClick = (user: AdminUser) => {
         setUserToDelete(user);
         setDeleteDialogOpen(true);
     };
@@ -91,7 +100,7 @@ export default function UsersPage() {
         }
     };
 
-    const handleEditClick = (user: any) => {
+    const handleEditClick = (user: AdminUser) => {
         setSelectedUser(user);
         setNewRole(user.role || "USER");
         setEditDialogOpen(true);

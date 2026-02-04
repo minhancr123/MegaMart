@@ -29,12 +29,21 @@ const categorySchema = z.object({
   active: z.boolean(),
 });
 
+interface Category {
+  id: string;
+  name: string;
+  slug: string;
+  description?: string | null;
+  parentId?: string | null;
+  active: boolean;
+}
+
 type CategoryFormData = z.infer<typeof categorySchema>;
 
 export default function CreateCategoryPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
-  const [categories, setCategories] = useState<any[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
 
   const {
     register,
@@ -86,9 +95,9 @@ export default function CreateCategoryPage() {
       await createCategory(data);
       toast.success("Tạo danh mục thành công");
       router.push("/admin/categories");
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Error creating category:", error);
-      toast.error(error.response?.data?.message || "Có lỗi xảy ra khi tạo danh mục");
+      toast.error(error instanceof Error ? error.message : "Có lỗi xảy ra khi tạo danh mục");
     } finally {
       setLoading(false);
     }

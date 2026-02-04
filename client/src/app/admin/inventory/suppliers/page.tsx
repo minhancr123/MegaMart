@@ -53,7 +53,7 @@ export default function SuppliersPage() {
       setLoading(true);
       const response = await inventoryApi.getSuppliers(true);
       setSuppliers(response.data || []);
-    } catch (error) {
+    } catch {
       toast.error("Không thể tải danh sách nhà cung cấp");
       setSuppliers([]);
     } finally {
@@ -78,7 +78,7 @@ export default function SuppliersPage() {
       setDialogOpen(false);
       resetForm();
       fetchSuppliers();
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast.error(error.response?.data?.message || "Có lỗi xảy ra");
     }
   };
@@ -105,7 +105,7 @@ export default function SuppliersPage() {
       await inventoryApi.deleteSupplier(id);
       toast.success("Đã tạm ngưng nhà cung cấp");
       fetchSuppliers();
-    } catch (error) {
+    } catch {
       toast.error("Không thể xóa nhà cung cấp");
     }
   };

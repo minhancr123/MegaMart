@@ -8,6 +8,7 @@ import { toast } from "sonner";
 import { ChevronLeft } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
+import type { ProductFormValues } from "@/components/admin/ProductForm";
 
 export default function CreateProductPage() {
     const router = useRouter();
@@ -15,7 +16,7 @@ export default function CreateProductPage() {
     const [createdProductId, setCreatedProductId] = useState<string | null>(null);
     const [productCreated, setProductCreated] = useState(false);
 
-    const handleSubmit = async (data: any) => {
+    const handleSubmit = async (data: ProductFormValues) => {
         try {
             setLoading(true);
             const response = await createProduct(data);

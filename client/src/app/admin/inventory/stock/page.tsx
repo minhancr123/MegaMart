@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -51,7 +51,7 @@ export default function StockPage() {
 
   const ITEMS_PER_PAGE = 20;
 
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
     try {
       setLoading(true);
       const [inventoryRes, warehousesRes] = await Promise.all([
@@ -66,20 +66,20 @@ export default function StockPage() {
       setTotal(inventoryRes.data?.meta?.total || 0);
       setTotalPages(inventoryRes.data?.meta?.totalPages || 1);
       setWarehouses(warehousesRes.data || []);
-    } catch (error) {
+    } catch {
       toast.error("Không thể tải dữ liệu tồn kho");
       setInventory([]);
       setWarehouses([]);
     } finally {
       setLoading(false);
     }
-  };
+  }, [page, filters]);
 
   useEffect(() => {
     fetchData();
-  }, [page, filters]);
+  }, [fetchData]);
 
-  const handleFilterChange = (key: string, value: any) => {
+  const handleFilterChange = (key: string, value: string | boolean) => {
     setFilters({ ...filters, [key]: value });
     setPage(1);
   };

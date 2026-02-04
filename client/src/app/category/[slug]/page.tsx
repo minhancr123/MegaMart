@@ -1,3 +1,4 @@
+
 'use client'
 import { fetchProductsByCategory } from "@/lib/productApi";
 import { useParams } from "next/navigation";
@@ -6,10 +7,11 @@ import { ProductCard } from "@/components/product/ProductCard";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Loader2 } from "lucide-react";
+import { Product } from "@/interfaces/product";
 
 export default function CategoryPage() {
     const { slug } = useParams();
-    const [products, setProducts] = useState<any[]>([]);
+    const [products, setProducts] = useState<Product[]>([]);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
@@ -66,22 +68,22 @@ export default function CategoryPage() {
                     <div className="space-y-3">
                                     <div>
                                         <div className="text-sm text-gray-600">Tìm kiếm</div>
-                                        <Input value={q} onChange={(e:any) => setQ(e.target.value)} placeholder="Tìm tên sản phẩm..." />
+                                        <Input value={q} onChange={(e: React.ChangeEvent<HTMLInputElement>) => setQ(e.target.value)} placeholder="Tìm tên sản phẩm..." />
                                     </div>
 
                                     <div>
                                         <div className="text-sm text-gray-600">Giá từ</div>
-                                        <Input value={minPrice ?? ''} onChange={(e:any) => setMinPrice(e.target.value ? Number(e.target.value) : null)} placeholder="0" type="number" />
+                                        <Input value={minPrice ?? ''} onChange={(e: React.ChangeEvent<HTMLInputElement>) => setMinPrice(e.target.value ? Number(e.target.value) : null)} placeholder="0" type="number" />
                                     </div>
 
                                     <div>
                                         <div className="text-sm text-gray-600">Đến</div>
-                                        <Input value={maxPrice ?? ''} onChange={(e:any) => setMaxPrice(e.target.value ? Number(e.target.value) : null)} placeholder="0" type="number" />
+                                        <Input value={maxPrice ?? ''} onChange={(e: React.ChangeEvent<HTMLInputElement>) => setMaxPrice(e.target.value ? Number(e.target.value) : null)} placeholder="0" type="number" />
                                     </div>
 
                         <div>
                             <label className="text-sm text-gray-600">Sắp xếp</label>
-                            <select value={sort} onChange={(e) => setSort(e.target.value as any)} className="w-full border rounded-md p-2">
+                            <select value={sort} onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setSort(e.target.value as 'newest'|'price_asc'|'price_desc')} className="w-full border rounded-md p-2">
                                 <option value="newest">Mới nhất</option>
                                 <option value="price_asc">Giá: thấp → cao</option>
                                 <option value="price_desc">Giá: cao → thấp</option>

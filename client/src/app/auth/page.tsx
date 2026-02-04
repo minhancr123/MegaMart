@@ -118,7 +118,7 @@ export default function AuthPage() {
                     return;
                 }
             }
-        } catch (error) {
+        } catch {
             toast.error('Đã xảy ra lỗi, vui lòng thử lại sau');
         }
         finally {

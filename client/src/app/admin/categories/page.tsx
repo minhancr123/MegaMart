@@ -27,9 +27,19 @@ import { Plus, Search, Pencil, Trash2, Loader2, FolderTree } from "lucide-react"
 import { fetchAllCategories, deleteCategory } from "@/lib/categoryApi";
 import { toast } from "sonner";
 
+interface Category {
+  id: string;
+  name: string;
+  slug: string;
+  description?: string | null;
+  parentId?: string | null;
+  active: boolean;
+  children?: Category[];
+}
+
 export default function CategoriesPage() {
   const router = useRouter();
-  const [categories, setCategories] = useState<any[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [deleteId, setDeleteId] = useState<string | null>(null);
@@ -58,9 +68,9 @@ export default function CategoriesPage() {
       await deleteCategory(deleteId);
       toast.success("Xóa danh mục thành công");
       loadCategories();
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Error deleting category:", error);
-      toast.error(error.response?.data?.message || "Không thể xóa danh mục");
+      toast.error(error instanceof Error ? error.message : "Không thể xóa danh mục");
     } finally {
       setDeleteId(null);
     }
@@ -162,7 +172,7 @@ export default function CategoriesPage() {
                     </TableCell>
                   </TableRow>
                   {/* Child categories */}
-                  {category.children?.map((child: any) => (
+                  {category.children?.map((child: Category) => (
                     <TableRow key={child.id} className="bg-gray-50">
                       <TableCell className="pl-12 text-gray-600">
                         └─ {child.name}

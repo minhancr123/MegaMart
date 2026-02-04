@@ -1,4 +1,5 @@
 import axiosClient from './axiosClient';
+import { VariantAttributes, PaginationMeta } from '@/interfaces/product';
 
 // ============== TYPES ==============
 
@@ -52,7 +53,7 @@ export interface WarehouseInventory {
     id: string;
     sku: string;
     price: number;
-    attributes?: any;
+    attributes?: VariantAttributes;
     product?: {
       id: string;
       name: string;
@@ -87,9 +88,18 @@ export interface StockMovementItem {
   variant?: {
     id: string;
     sku: string;
+    price: bigint;
+    attributes?: VariantAttributes;
     product?: {
       id: string;
       name: string;
+      images?: Array<{
+        id: string;
+        url: string;
+        alt?: string;
+        isPrimary: boolean;
+        displayOrder: number;
+      }>;
     };
   };
 }
@@ -213,7 +223,7 @@ export const inventoryApi = {
         }
       });
     }
-    return axiosClient.get<{ data: WarehouseInventory[]; meta: any }>(
+    return axiosClient.get<{ data: WarehouseInventory[]; meta: PaginationMeta }>(
       `/inventory/stock?${queryParams.toString()}`
     );
   },
@@ -241,7 +251,7 @@ export const inventoryApi = {
         }
       });
     }
-    return axiosClient.get<{ data: StockMovement[]; meta: any }>(
+    return axiosClient.get<{ data: StockMovement[]; meta: PaginationMeta }>(
       `/inventory/movements?${queryParams.toString()}`
     );
   },
@@ -258,7 +268,7 @@ export const inventoryApi = {
       price: number;
       stock: number;
       imageUrl?: string;
-      attributes: any;
+      attributes: VariantAttributes;
     }>>(`/inventory/variants/search?q=${encodeURIComponent(query)}`),
 
   createMovement: (data: CreateStockMovementDto) =>

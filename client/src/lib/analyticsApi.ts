@@ -1,9 +1,19 @@
 import axiosClient from "./axiosClient";
+import type { ProductFormValues } from "@/components/admin/ProductForm";
 
 export type TimePeriod = 'day' | 'week' | 'month' | 'quarter' | 'year';
 
+interface AdminUser {
+    id: string;
+    email: string;
+    name: string;
+    avatarUrl: string | null;
+    role?: string;
+    phone?: string;
+}
+
 export const getRevenueStats = async (period: TimePeriod = 'week', date?: string) => {
-    const params: any = { period };
+    const params: Record<string, string> = { period };
     if (date) params.date = date;
 
     const res = await axiosClient.get("/analytics/revenue-stats", { params });
@@ -23,12 +33,12 @@ export const getTopSellingProducts = async (period: TimePeriod = 'week', limit: 
 };
 
 // Product Management
-export const createProduct = async (productData: any) => {
+export const createProduct = async (productData: ProductFormValues) => {
     const res = await axiosClient.post("/products", productData);
     return res;
 };
 
-export const updateProduct = async (id: string, productData: any) => {
+export const updateProduct = async (id: string, productData: ProductFormValues) => {
     const res = await axiosClient.patch(`/products/${id}`, productData);
     return res;
 };
@@ -39,7 +49,7 @@ export const deleteProduct = async (id: string) => {
 };
 
 // User Management
-export const updateUser = async (id: string, userData: any) => {
+export const updateUser = async (id: string, userData: Partial<AdminUser>) => {
     const res = await axiosClient.patch(`/users/${id}`, userData);
     return res;
 };

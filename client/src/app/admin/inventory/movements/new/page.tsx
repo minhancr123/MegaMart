@@ -68,7 +68,7 @@ interface VariantSearchResult {
   price: number;
   stock: number;
   imageUrl?: string;
-  attributes: any;
+  attributes: Record<string, string>;
 }
 
 export default function NewMovementPage() {
@@ -103,7 +103,7 @@ export default function NewMovementPage() {
         ]);
         setWarehouses(warehousesRes.data || []);
         setSuppliers(suppliersRes.data || []);
-      } catch (error) {
+      } catch (error: unknown) {
         toast.error("Không thể tải dữ liệu");
         setWarehouses([]);
         setSuppliers([]);
@@ -131,13 +131,13 @@ export default function NewMovementPage() {
         
         if (Array.isArray(response)) {
           results = response;
-        } else if (response && typeof response === 'object' && 'data' in response && Array.isArray((response as any).data)) {
-          results = (response as any).data;
+        } else if (response && typeof response === 'object' && 'data' in response && Array.isArray((response as { data: unknown }).data)) {
+          results = (response as { data: VariantSearchResult[] }).data;
         }
         
         console.log('✅ Final results:', results.length, 'items');
         setSearchResults(results);
-      } catch (error) {
+      } catch (error: unknown) {
         console.error("❌ Search error:", error);
         setSearchResults([]);
       } finally {
@@ -242,7 +242,7 @@ export default function NewMovementPage() {
         router.push("/admin/inventory/movements");
         router.refresh(); // Force reload
       }, 500);
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('❌ Create movement error:', error);
       toast.error(error.response?.data?.message || "Không thể tạo phiếu");
     } finally {

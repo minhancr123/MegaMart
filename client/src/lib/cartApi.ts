@@ -14,8 +14,9 @@ export const addToCart = async (userId : string ,variantId: string, quantity: nu
     const response = await CartApis.addToCart(userId,variantId, quantity);
     console.log('Add to cart response:', response);
     return response;
-  } catch (error: any) {
-    return error.response?.data?.message || "Failed to add item to cart";
+  } catch (error: unknown) {
+    const err = error as { response?: { data?: { message?: string } } };
+    return err.response?.data?.message || "Failed to add item to cart";
   }
 };
 
@@ -24,9 +25,10 @@ export const fetchCartItem = async (id: string) => {
     const response = await CartApis.getCartItem(id);
     console.log('Cart API response:', response);
     return response;
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Error fetching cart:', error);
-    throw new Error(error.errormassage || "Failed to fetch cart item");
+    const err = error as { errormassage?: string };
+    throw new Error(err.errormassage || "Failed to fetch cart item");
   }
 };
 
@@ -36,9 +38,10 @@ export const updateQuantityChange = async (itemId: string, quantity: number) => 
     const response = await CartApis.updateCartItem(itemId, quantity);
     console.log('Update quantity response:', response);
     return response;
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Error updating quantity:', error);
-    throw new Error(error.errormassage || "Failed to update cart item quantity");
+    const err = error as { errormassage?: string };
+    throw new Error(err.errormassage || "Failed to update cart item quantity");
   }
 };
 
@@ -46,7 +49,8 @@ export const removeCartItem = async (itemId: string) => {
   try {
     const res = await CartApis.removeCartItem(itemId);
     return res;
-  } catch (error: any) {
-    return error.response?.data?.message || "Failed to remove cart item";
+  } catch (error: unknown) {
+    const err = error as { response?: { data?: { message?: string } } };
+    return err.response?.data?.message || "Failed to remove cart item";
   }
 };

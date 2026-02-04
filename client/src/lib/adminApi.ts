@@ -1,4 +1,33 @@
 import axiosClient from "./axiosClient";
+import { Product } from "@/interfaces/product";
+import type { ProductFormValues } from "@/components/admin/ProductForm";
+
+interface AdminUser {
+    id: string;
+    email: string;
+    name: string;
+    avatarUrl: string | null;
+    role?: string;
+    phone?: string;
+}
+
+interface OrderItem {
+    variant?: {
+        product?: {
+            id: string;
+            name: string;
+        };
+    };
+    quantity: number;
+    price: number;
+}
+
+interface Order {
+    id: string;
+    total: number;
+    status: string;
+    items?: OrderItem[];
+}
 
 export const fetchAdminStats = async () => {
     try {
@@ -9,13 +38,13 @@ export const fetchAdminStats = async () => {
         ]);
 
         // Handle different response structures due to axiosClient interceptor
-        const orders = Array.isArray(ordersRes) ? ordersRes : (ordersRes as any).data || [];
-        const products = Array.isArray(productsRes) ? productsRes : (productsRes as any).data || [];
-        const users = Array.isArray(usersRes) ? usersRes : (usersRes as any).data || [];
+        const orders = Array.isArray(ordersRes) ? ordersRes : (ordersRes as { data?: Order[] }).data || [];
+        const products = Array.isArray(productsRes) ? productsRes : (productsRes as { data?: Product[] }).data || [];
+        const users = Array.isArray(usersRes) ? usersRes : (usersRes as { data?: AdminUser[] }).data || [];
 
         // Calculate stats
-        const totalRevenue = orders.reduce((sum: number, order: any) => sum + Number(order.total), 0);
-        const newOrders = orders.filter((order: any) => order.status === "PENDING").length;
+        const totalRevenue = orders.reduce((sum: number, order: Order) => sum + Number(order.total), 0);
+        const newOrders = orders.filter((order: Order) => order.status === "PENDING").length;
 
         const productsCount = products.length;
         const customersCount = users.length;
@@ -23,11 +52,11 @@ export const fetchAdminStats = async () => {
         // Calculate top products
         const productSales: Record<string, { name: string, sales: number, revenue: number }> = {};
 
-        orders.forEach((order: any) => {
+        orders.forEach((order: Order) => {
             // Count all orders for now to show some data, or strictly 'PAID'/'COMPLETED'
             // Let's count all non-cancelled orders for "sales" trends
             if (order.status !== 'CANCELED' && order.status !== 'FAILED') {
-                order.items?.forEach((item: any) => {
+                order.items?.forEach((item: OrderItem) => {
                     const productId = item.variant?.product?.id;
                     const productName = item.variant?.product?.name;
                     if (productId && productName) {
@@ -61,26 +90,26 @@ export const fetchAdminStats = async () => {
 
 export const fetchAdminProducts = async () => {
     const res = await axiosClient.get("/products");
-    return Array.isArray(res) ? res : (res as any).data || [];
+    return Array.isArray(res) ? res : (res as { data?: Product[] }).data || [];
 };
 
 export const fetchAdminOrders = async () => {
     const res = await axiosClient.get("/orders/all?limit=100");
-    return Array.isArray(res) ? res : (res as any).data || [];
+    return Array.isArray(res) ? res : (res as { data?: Order[] }).data || [];
 };
 
 export const fetchAdminUsers = async () => {
     const res = await axiosClient.get("/users");
-    return Array.isArray(res) ? res : (res as any).data || [];
+    return Array.isArray(res) ? res : (res as { data?: AdminUser[] }).data || [];
 };
 
 // Product CRUD
-export const createProduct = async (productData: any) => {
+export const createProduct = async (productData: ProductFormValues) => {
     const res = await axiosClient.post("/products", productData);
     return res;
 };
 
-export const updateProduct = async (id: string, productData: any) => {
+export const updateProduct = async (id: string, productData: ProductFormValues) => {
     const res = await axiosClient.patch(`/products/${id}`, productData);
     return res;
 };
@@ -91,7 +120,7 @@ export const deleteProduct = async (id: string) => {
 };
 
 // User Management
-export const updateUser = async (id: string, userData: any) => {
+export const updateUser = async (id: string, userData: Partial<AdminUser>) => {
     const res = await axiosClient.patch(`/users/${id}`, userData);
     return res;
 };

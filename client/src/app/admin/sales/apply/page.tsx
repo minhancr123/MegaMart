@@ -36,7 +36,7 @@ interface Product {
     id: string;
     sku: string;
     price: string;
-    attributes?: any;
+    attributes?: Record<string, unknown>;
     stock: number;
   }>;
 }

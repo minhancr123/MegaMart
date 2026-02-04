@@ -34,7 +34,6 @@ import {
   StockMovement,
   StockMovementStatus,
   stockMovementTypeLabels,
-  stockMovementStatusLabels,
 } from "@/lib/inventoryApi";
 import { toast } from "sonner";
 
@@ -79,7 +78,7 @@ export default function MovementDetailPage() {
       await inventoryApi.completeMovement(params.id as string);
       toast.success("Đã hoàn thành phiếu kho");
       router.push("/admin/inventory/movements");
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast.error(error.response?.data?.message || "Không thể hoàn thành");
     }
   };
@@ -90,7 +89,7 @@ export default function MovementDetailPage() {
       await inventoryApi.cancelMovement(params.id as string);
       toast.success("Đã hủy phiếu");
       router.push("/admin/inventory/movements");
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast.error(error.response?.data?.message || "Không thể hủy phiếu");
     }
   };

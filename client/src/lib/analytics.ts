@@ -1,4 +1,6 @@
 // Google Analytics utilities
+import { GAItem } from "@/interfaces/product";
+
 export const GA_TRACKING_ID = process.env.NEXT_PUBLIC_GA_ID || '';
 
 // https://developers.google.com/analytics/devguides/collection/gtagjs/pages
@@ -27,7 +29,7 @@ export const event = ({ action, category, label, value }: {
 };
 
 // E-commerce events
-export const trackPurchase = (transactionId: string, value: number, items: any[]) => {
+export const trackPurchase = (transactionId: string, value: number, items: GAItem[]) => {
   if (typeof window !== 'undefined' && window.gtag) {
     window.gtag('event', 'purchase', {
       transaction_id: transactionId,
@@ -38,7 +40,7 @@ export const trackPurchase = (transactionId: string, value: number, items: any[]
   }
 };
 
-export const trackAddToCart = (item: any) => {
+export const trackAddToCart = (item: GAItem) => {
   if (typeof window !== 'undefined' && window.gtag) {
     window.gtag('event', 'add_to_cart', {
       currency: 'VND',
@@ -48,7 +50,7 @@ export const trackAddToCart = (item: any) => {
   }
 };
 
-export const trackViewItem = (item: any) => {
+export const trackViewItem = (item: GAItem) => {
   if (typeof window !== 'undefined' && window.gtag) {
     window.gtag('event', 'view_item', {
       currency: 'VND',
@@ -72,7 +74,7 @@ declare global {
     gtag?: (
       command: 'config' | 'event' | 'js' | 'set',
       targetId: string | Date,
-      config?: any
+      config?: Record<string, unknown>
     ) => void;
   }
 }

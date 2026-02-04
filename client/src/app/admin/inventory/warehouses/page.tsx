@@ -49,7 +49,7 @@ export default function WarehousesPage() {
       setLoading(true);
       const response = await inventoryApi.getWarehouses(true);
       setWarehouses(response.data || []);
-    } catch (error) {
+    } catch {
       toast.error("Không thể tải danh sách kho");
       setWarehouses([]);
     } finally {
@@ -74,7 +74,7 @@ export default function WarehousesPage() {
       setDialogOpen(false);
       resetForm();
       fetchWarehouses();
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast.error(error.response?.data?.message || "Có lỗi xảy ra");
     }
   };
@@ -97,7 +97,7 @@ export default function WarehousesPage() {
       await inventoryApi.deleteWarehouse(id);
       toast.success("Đã tạm ngưng kho");
       fetchWarehouses();
-    } catch (error) {
+    } catch {
       toast.error("Không thể xóa kho");
     }
   };

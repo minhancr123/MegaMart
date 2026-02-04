@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -65,7 +65,7 @@ export default function MovementsPage() {
 
   const ITEMS_PER_PAGE = 20;
 
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
     try {
       setLoading(true);
       const [movementsRes, warehousesRes] = await Promise.all([
@@ -101,20 +101,20 @@ export default function MovementsPage() {
       setTotal(meta.total);
       setTotalPages(meta.totalPages);
       setWarehouses(warehousesRes.data || warehousesRes || []);
-    } catch (error) {
+    } catch (error: unknown) {
       toast.error("Không thể tải dữ liệu");
       setMovements([]);
       setWarehouses([]);
     } finally {
       setLoading(false);
     }
-  };
+  }, [page, filters]);
 
   useEffect(() => {
     fetchData();
-  }, [page, filters]);
+  }, [fetchData]);
 
-  const handleFilterChange = (key: string, value: any) => {
+  const handleFilterChange = (key: string, value: string) => {
     setFilters({ ...filters, [key]: value === "all" ? "" : value });
     setPage(1);
   };
@@ -125,7 +125,7 @@ export default function MovementsPage() {
       await inventoryApi.completeMovement(id);
       toast.success("Đã hoàn thành phiếu kho");
       fetchData();
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast.error(error.response?.data?.message || "Không thể hoàn thành");
     }
   };
@@ -136,7 +136,7 @@ export default function MovementsPage() {
       await inventoryApi.cancelMovement(id);
       toast.success("Đã hủy phiếu");
       fetchData();
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast.error(error.response?.data?.message || "Không thể hủy phiếu");
     }
   };

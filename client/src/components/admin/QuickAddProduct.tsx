@@ -10,6 +10,11 @@ import { Loader2, Zap } from "lucide-react";
 import { toast } from "sonner";
 import axiosClient from "@/lib/axiosClient";
 
+interface Category {
+  id: string;
+  name: string;
+}
+
 interface QuickAddProductProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -18,7 +23,7 @@ interface QuickAddProductProps {
 
 export function QuickAddProduct({ open, onOpenChange, onSuccess }: QuickAddProductProps) {
   const [loading, setLoading] = useState(false);
-  const [categories, setCategories] = useState<any[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
   const [formData, setFormData] = useState({
     name: "",
     price: "",
@@ -88,7 +93,7 @@ export function QuickAddProduct({ open, onOpenChange, onSuccess }: QuickAddProdu
       
       onSuccess();
       onOpenChange(false);
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Failed to create product", error);
       toast.error(error?.response?.data?.message || "Không thể tạo sản phẩm");
     } finally {

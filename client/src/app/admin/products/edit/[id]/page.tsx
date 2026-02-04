@@ -1,6 +1,6 @@
 "use client";
 
-import { ProductForm } from "@/components/admin/ProductForm";
+import { ProductForm, ProductFormValues } from "@/components/admin/ProductForm";
 import { updateProduct } from "@/lib/adminApi";
 import { fetchProductById } from "@/lib/productApi";
 import { useRouter, useParams } from "next/navigation";
@@ -10,6 +10,25 @@ import { ChevronLeft, Loader2 } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 
+interface ProductVariant {
+    id: string;
+    sku: string;
+    price: number;
+    stock: number;
+    colors?: Array<{ name: string; hex: string; imageUrl?: string }>;
+    attributes?: Record<string, unknown>;
+}
+
+interface ProductImage {
+    url: string;
+    isPrimary?: boolean;
+    alt?: string;
+}
+
+interface ProductColor {
+    name: string;
+}
+
 export default function EditProductPage() {
     const router = useRouter();
     const params = useParams();
@@ -17,7 +36,7 @@ export default function EditProductPage() {
 
     const [loading, setLoading] = useState(false);
     const [fetching, setFetching] = useState(true);
-    const [initialData, setInitialData] = useState<any>(null);
+    const [initialData, setInitialData] = useState<ProductFormValues | null>(null);
 
     useEffect(() => {
         if (id) {
@@ -38,11 +57,11 @@ export default function EditProductPage() {
                 description: product.description || "",
                 brand: product.brand || "",
                 categoryId: product.category?.id || "",
-                variants: product.variants?.map((v: any) => {
+                variants: product.variants?.map((v: ProductVariant) => {
                     const attributes = v.attributes || {};
                     // Sync all colors to attributes.color (comma-separated)
                     if (v.colors && Array.isArray(v.colors) && v.colors.length > 0) {
-                        attributes.color = v.colors.map((c: any) => c.name).join(", ");
+                        attributes.color = v.colors.map((c: ProductColor) => c.name).join(", ");
                     }
                     return {
                         id: v.id,
@@ -53,7 +72,7 @@ export default function EditProductPage() {
                         attributes
                     };
                 }) || [],
-                images: product.images?.map((img: any) => ({
+                images: product.images?.map((img: ProductImage) => ({
                     url: img.url,
                     isPrimary: img.isPrimary || false,
                     alt: img.alt || ""
@@ -70,7 +89,7 @@ export default function EditProductPage() {
         }
     };
 
-    const handleSubmit = async (data: any) => {
+    const handleSubmit = async (data: ProductFormValues) => {
         try {
             setLoading(true);
             await updateProduct(id, data);

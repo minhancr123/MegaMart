@@ -7,10 +7,9 @@ import { updateOrderStatus } from "@/lib/adminApi";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Loader2, Package, MapPin, Phone, User, Calendar, CreditCard, ArrowLeft, ShoppingBag, Truck, Edit } from "lucide-react";
+import { Loader2, Package, User, CreditCard, ArrowLeft, Truck, Edit } from "lucide-react";
 import { toast } from "sonner";
 import Image from "next/image";
-import { motion } from "framer-motion";
 import {
   Dialog,
   DialogContent,
@@ -30,6 +29,55 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 
+interface OrderUser {
+    id: string;
+    name: string;
+}
+
+interface OrderShippingAddress {
+    fullName: string;
+    phone?: string;
+    address?: string;
+    ward?: string;
+    district?: string;
+    province?: string;
+}
+
+interface OrderPayment {
+    id: string;
+    provider: string;
+    amount: number;
+    status: string;
+}
+
+interface OrderItem {
+    id: string;
+    quantity: number;
+    price: number;
+    variant?: {
+        id: string;
+        name: string;
+        product?: {
+            id: string;
+            name: string;
+            images?: string[];
+        };
+    };
+}
+
+interface Order {
+    id: string;
+    code: string;
+    createdAt: string;
+    total: number;
+    status: string;
+    shippingAddress?: OrderShippingAddress;
+    user?: OrderUser;
+    payments?: OrderPayment[];
+    items?: OrderItem[];
+    note?: string;
+}
+
 const statusConfig: Record<string, { label: string; color: string }> = {
   PENDING: { label: "Chờ xử lý", color: "bg-yellow-100 text-yellow-800" },
   CONFIRMED: { label: "Đã xác nhận", color: "bg-blue-100 text-blue-800" },
@@ -46,7 +94,7 @@ const statusConfig: Record<string, { label: string; color: string }> = {
 export default function AdminOrderDetailPage() {
   const params = useParams();
   const router = useRouter();
-  const [order, setOrder] = useState<any>(null);
+  const [order, setOrder] = useState<Order | null>(null);
   const [loading, setLoading] = useState(true);
   
   // Update Status Dialog
@@ -67,14 +115,14 @@ export default function AdminOrderDetailPage() {
       setLoading(true);
       const res = await fetchOrderById(orderId);
       
-      if ((res as any)?.id) {
-        setOrder(res);
-      } else if ((res as any)?.data) {
-        setOrder((res as any).data);
+      if ((res as Order)?.id) {
+        setOrder(res as Order);
+      } else if ((res as { data: Order })?.data) {
+        setOrder((res as { data: Order }).data);
       } else {
-        setOrder(res);
+        setOrder(res as Order);
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error("Load order error:", err);
       toast.error("Không thể tải thông tin đơn hàng");
     } finally {
@@ -83,6 +131,7 @@ export default function AdminOrderDetailPage() {
   };
 
   const handleOpenStatusDialog = () => {
+    if (!order) return;
     setNewStatus(order.status);
     setReason("");
     setNote("");
@@ -106,9 +155,10 @@ export default function AdminOrderDetailPage() {
       toast.success("Cập nhật trạng thái thành công");
       setStatusDialogOpen(false);
       await loadOrder(order.id); // Reload order
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Failed to update status", error);
-      toast.error(error?.response?.data?.message || "Không thể cập nhật trạng thái");
+      const errorMessage = (error as { response?: { data?: { message?: string } } })?.response?.data?.message || "Không thể cập nhật trạng thái";
+      toast.error(errorMessage);
     } finally {
       setUpdating(false);
     }
@@ -139,7 +189,7 @@ export default function AdminOrderDetailPage() {
 
   const status = statusConfig[order.status] || statusConfig.PENDING;
   const shippingAddr = order.shippingAddress || {};
-  const subtotal = order.items?.reduce((sum: number, item: any) => 
+  const subtotal = order.items?.reduce((sum: number, item: OrderItem) => 
     sum + (Number(item.price) * item.quantity), 0) || 0;
 
   return (
@@ -180,7 +230,7 @@ export default function AdminOrderDetailPage() {
             </div>
             
             <div className="space-y-4">
-              {order.items?.map((item: any) => (
+              {order.items?.map((item: OrderItem) => (
                 <div key={item.id} className="flex gap-4 p-4 bg-gray-50 rounded-lg border">
                   {item.variant?.product?.images?.[0] && (
                     <div className="relative w-20 h-20 flex-shrink-0 bg-white rounded overflow-hidden">
@@ -199,7 +249,7 @@ export default function AdminOrderDetailPage() {
                     </h3>
                     {item.variant?.attributes && (
                       <div className="flex flex-wrap gap-1 mb-2">
-                        {Object.entries(item.variant.attributes as Record<string, any>).map(([key, val]) => (
+                        {Object.entries(item.variant.attributes as Record<string, string>).map(([key, val]) => (
                           <span key={key} className="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded">
                             {key}: {val}
                           </span>
@@ -313,7 +363,7 @@ export default function AdminOrderDetailPage() {
               {shippingAddr.note && (
                 <div className="pt-4 border-t">
                   <p className="text-xs text-gray-500 mb-1">Ghi chú</p>
-                  <p className="text-sm text-gray-900 italic">"{shippingAddr.note}"</p>
+                  <p className="text-sm text-gray-900 italic">&ldquo;{shippingAddr.note}&rdquo;</p>
                 </div>
               )}
             </div>

@@ -11,7 +11,7 @@ import {
 import { Edit, Plus, Trash2, Search, Loader2, Zap, Copy, FileSpreadsheet, Layers, ChevronDown } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import Link from "next/link";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { fetchAdminProducts, deleteProduct } from "@/lib/adminApi";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
@@ -28,12 +28,36 @@ import {
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 
+interface ProductCategory {
+    id: string;
+    name: string;
+}
+
+interface ProductVariant {
+    id: string;
+    stock: number;
+    price: number;
+}
+
+interface ProductImage {
+    id: string;
+    url: string;
+}
+
+interface Product {
+    id: string;
+    name: string;
+    category?: ProductCategory;
+    variants?: ProductVariant[];
+    images?: ProductImage[];
+}
+
 export default function ProductsPage() {
-    const [products, setProducts] = useState<any[]>([]);
+    const [products, setProducts] = useState<Product[]>([]);
     const [loading, setLoading] = useState(true);
     const [searchQuery, setSearchQuery] = useState("");
     const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-    const [productToDelete, setProductToDelete] = useState<any>(null);
+    const [productToDelete, setProductToDelete] = useState<Product | null>(null);
     const [isDeleting, setIsDeleting] = useState(false);
     const [currentPage, setCurrentPage] = useState(1);
     const itemsPerPage = 10;
@@ -41,28 +65,28 @@ export default function ProductsPage() {
     // New dialogs
     const [quickAddOpen, setQuickAddOpen] = useState(false);
     const [cloneDialogOpen, setCloneDialogOpen] = useState(false);
-    const [productToClone, setProductToClone] = useState<any>(null);
+    const [productToClone, setProductToClone] = useState<Product | null>(null);
     const [bulkImportOpen, setBulkImportOpen] = useState(false);
     const [templatesOpen, setTemplatesOpen] = useState(false);
 
-    useEffect(() => {
-        loadProducts();
-    }, []);
-
-    const loadProducts = async () => {
+    const loadProducts = useCallback(async () => {
         try {
             setLoading(true);
             const data = await fetchAdminProducts();
             setProducts(data);
-        } catch (error) {
+        } catch (error: unknown) {
             console.error("Failed to load products", error);
             toast.error("Không thể tải danh sách sản phẩm");
         } finally {
             setLoading(false);
         }
-    };
+    }, []);
 
-    const handleDeleteClick = (product: any) => {
+    useEffect(() => {
+        loadProducts();
+    }, [loadProducts]);
+
+    const handleDeleteClick = (product: Product) => {
         setProductToDelete(product);
         setDeleteDialogOpen(true);
     };
@@ -76,7 +100,7 @@ export default function ProductsPage() {
             toast.success("Xóa sản phẩm thành công");
             setDeleteDialogOpen(false);
             loadProducts(); // Reload products
-        } catch (error) {
+        } catch (error: unknown) {
             console.error("Failed to delete product", error);
             toast.error("Không thể xóa sản phẩm");
         } finally {
@@ -85,7 +109,7 @@ export default function ProductsPage() {
         }
     };
 
-    const handleCloneClick = (product: any) => {
+    const handleCloneClick = (product: Product) => {
         setProductToClone(product);
         setCloneDialogOpen(true);
     };
@@ -190,7 +214,7 @@ export default function ProductsPage() {
                             </TableRow>
                         ) : (
                             paginatedProducts.map((product) => {
-                                const totalStock = product.variants?.reduce((sum: number, v: any) => sum + v.stock, 0) || 0;
+                                const totalStock = product.variants?.reduce((sum: number, v: ProductVariant) => sum + v.stock, 0) || 0;
                                 const minPrice = product.variants?.[0]?.price || 0;
 
                                 return (

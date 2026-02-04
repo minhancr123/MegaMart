@@ -29,7 +29,8 @@ import {
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { ArrowLeft, Plus, Trash2, Search, Circle, Edit } from "lucide-react";
-import { flashSaleApi, FlashSale } from "@/lib/marketingApi";
+import { flashSaleApi, FlashSale, FlashSaleItem } from "@/lib/marketingApi";
+import { Product } from "@/interfaces/product";
 import { toast } from "sonner";
 import axiosClient from "@/lib/axiosClient";
 
@@ -66,7 +67,7 @@ export default function FlashSaleDetailPage() {
   });
 
   // Edit Item form
-  const [editingItem, setEditingItem] = useState<any>(null);
+  const [editingItem, setEditingItem] = useState<FlashSaleItem | null>(null);
   const [editItemSalePrice, setEditItemSalePrice] = useState("");
   const [editItemDiscountPercent, setEditItemDiscountPercent] = useState("");
   const [editItemQuantity, setEditItemQuantity] = useState("");
@@ -124,9 +125,9 @@ export default function FlashSaleDetailPage() {
 
       // Flatten variants from all products
       const variants: Variant[] = [];
-      products.forEach((product: any) => {
+      products.forEach((product: Product) => {
         if (product.variants && Array.isArray(product.variants)) {
-          product.variants.forEach((variant: any) => {
+          product.variants.forEach((variant: Variant) => {
             variants.push({
               id: variant.id,
               sku: variant.sku,
@@ -148,9 +149,9 @@ export default function FlashSaleDetailPage() {
       if (variants.length === 0) {
         toast.info("Không tìm thấy sản phẩm nào");
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Search error:', error);
-      toast.error(error.response?.data?.message || "Không thể tìm kiếm sản phẩm");
+      toast.error(error instanceof Error ? error.message : "Không thể tìm kiếm sản phẩm");
     }
   };
 
@@ -219,8 +220,9 @@ export default function FlashSaleDetailPage() {
       setDialogOpen(false);
       resetForm();
       fetchFlashSale();
-    } catch (error: any) {
-      toast.error(error.response?.data?.message || "Không thể thêm sản phẩm");
+    } catch (error: unknown) {
+      const message = error && typeof error === 'object' && 'response' in error && error.response && typeof error.response === 'object' && 'data' in error.response && error.response.data && typeof error.response.data === 'object' && 'message' in error.response.data ? (error.response.data as { message: string }).message : "Không thể thêm sản phẩm";
+      toast.error(message);
     }
   };
 
@@ -231,7 +233,7 @@ export default function FlashSaleDetailPage() {
       await flashSaleApi.removeItem(flashSaleId, itemId);
       toast.success("Xóa sản phẩm thành công");
       fetchFlashSale();
-    } catch (error) {
+    } catch (error: unknown) {
       toast.error("Không thể xóa sản phẩm");
     }
   };
@@ -265,13 +267,13 @@ export default function FlashSaleDetailPage() {
       toast.success("Cập nhật Flash Sale thành công");
       setEditDialogOpen(false);
       fetchFlashSale();
-    } catch (error) {
+    } catch (error: unknown) {
       toast.error("Không thể cập nhật Flash Sale");
     }
   };
 
   // Edit item handlers
-  const handleOpenEditItem = (item: any) => {
+  const handleOpenEditItem = (item: FlashSaleItem) => {
     setEditingItem(item);
     setEditItemSalePrice(item.salePrice.toString());
     setEditItemQuantity(item.quantity.toString());
@@ -336,8 +338,9 @@ export default function FlashSaleDetailPage() {
       setEditItemDialogOpen(false);
       setEditingItem(null);
       fetchFlashSale();
-    } catch (error: any) {
-      toast.error(error.response?.data?.message || "Không thể cập nhật sản phẩm");
+    } catch (error: unknown) {
+      const message = error && typeof error === 'object' && 'response' in error && error.response && typeof error.response === 'object' && 'data' in error.response && error.response.data && typeof error.response.data === 'object' && 'message' in error.response.data ? (error.response.data as { message: string }).message : "Không thể cập nhật sản phẩm";
+      toast.error(message);
     }
   };
 
@@ -565,7 +568,7 @@ export default function FlashSaleDetailPage() {
         <CardContent>
           {(!flashSale.items || flashSale.items.length === 0) ? (
             <div className="text-center py-8 text-gray-500">
-              Chưa có sản phẩm nào. Nhấn "Thêm sản phẩm" để bắt đầu.
+              Chưa có sản phẩm nào. Nhấn &quot;Thêm sản phẩm&quot; để bắt đầu.
             </div>
           ) : (
             <Table>
@@ -582,7 +585,7 @@ export default function FlashSaleDetailPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {flashSale.items.map((item: any) => {
+                {flashSale.items.map((item: FlashSaleItem) => {
                   const originalPrice = item.variant?.price || 0;
                   const discount = originalPrice > 0 ? Math.round(((originalPrice - item.salePrice) / originalPrice) * 100) : 0;
                   const imageUrl = item.variant?.product?.images?.[0]?.url || '';

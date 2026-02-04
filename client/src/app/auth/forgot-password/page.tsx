@@ -32,7 +32,7 @@ export default function ForgotPasswordPage() {
             console.log("Forgot password for:", data.email);
             setSubmitted(true);
             toast.success("Đã gửi email khôi phục mật khẩu (mô phỏng)");
-        } catch (error) {
+        } catch {
             toast.error("Đã xảy ra lỗi, vui lòng thử lại");
         } finally {
             setLoading(false);

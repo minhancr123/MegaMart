@@ -1,7 +1,8 @@
 import { get } from "http";
 import axiosClient from "./axiosClient";
+import { Product, Category } from "@/interfaces/product";
 
-interface ApiResponse<T = any> {
+interface ApiResponse<T = unknown> {
   success: boolean;
   data: T;
   message: string;
@@ -34,14 +35,14 @@ export const fetchAllProducts = async () => {
     }
     
     // Fallback: check if res has data property directly
-    if ((res as any).data && Array.isArray((res as any).data)) {
-      console.log('✅ Response has direct data, count:', (res as any).data.length);
-      return (res as any).data;
+    if ((res as { data?: unknown }).data && Array.isArray((res as { data?: unknown }).data)) {
+      console.log('✅ Response has direct data, count:', ((res as { data?: Product[] }).data)?.length);
+      return (res as { data?: Product[] }).data || [];
     }
     
     console.warn('⚠️ No products found in response');
     return [];
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("❌ Fetch all products error:", error);
     return [];
   }
@@ -60,7 +61,7 @@ export const fetchFeaturedProducts = async () => {
     }
 
     return [];
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Fetch featured products error:", error);
     return [];
   }
@@ -87,14 +88,14 @@ export const fetchCategoriesList = async () => {
     }
     
     // Fallback: check if res has data property directly
-    if ((res as any).data && Array.isArray((res as any).data)) {
-      console.log('✅ Categories response has direct data, count:', (res as any).data.length);
-      return (res as any).data;
+    if ((res as { data?: unknown }).data && Array.isArray((res as { data?: unknown }).data)) {
+      console.log('✅ Categories response has direct data, count:', ((res as { data?: Category[] }).data)?.length);
+      return (res as { data?: Category[] }).data || [];
     }
 
     console.warn('⚠️ No categories found in response');
     return [];
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Fetch categories error:", error);
     return [];
   }
@@ -113,9 +114,10 @@ export const fetchProductById = async (id: string) => {
     }
 
     throw new Error("Product not found");
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Fetch product by ID error:", error);
-    throw new Error(error.errormassage || "Failed to fetch product");
+    const errorMessage = error instanceof Error ? error.message : "Failed to fetch product";
+    throw new Error(errorMessage);
   }
 };
 
@@ -131,7 +133,7 @@ export const fetchProductsByCategory = async (categorySlug: string) => {
 
     return [];
   }
-  catch (error: any) {
+  catch (error: unknown) {
     console.error("Fetch products by category error:", error);
     return [];
   }

@@ -1,12 +1,12 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useEffect, useState, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { CheckCircle, XCircle, Loader2 } from "lucide-react";
 import axiosClient from "@/lib/axiosClient";
 
-export default function VNPayReturnPage() {
+function VNPayReturnContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [status, setStatus] = useState<"loading" | "success" | "failed">("loading");
@@ -24,7 +24,7 @@ export default function VNPayReturnPage() {
 
         // Send to backend to verify
         const response = await axiosClient.get("/payment/vnpay-return", { params });
-        
+
         const data = response?.data || response;
 
         if (data?.success) {
@@ -124,5 +124,17 @@ export default function VNPayReturnPage() {
         </CardContent>
       </Card>
     </div>
+  );
+}
+
+export default function VNPayReturnPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen flex items-center justify-center">
+        <Loader2 className="w-16 h-16 text-blue-600 animate-spin" />
+      </div>
+    }>
+      <VNPayReturnContent />
+    </Suspense>
   );
 }

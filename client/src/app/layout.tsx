@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { Toaster } from "@/components/ui/sonner";
@@ -15,15 +15,16 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 5,
+};
+
 export const metadata: Metadata = {
   title: "MegaMart - Siêu thị trực tuyến",
   description: "Nền tảng mua sắm trực tuyến hàng đầu với hàng ngàn sản phẩm chất lượng",
   keywords: "ecommerce, mua sắm, online shopping, megamart",
-  viewport: {
-    width: "device-width",
-    initialScale: 1,
-    maximumScale: 5,
-  },
 };
 
 export default function RootLayout({
@@ -47,7 +48,7 @@ export default function RootLayout({
             `,
           }}
         />
-        
+
         {/* Google Analytics 4 */}
         <script
           async

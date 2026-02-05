@@ -4,7 +4,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Eye, EyeOff, Loader2, Lock, Mail, User, ArrowRight } from "lucide-react";
 import Link from "next/link";
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useForm } from 'react-hook-form'
@@ -43,7 +43,7 @@ const registerschema = z.object({
 type loginFormData = z.infer<typeof loginschema>;
 type registerFormData = z.infer<typeof registerschema>;
 
-export default function AuthPage() {
+function AuthContent() {
     const router = useRouter();
     const searchParams = useSearchParams();
     const [islogin, setIsLogin] = useState(true);
@@ -343,5 +343,17 @@ export default function AuthPage() {
                 </div>
             </div>
         </div>
+    )
+}
+
+export default function AuthPage() {
+    return (
+        <Suspense fallback={
+            <div className="min-h-screen flex items-center justify-center bg-slate-50 dark:bg-gray-950">
+                <Loader2 className="w-10 h-10 text-indigo-600 animate-spin" />
+            </div>
+        }>
+            <AuthContent />
+        </Suspense>
     )
 }

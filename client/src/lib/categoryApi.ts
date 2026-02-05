@@ -21,20 +21,20 @@ const categoryAPI = {
 export const fetchAllCategories = async () => {
   try {
     const res = await categoryAPI.getAll();
-    
+
     if (Array.isArray(res)) {
       return res;
     }
-    
+
     const apiRes = res as unknown as ApiResponse;
     if (apiRes.success && apiRes.data) {
       return Array.isArray(apiRes.data) ? apiRes.data : [];
     }
-    
+
     if ((res as { data?: unknown }).data && Array.isArray((res as { data?: unknown }).data)) {
-      return (res as { data?: Category[] }).data;
+      return (res as { data?: Category[] }).data || [];
     }
-    
+
     return [];
   } catch (error: unknown) {
     console.error("Fetch categories error:", error);
@@ -45,7 +45,7 @@ export const fetchAllCategories = async () => {
 export const fetchCategoryById = async (id: string) => {
   try {
     const res = await categoryAPI.getById(id);
-    return (res as { data?: Category })?.data || res;
+    return ((res as { data?: Category })?.data || res) as unknown as Category;
   } catch (error: unknown) {
     console.error("Fetch category by ID error:", error);
     throw error;

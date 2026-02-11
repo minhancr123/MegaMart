@@ -170,6 +170,110 @@ export class PaymentService {
     };
   }
 
+  // Handle Bank Transfer Webhook (Generic)
+  async processBankTransferWebhook(data: any): Promise<any> {
+    // 1. Normalize Input
+    // Support multiple formats:
+    // Case A: { content: "...", amount: 100000, ... } (Simple/Custom)
+    // Case B: { transactions: [{ description: "...", amount: 100000, ... }] } (Casso/SePay often send array)
+
+    let transactions: any[] = [];
+
+    if (Array.isArray(data)) {
+      transactions = data;
+    } else if (data.transactions && Array.isArray(data.transactions)) {
+      transactions = data.transactions;
+    } else if (data.data && Array.isArray(data.data)) {
+      transactions = data.data;
+    } else {
+      transactions = [data];
+    }
+
+    const results: any[] = [];
+
+    for (const tx of transactions) {
+      try {
+        // Extract content and amount
+        // Handle various field names (description, content, amount, value, etc.)
+        const content = tx.description || tx.content || tx.remark || "";
+        const amount = Number(tx.amount || tx.value || 0);
+
+        if (!content) continue;
+
+        // 2. Find Order Code in Content
+        // Regex to find "ORD-[A-Z0-9-]+"
+        const match = content.match(/ORD-[A-Z0-9-]+/i);
+
+        if (!match) {
+          console.log('No order code found in content:', content);
+          continue;
+        }
+
+        const orderCode = match[0].toUpperCase();
+        console.log('Found order code:', orderCode);
+
+        const order = await this.prisma.order.findUnique({
+          where: { code: orderCode },
+          include: { payments: true }
+        });
+
+        if (!order) {
+          console.log('Order not found:', orderCode);
+          continue;
+        }
+
+        // 3. Verify Order Status
+        if (order.status === OrderStatus.PAID || order.status === OrderStatus.COMPLETED || order.status === OrderStatus.CANCELED) {
+          console.log('Order already finalized:', order.status);
+          continue;
+        }
+
+        // 4. Verify Amount (Allow small difference? No, strict for now)
+        // Note: order.total is BigInt.
+        const orderTotal = Number(order.total);
+        if (amount < orderTotal) {
+          console.log(`Insufficient amount. Received: ${amount}, Expected: ${orderTotal}`);
+          // Optional: Mark as partially paid or log warning
+          continue;
+        }
+
+        // 5. Update Order
+        await this.prisma.$transaction([
+          // Update Order Status
+          this.prisma.order.update({
+            where: { id: order.id },
+            data: { status: OrderStatus.PAID }
+          }),
+          // Update Payment Status
+          this.prisma.payment.updateMany({
+            where: { orderId: order.id },
+            data: {
+              status: PaymentStatus.PAID,
+              raw: JSON.stringify(tx)
+            }
+          }),
+          // Create History
+          this.prisma.orderStatusHistory.create({
+            data: {
+              orderId: order.id,
+              fromStatus: order.status,
+              toStatus: OrderStatus.PAID,
+              reason: `Auto-confirmed by Webhook (Amount: ${amount})`,
+              changedBy: 'SYSTEM'
+            }
+          })
+        ]);
+
+        results.push({ orderCode, status: 'UPDATED_TO_PAID' });
+
+      } catch (err) {
+        console.error('Error processing transaction:', err);
+      }
+    }
+
+    return results;
+  }
+
   // Get payment by order ID
   async getPaymentByOrderId(orderId: string): Promise<any> {
     const payments = await this.prisma.payment.findMany({

@@ -1,5 +1,5 @@
 import MainContent from "@/components/MainContent";
-import {Category } from "@/interfaces/product";
+import { Category } from "@/interfaces/product";
 import axiosClient from "@/lib/axiosClient";
 import { fetchCategoriesList, fetchFeaturedProducts } from "@/lib/productApi";
 import { Metadata } from "next";
@@ -17,31 +17,31 @@ export const metadata: Metadata = {
 };
 
 //Fetch data SSR
- async function getFeaturedProducts() : Promise<any[]> {
-    try {
-        const res = await fetchFeaturedProducts();
-        console.log("Featured Products API Response:", res);
-        // if (!res) {
-        //     console.log('Failed to fetch featured products:', res);
-        //     throw new Error('Failed to fetch data');
-        // }
-         return Array.isArray(res) ? res : [];
-    } catch (error : any) {
-        console.error(error);
-        return error;
-    }
+async function getFeaturedProducts(): Promise<any[]> {
+  try {
+    const res = await fetchFeaturedProducts();
+    console.log("Featured Products API Response:", res);
+    // if (!res) {
+    //     console.log('Failed to fetch featured products:', res);
+    //     throw new Error('Failed to fetch data');
+    // }
+    return Array.isArray(res) ? res : [];
+  } catch (error: any) {
+    console.error(error);
+    return error;
+  }
 }
-async function getCategoriesList() : Promise<Category[]> {
-    try {
-      const res =  await fetchCategoriesList();
-      return Array.isArray(res) ? res : [];
-    } catch (error : any) {
-      console.error(error);
-      return error;
-    }
+async function getCategoriesList(): Promise<Category[]> {
+  try {
+    const res = await fetchCategoriesList();
+    return Array.isArray(res) ? res : [];
+  } catch (error: any) {
+    console.error(error);
+    return error;
+  }
 }
 
-async function getLatestPosts() : Promise<any[]> {
+async function getLatestPosts(): Promise<any[]> {
   try {
     const res: any = await axiosClient.get('/posts', { params: { limit: 3, status: 'PUBLISHED' } });
     if (Array.isArray(res)) return res;
@@ -54,11 +54,11 @@ async function getLatestPosts() : Promise<any[]> {
 }
 
 export default async function Home() {
-    const featuredProducts = await getFeaturedProducts();
-    const fetchCategories = await getCategoriesList();
-    const latestPosts = await getLatestPosts();
-    console.log("Home page - Featured Products:", featuredProducts);
-    console.log("Home page - Categories:", fetchCategories);
+  const featuredProducts = await getFeaturedProducts();
+  const fetchCategories = await getCategoriesList();
+  const latestPosts = await getLatestPosts();
+  console.log("Home page - Featured Products:", featuredProducts);
+  console.log("Home page - Categories:", fetchCategories);
   return (
     <div className="min-h-screen bg-gray-50">
       <MainContent featuredProducts={featuredProducts} fetchCategories={fetchCategories} newsPosts={latestPosts} />

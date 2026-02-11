@@ -1,20 +1,21 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException, OnModuleInit } from '@nestjs/common';
 import { PrismaService } from 'src/prismaClient/prisma.service';
 import { CreateFlashSaleDto, UpdateFlashSaleDto, AddFlashSaleItemsDto, UpdateFlashSaleItemDto } from './dto/flash-sale.dto';
-import { AuditLogService, AuditAction, AuditEntity } from 'src/modules/audit-log/audit-log.service';
+import { AuditLogService, AuditAction, AuditEntity } from '../../audit-log/audit-log.service';
+import { formatPrice } from 'src/utils/price.util';
 
 @Injectable()
 export class FlashSaleService {
   constructor(
     private prisma: PrismaService,
     private auditLogService: AuditLogService,
-  ) {}
+  ) { }
 
   async findAll(status?: 'active' | 'upcoming' | 'ended' | 'all') {
     const now = new Date();
-    
+
     let where: any = {};
-    
+
     switch (status) {
       case 'active':
         where = {
@@ -151,7 +152,7 @@ export class FlashSaleService {
         items: items ? {
           create: items.map(item => ({
             variantId: item.variantId,
-            salePrice: BigInt(item.salePrice),
+            salePrice: BigInt(Math.round(item.salePrice * 100)),
             quantity: item.quantity,
           })),
         } : undefined,
@@ -175,7 +176,7 @@ export class FlashSaleService {
       AuditEntity.FLASHSALE,
       undefined,
       flashSale.id,
-      { 
+      {
         name: flashSale.name,
         itemCount: flashSale.items.length,
         startTime: flashSale.startTime,
@@ -243,7 +244,7 @@ export class FlashSaleService {
       data: addItemsDto.items.map(item => ({
         flashSaleId: id,
         variantId: item.variantId,
-        salePrice: BigInt(item.salePrice),
+        salePrice: BigInt(Math.round(item.salePrice * 100)),
         quantity: item.quantity,
       })),
       skipDuplicates: true,
@@ -272,11 +273,11 @@ export class FlashSaleService {
 
     // Update item
     const updateData: any = {};
-    
+
     if (updateDto.salePrice !== undefined) {
-      updateData.salePrice = BigInt(updateDto.salePrice);
+      updateData.salePrice = BigInt(Math.round(updateDto.salePrice * 100));
     }
-    
+
     if (updateDto.quantity !== undefined) {
       updateData.quantity = updateDto.quantity;
     }
@@ -391,10 +392,10 @@ export class FlashSaleService {
       ...flashSale,
       items: flashSale.items?.map((item: any) => ({
         ...item,
-        salePrice: Number(item.salePrice),
+        salePrice: formatPrice(item.salePrice),
         variant: item.variant ? {
           ...item.variant,
-          price: Number(item.variant.price),
+          price: formatPrice(item.variant.price),
         } : undefined,
       })) || [],
     };

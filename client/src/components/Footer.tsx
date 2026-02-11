@@ -12,20 +12,20 @@ export default function Footer() {
           {/* Company Info */}
           <div className="space-y-6">
             <LogoDark iconSize={32} textSize="text-2xl" />
-            <p className="text-slate-400 leading-relaxed">
+            <p className="text-slate-300 leading-relaxed">
               Nền tảng mua sắm trực tuyến hàng đầu với hàng ngàn sản phẩm chất lượng, chính hãng và dịch vụ tận tâm.
             </p>
             <div className="flex gap-3 pt-2">
-              <a href="#" className="w-11 h-11 rounded-xl bg-slate-800 flex items-center justify-center hover:bg-blue-600 transition-all duration-300 hover:scale-110 hover:shadow-lg hover:shadow-blue-500/50">
+              <a href="https://facebook.com" target="_blank" rel="noopener noreferrer" aria-label="Facebook" className="w-11 h-11 rounded-xl bg-slate-800 flex items-center justify-center hover:bg-blue-600 transition-all duration-300 hover:scale-110 hover:shadow-lg hover:shadow-blue-500/50">
                 <Facebook className="w-5 h-5" />
               </a>
-              <a href="#" className="w-11 h-11 rounded-xl bg-slate-800 flex items-center justify-center hover:bg-sky-500 transition-all duration-300 hover:scale-110 hover:shadow-lg hover:shadow-sky-500/50">
+              <a href="https://twitter.com" target="_blank" rel="noopener noreferrer" aria-label="Twitter" className="w-11 h-11 rounded-xl bg-slate-800 flex items-center justify-center hover:bg-sky-500 transition-all duration-300 hover:scale-110 hover:shadow-lg hover:shadow-sky-500/50">
                 <Twitter className="w-5 h-5" />
               </a>
-              <a href="#" className="w-11 h-11 rounded-xl bg-slate-800 flex items-center justify-center hover:bg-gradient-to-br hover:from-pink-500 hover:to-purple-600 transition-all duration-300 hover:scale-110 hover:shadow-lg hover:shadow-pink-500/50">
+              <a href="https://instagram.com" target="_blank" rel="noopener noreferrer" aria-label="Instagram" className="w-11 h-11 rounded-xl bg-slate-800 flex items-center justify-center hover:bg-gradient-to-br hover:from-pink-500 hover:to-purple-600 transition-all duration-300 hover:scale-110 hover:shadow-lg hover:shadow-pink-500/50">
                 <Instagram className="w-5 h-5" />
               </a>
-              <a href="#" className="w-11 h-11 rounded-xl bg-slate-800 flex items-center justify-center hover:bg-red-600 transition-all duration-300 hover:scale-110 hover:shadow-lg hover:shadow-red-500/50">
+              <a href="https://youtube.com" target="_blank" rel="noopener noreferrer" aria-label="Youtube" className="w-11 h-11 rounded-xl bg-slate-800 flex items-center justify-center hover:bg-red-600 transition-all duration-300 hover:scale-110 hover:shadow-lg hover:shadow-red-500/50">
                 <Youtube className="w-5 h-5" />
               </a>
             </div>
@@ -82,10 +82,12 @@ export default function Footer() {
                 <Input
                   placeholder="Nhập email của bạn..."
                   className="bg-slate-800/50 border-slate-700 text-white pr-12 focus:ring-indigo-500 focus:border-indigo-500 rounded-xl h-12"
+                  aria-label="Email đăng ký nhận tin"
                 />
                 <Button
                   size="icon"
                   className="absolute right-1 top-1/2 -translate-y-1/2 h-10 w-10 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 rounded-lg shadow-lg"
+                  aria-label="Đăng ký"
                 >
                   <Send className="w-4 h-4" />
                 </Button>

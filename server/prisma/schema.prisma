@@ -381,6 +381,8 @@ enum PaymentProvider {
   VNPAY
   MOMO
   STRIPE
+  BANK_TRANSFER
+  COD
   OTHER
 }
 
@@ -477,7 +479,7 @@ model FlashSaleItem {
 
 model AuditLog {
   id        String   @id @default(cuid())
-  userId    String
+  userId    String?
   action    String   // CREATE, UPDATE, DELETE
   entity    String   // Product, Order, User, Banner, etc.
   entityId  String
@@ -486,7 +488,7 @@ model AuditLog {
   ipAddress String?
   userAgent String?
   createdAt DateTime @default(now())
-  user      User     @relation(fields: [userId], references: [id])
+  user      User?    @relation(fields: [userId], references: [id])
 
   @@index([userId])
   @@index([entity, entityId])

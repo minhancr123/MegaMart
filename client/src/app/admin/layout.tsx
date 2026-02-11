@@ -96,7 +96,7 @@ export default function AdminLayout({
         }
 
         console.log('Auth check:', { user, hasHydrated });
-        
+
         if (!user) {
             // Not logged in → redirect to auth
             router.push('/auth');
@@ -129,13 +129,13 @@ export default function AdminLayout({
     return (
         <div className="min-h-screen bg-gray-100 dark:bg-gray-950">
             {/* Sidebar - Desktop */}
-            <aside className="w-64 bg-white dark:bg-gray-900 border-r border-gray-200 dark:border-gray-800 fixed h-full z-10 hidden md:block">
-                <div className="h-16 flex items-center px-6 border-b border-gray-200 dark:border-gray-800">
+            <aside className="w-64 bg-white dark:bg-gray-900 border-r border-gray-200 dark:border-gray-800 fixed h-full z-10 hidden md:flex flex-col">
+                <div className="h-16 flex items-center px-6 border-b border-gray-200 dark:border-gray-800 flex-shrink-0">
                     <Link href="/" className="text-2xl font-bold text-blue-600">
                         Mega<span className="text-gray-900 dark:text-white">Admin</span>
                     </Link>
                 </div>
-                <div className="p-4 space-y-1">
+                <div className="flex-1 overflow-y-auto p-4 space-y-1 custom-scrollbar">
                     {sidebarItems.map((item) => {
                         const isActive = pathname === item.href;
                         return (
@@ -153,7 +153,7 @@ export default function AdminLayout({
                         );
                     })}
                 </div>
-                <div className="absolute bottom-0 w-full p-4 border-t border-gray-200 dark:border-gray-800">
+                <div className="p-4 border-t border-gray-200 dark:border-gray-800 flex-shrink-0">
                     <Button
                         variant="ghost"
                         className="w-full justify-start text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950"

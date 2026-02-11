@@ -3,7 +3,7 @@ import { IsNotEmpty, IsString, IsOptional, IsNumber, Min } from 'class-validator
 
 export class AddItemToCartDto {
 
-   @ApiProperty({
+  @ApiProperty({
     description: 'User ID của người dùng',
     example: 'user_id_123',
   })
@@ -25,7 +25,7 @@ export class AddItemToCartDto {
     required: false,
   })
   @IsNotEmpty()
-  @IsString()
+  @IsNumber()
   @Min(1)
   quantity?: number;
 }

@@ -45,6 +45,7 @@ export class QueryAuditLogDto {
 }
 
 export class CreateAuditLogDto {
+  @IsOptional()
   @IsString()
   userId?: string;
 

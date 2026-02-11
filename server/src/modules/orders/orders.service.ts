@@ -4,16 +4,17 @@ import { CreateOrderDto } from './dto/create-order.dto';
 import { UpdateOrderDto } from './dto/update-order.dto';
 import { OrderResponseDto } from './dto/order-response.dto';
 import { OrderStatus, PaymentStatus } from '@prisma/client';
-import { 
-  validateTransition, 
-  shouldRestoreStock, 
+import { formatPrice } from 'src/utils/price.util';
+import {
+  validateTransition,
+  shouldRestoreStock,
   canUserCancel,
-  getStatusLabel 
+  getStatusLabel
 } from './order-status.helper';
 
 @Injectable()
 export class OrdersService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(private readonly prisma: PrismaService) { }
 
   // Generate unique order code
   private generateOrderCode(): string {
@@ -24,7 +25,7 @@ export class OrdersService {
 
   // Create new order
   async createOrder(createOrderDto: CreateOrderDto): Promise<OrderResponseDto> {
-  const { cartId, shipping, paymentMethod, totals, userId, voucherCode } = createOrderDto;
+    const { cartId, shipping, paymentMethod, totals, userId, voucherCode } = createOrderDto;
 
     // Get cart with items
     const cart = await this.prisma.cart.findUnique({
@@ -53,9 +54,9 @@ export class OrdersService {
     for (const item of cart.items) {
       if (item.variant.stock < item.quantity) {
         throw new HttpException(
-          { 
-            success: false, 
-            message: `Sản phẩm "${item.variant.product.name}" không đủ số lượng trong kho` 
+          {
+            success: false,
+            message: `Sản phẩm "${item.variant.product.name}" không đủ số lượng trong kho`
           },
           HttpStatus.BAD_REQUEST
         );
@@ -222,7 +223,8 @@ export class OrdersService {
     const order = await this.prisma.order.findUnique({
       where: { id: orderId },
       include: {
-        items: true
+        items: true,
+        payments: true
       }
     });
 
@@ -231,12 +233,36 @@ export class OrdersService {
     }
 
     const newStatus = updateOrderDto.status;
-    
+
     if (!newStatus) {
       throw new HttpException(
         { success: false, message: 'Trạng thái mới là bắt buộc' },
         HttpStatus.BAD_REQUEST
       );
+    }
+
+    // Check payment status for non-COD orders
+    const payment = order.payments?.[0];
+
+    // Allow update if:
+    // 1. Cancelling or Failing order
+    // 2. Marking as PAID (confirming payment)
+    const isAllowedUpdate =
+      newStatus === OrderStatus.CANCELED ||
+      newStatus === OrderStatus.FAILED ||
+      newStatus === OrderStatus.PAID;
+
+    if (!isAllowedUpdate && payment && payment.status === PaymentStatus.PENDING) {
+      const isCod = payment.provider === 'COD' || payment.provider === 'OTHER';
+      if (!isCod) {
+        throw new HttpException(
+          {
+            success: false,
+            message: 'Đơn hàng chưa hoàn tất thanh toán. Vui lòng cập nhật trạng thái đã thanh toán (PAID) trước khi xử lý.'
+          },
+          HttpStatus.BAD_REQUEST
+        );
+      }
     }
 
     const currentStatus = order.status;
@@ -265,6 +291,21 @@ export class OrdersService {
           payments: true
         }
       });
+
+      // If status is PAID, also update payment status
+      if (newStatus === OrderStatus.PAID) {
+        await tx.payment.updateMany({
+          where: { orderId: orderId },
+          data: {
+            status: PaymentStatus.PAID
+          }
+        });
+
+        // Refresh payment info in returned object
+        if (updated.payments) {
+          updated.payments.forEach(p => p.status = PaymentStatus.PAID);
+        }
+      }
 
       // Create status history
       await tx.orderStatusHistory.create({
@@ -441,11 +482,11 @@ export class OrdersService {
       code: order.code,
       userId: order.userId,
       status: order.status,
-      total: Number(order.total),
-      discountAmount: Number(order.discountAmount || 0),
+      total: formatPrice(order.total),
+      discountAmount: formatPrice(order.discountAmount || 0n),
       voucherCode: order.voucherCode || null,
-      vatAmount: Number(order.vatAmount),
-      shippingFee: Number(order.shippingFee),
+      vatAmount: formatPrice(order.vatAmount),
+      shippingFee: formatPrice(order.shippingFee),
       shippingAddress: order.shippingAddress,
       billingAddress: order.billingAddress,
       createdAt: order.createdAt,
@@ -453,16 +494,16 @@ export class OrdersService {
       items: order.items?.map((item: any) => ({
         id: item.id,
         variantId: item.variantId,
-        price: Number(item.price),
+        price: formatPrice(item.price),
         quantity: item.quantity,
         variant: item.variant ? {
           ...item.variant,
-          price: Number(item.variant.price)
+          price: formatPrice(item.variant.price)
         } : null
       })) || [],
       payments: order.payments?.map((payment: any) => ({
         ...payment,
-        amount: Number(payment.amount)
+        amount: formatPrice(payment.amount)
       })) || []
     };
   }

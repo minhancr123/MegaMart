@@ -6,7 +6,7 @@ import type { Request } from 'express';
 @ApiTags('payment')
 @Controller('payment')
 export class PaymentController {
-  constructor(private readonly paymentService: PaymentService) {}
+  constructor(private readonly paymentService: PaymentService) { }
 
   @Post('vnpay/:orderId')
   @ApiOperation({ summary: 'Create VNPay payment URL' })
@@ -15,7 +15,7 @@ export class PaymentController {
     try {
       const ipAddr = req.headers['x-forwarded-for'] as string || req.socket.remoteAddress || '127.0.0.1';
       const paymentUrl = await this.paymentService.createVNPayPaymentUrl(orderId, ipAddr);
-      
+
       return {
         success: true,
         data: { paymentUrl },
@@ -65,6 +65,35 @@ export class PaymentController {
         { success: false, message: 'Lỗi khi xử lý thanh toán COD', detail: error.message },
         HttpStatus.INTERNAL_SERVER_ERROR
       );
+    }
+  }
+
+  @Post('webhook')
+  @ApiOperation({ summary: 'Handle bank transfer webhook' })
+  @ApiResponse({ status: 200, description: 'Webhook processed successfully' })
+  async handleWebhook(@Body() data: any) {
+    try {
+      // Log webhook data for debugging
+      console.log('Received webhook data:', JSON.stringify(data, null, 2));
+
+      // Handle standard webhook structure (e.g. from SePay, Casso, or custom)
+      // Expected structure varies but usually contains content (description) and amount
+      const result = await this.paymentService.processBankTransferWebhook(data);
+
+      return {
+        success: true,
+        message: 'Webhook processed',
+        data: result
+      };
+    } catch (error) {
+      console.error('Webhook processing error:', error);
+      // Always return 200 to webhook sender to acknowledge receipt, unless it's a critical system failure
+      // (Some services retry if not 200)
+      return {
+        success: false,
+        message: 'Webhook processing failed',
+        error: error.message
+      };
     }
   }
 

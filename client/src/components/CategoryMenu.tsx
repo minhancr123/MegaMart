@@ -62,7 +62,7 @@ export default function CategoryMenu() {
   return (
     <div className="bg-white rounded-lg shadow-lg overflow-hidden">
       {/* Categories List */}
-      <motion.div 
+      <motion.div
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         className="divide-y divide-gray-100"
@@ -83,7 +83,6 @@ export default function CategoryMenu() {
 }
 
 function CategoryItem({ category }: { category: Category }) {
-  const [isHovered, setIsHovered] = useState(false);
   const hasChildren = category.children && category.children.length > 0;
 
   if (!hasChildren) {
@@ -106,8 +105,6 @@ function CategoryItem({ category }: { category: Category }) {
         <Link
           href={`/category/${category.slug}`}
           className="flex items-center justify-between px-4 py-3 hover:bg-gradient-to-r hover:from-blue-50 hover:to-indigo-50 transition-all duration-300 group"
-          onMouseEnter={() => setIsHovered(true)}
-          onMouseLeave={() => setIsHovered(false)}
         >
           <span className="text-sm text-gray-700 group-hover:text-blue-600 font-medium transition-colors duration-200">
             {category.name}
@@ -131,7 +128,7 @@ function CategoryItem({ category }: { category: Category }) {
         >
           {/* Subcategories List */}
           <div className="p-4 max-h-[400px] overflow-y-auto">
-            <motion.div 
+            <motion.div
               className="grid grid-cols-2 gap-2"
               initial="hidden"
               animate="show"

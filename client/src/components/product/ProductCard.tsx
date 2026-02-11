@@ -117,11 +117,11 @@ export const ProductCard = ({ product, onAddToCart, onViewDetails }: ProductCard
         }
       }
     }
-    
-    return product.imageUrl || 
-           (product as any).image || 
-           getPrimaryImageUrl(product.images) || 
-           '';
+
+    return product.imageUrl ||
+      (product as any).image ||
+      getPrimaryImageUrl(product.images) ||
+      '';
   };
 
   const productImage = getProductImage();
@@ -147,13 +147,13 @@ export const ProductCard = ({ product, onAddToCart, onViewDetails }: ProductCard
     >
       <div className="relative flex flex-col bg-white dark:bg-gray-900 rounded-2xl border border-slate-200 dark:border-gray-800 hover:border-indigo-300 dark:hover:border-indigo-700 hover:shadow-xl transition-all duration-300 overflow-hidden h-full">
         {/* Product Image */}
-        <Link href={`/product/${product.id}`} className="relative block overflow-hidden bg-slate-50 dark:bg-gray-800 rounded-t-2xl">
-          <div className="aspect-square relative">
+        <Link href={`/product/${product.id}`} className="relative block overflow-hidden bg-slate-50 dark:bg-gray-800 rounded-t-2xl group">
+          <div className="aspect-square relative overflow-hidden">
             {productImage ? (
               <img
                 src={productImage}
                 alt={product.name}
-                className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110 dark:brightness-90"
+                className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110 dark:brightness-90"
               />
             ) : (
               <div className="w-full h-full bg-gradient-to-br from-slate-100 to-slate-200 dark:from-gray-800 dark:to-gray-900 flex items-center justify-center">
@@ -161,8 +161,21 @@ export const ProductCard = ({ product, onAddToCart, onViewDetails }: ProductCard
               </div>
             )}
 
-            {/* Overlay gradient on hover */}
-            <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+            {/* Overlay gradient and Quick View on hover */}
+            <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center backdrop-blur-[2px]">
+              <Button
+                variant="secondary"
+                size="sm"
+                className="translate-y-4 group-hover:translate-y-0 transition-transform duration-300 bg-white/90 text-gray-900 hover:bg-white font-medium shadow-xl"
+                onClick={(e) => {
+                  e.preventDefault();
+                  if (onViewDetails) onViewDetails(product.id);
+                }}
+              >
+                <Eye className="w-4 h-4 mr-2" />
+                Xem nhanh
+              </Button>
+            </div>
           </div>
 
           {/* Badges */}
@@ -178,10 +191,10 @@ export const ProductCard = ({ product, onAddToCart, onViewDetails }: ProductCard
           <div className="absolute top-3 right-3">
             <Badge
               className={`shadow-lg backdrop-blur-sm ${stats.totalStock === 0
-                  ? 'bg-red-500/90 text-white'
-                  : stats.totalStock <= 5
-                    ? 'bg-orange-500/90 text-white'
-                    : 'bg-green-500/90 text-white'
+                ? 'bg-red-500/90 text-white'
+                : stats.totalStock <= 5
+                  ? 'bg-orange-500/90 text-white'
+                  : 'bg-green-500/90 text-white'
                 }`}
             >
               {stats.totalStock === 0 ? 'Hết hàng' : stats.totalStock <= 5 ? `Còn ${stats.totalStock}` : 'Còn hàng'}
@@ -241,10 +254,10 @@ export const ProductCard = ({ product, onAddToCart, onViewDetails }: ProductCard
                   <Star
                     key={i}
                     className={`w-3.5 h-3.5 ${isFilled
-                        ? 'text-yellow-400 fill-yellow-400'
-                        : isHalf
-                          ? 'text-yellow-400 fill-yellow-200'
-                          : 'text-slate-200 fill-slate-200'
+                      ? 'text-yellow-400 fill-yellow-400'
+                      : isHalf
+                        ? 'text-yellow-400 fill-yellow-200'
+                        : 'text-slate-200 fill-slate-200'
                       }`}
                   />
                 );
@@ -337,11 +350,10 @@ export const ProductCard = ({ product, onAddToCart, onViewDetails }: ProductCard
                       <button
                         key={index}
                         onClick={() => setSelectedColorIndex(index)}
-                        className={`relative h-8 w-8 rounded-full border-2 transition-all ${
-                          selectedColorIndex === index
-                            ? 'border-indigo-600 ring-2 ring-indigo-200'
-                            : 'border-slate-300 hover:border-slate-400'
-                        } cursor-pointer`}
+                        className={`relative h-8 w-8 rounded-full border-2 transition-all ${selectedColorIndex === index
+                          ? 'border-indigo-600 ring-2 ring-indigo-200'
+                          : 'border-slate-300 hover:border-slate-400'
+                          } cursor-pointer`}
                         style={{ backgroundColor: color.hex }}
                         title={color.name}
                       />
@@ -373,25 +385,16 @@ export const ProductCard = ({ product, onAddToCart, onViewDetails }: ProductCard
           )}
 
           {/* Actions */}
-          <div className="mt-auto flex gap-2">
+          {/* Actions */}
+          <div className="mt-auto pt-3">
             <Button
-              variant="outline"
-              size="sm"
-              className="flex-1 hover:bg-slate-50 hover:border-slate-300 transition-all rounded-xl"
-              onClick={handleViewDetails}
-            >
-              <Eye className="h-4 w-4 mr-1" />
-              Chi tiết
-            </Button>
-
-            <Button
-              size="sm"
-              className="flex-1 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 shadow-md hover:shadow-lg transition-all rounded-xl"
+              size="default"
+              className="w-full bg-blue-600 hover:bg-blue-700 text-white shadow-md hover:shadow-lg transition-all rounded-xl font-medium h-10"
               onClick={handleAddToCart}
               disabled={!selectedVariant || selectedVariant.stock === 0}
             >
-              <ShoppingCart className="h-4 w-4 mr-1" />
-              Thêm vào giỏ
+              <ShoppingCart className="h-4 w-4 mr-2" />
+              {selectedVariant && selectedVariant.stock === 0 ? "Hết hàng" : "Thêm vào giỏ"}
             </Button>
           </div>
         </div>

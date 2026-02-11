@@ -7,44 +7,44 @@ export enum AuditAction {
   LOGIN = 'LOGIN',
   LOGOUT = 'LOGOUT',
   LOGIN_FAILED = 'LOGIN_FAILED',
-  
+
   // User
   USER_CREATE = 'USER_CREATE',
   USER_UPDATE = 'USER_UPDATE',
   USER_DELETE = 'USER_DELETE',
-  
+
   // Product
   PRODUCT_CREATE = 'PRODUCT_CREATE',
   PRODUCT_UPDATE = 'PRODUCT_UPDATE',
   PRODUCT_DELETE = 'PRODUCT_DELETE',
-  
+
   // Order
   ORDER_CREATE = 'ORDER_CREATE',
   ORDER_UPDATE = 'ORDER_UPDATE',
   ORDER_STATUS_CHANGE = 'ORDER_STATUS_CHANGE',
   ORDER_CANCEL = 'ORDER_CANCEL',
-  
+
   // Category
   CATEGORY_CREATE = 'CATEGORY_CREATE',
   CATEGORY_UPDATE = 'CATEGORY_UPDATE',
   CATEGORY_DELETE = 'CATEGORY_DELETE',
-  
+
   // Banner
   BANNER_CREATE = 'BANNER_CREATE',
   BANNER_UPDATE = 'BANNER_UPDATE',
   BANNER_DELETE = 'BANNER_DELETE',
-  
+
   // FlashSale
   FLASHSALE_CREATE = 'FLASHSALE_CREATE',
   FLASHSALE_UPDATE = 'FLASHSALE_UPDATE',
   FLASHSALE_DELETE = 'FLASHSALE_DELETE',
-  
+
   // Posts
   POST_CREATE = 'POST_CREATE',
   POST_UPDATE = 'POST_UPDATE',
   POST_DELETE = 'POST_DELETE',
   POST_PUBLISH = 'POST_PUBLISH',
-  
+
   // Settings
   SETTINGS_UPDATE = 'SETTINGS_UPDATE',
 }
@@ -63,12 +63,12 @@ export enum AuditEntity {
 
 @Injectable()
 export class AuditLogService {
-  constructor(private prisma: PrismaService) {}
+  constructor(private prisma: PrismaService) { }
 
   async create(createAuditLogDto: CreateAuditLogDto) {
     return this.prisma.auditLog.create({
       data: {
-        userId: createAuditLogDto.userId!,
+        userId: createAuditLogDto.userId,
         action: createAuditLogDto.action,
         entity: createAuditLogDto.entity,
         entityId: createAuditLogDto.entityId ?? '',
@@ -98,20 +98,20 @@ export class AuditLogService {
 
   async findAll(query: QueryAuditLogDto) {
     const { userId, action, entity, entityId, startDate, endDate, page = 1, limit = 20 } = query;
-    
+
     const where: any = {};
-    
+
     if (userId) where.userId = userId;
     if (action) where.action = action;
     if (entity) where.entity = entity;
     if (entityId) where.entityId = entityId;
-    
+
     if (startDate || endDate) {
       where.createdAt = {};
       if (startDate) where.createdAt.gte = new Date(startDate);
       if (endDate) where.createdAt.lte = new Date(endDate);
     }
-    
+
     const [logs, total] = await Promise.all([
       this.prisma.auditLog.findMany({
         where,
@@ -130,7 +130,7 @@ export class AuditLogService {
       }),
       this.prisma.auditLog.count({ where }),
     ]);
-    
+
     return {
       data: logs,
       meta: {
@@ -169,7 +169,7 @@ export class AuditLogService {
   async getStats(days = 30) {
     const startDate = new Date();
     startDate.setDate(startDate.getDate() - days);
-    
+
     // Get action counts
     const actionCounts = await this.prisma.auditLog.groupBy({
       by: ['action'],
@@ -180,7 +180,7 @@ export class AuditLogService {
       orderBy: { _count: { id: 'desc' } },
       take: 10,
     });
-    
+
     // Get daily activity
     const dailyLogs = await this.prisma.auditLog.findMany({
       where: {
@@ -190,14 +190,14 @@ export class AuditLogService {
         createdAt: true,
       },
     });
-    
+
     // Group by day
     const dailyActivity: Record<string, number> = {};
     dailyLogs.forEach(log => {
       const day = log.createdAt.toISOString().split('T')[0];
       dailyActivity[day] = (dailyActivity[day] || 0) + 1;
     });
-    
+
     return {
       topActions: actionCounts.map(a => ({
         action: a.action,
@@ -213,13 +213,13 @@ export class AuditLogService {
   async cleanup(daysToKeep = 90) {
     const cutoffDate = new Date();
     cutoffDate.setDate(cutoffDate.getDate() - daysToKeep);
-    
+
     const result = await this.prisma.auditLog.deleteMany({
       where: {
         createdAt: { lt: cutoffDate },
       },
     });
-    
+
     return { deleted: result.count };
   }
 }

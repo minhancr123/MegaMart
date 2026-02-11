@@ -20,14 +20,14 @@ export default function CheckoutPage() {
   const { cart, refreshCart } = useCart();
   const { user } = useAuthStore();
   const [loading, setLoading] = useState(false);
-  const [paymentMethod, setPaymentMethod] = useState<"COD" | "VNPAY">("COD");
+  const [paymentMethod, setPaymentMethod] = useState<"COD" | "VNPAY" | "MOMO" | "BANK_TRANSFER">("COD");
   const [selectedAddress, setSelectedAddress] = useState<any>(null);
   const [note, setNote] = useState("");
   const [voucherCode, setVoucherCode] = useState("");
   const [discount, setDiscount] = useState(0);
   const [voucherStatus, setVoucherStatus] = useState<string | null>(null);
 
-  const subtotal = cart?.data?.items?.reduce((s:any,item:any)=> s + (item.variant.price*item.quantity), 0) || 0;
+  const subtotal = cart?.data?.items?.reduce((s: any, item: any) => s + (item.variant.price * item.quantity), 0) || 0;
   const tax = subtotal * 0.1;
   const total = Math.max(0, subtotal + tax - discount);
 
@@ -69,7 +69,7 @@ export default function CheckoutPage() {
     setLoading(true);
     try {
       // Create order first
-      const payload = {
+      const payload: any = {
         cartId: (cart as any)?.id || (cart as any)?.data?.id || null,
         shipping: {
           fullName: selectedAddress.fullName,
@@ -77,22 +77,22 @@ export default function CheckoutPage() {
           address: `${selectedAddress.address}, ${selectedAddress.ward}, ${selectedAddress.district}, ${selectedAddress.province}`,
           note: note || undefined,
         },
-        paymentMethod: paymentMethod === "COD" ? "OTHER" : "VNPAY",
+        paymentMethod: paymentMethod,
         totals: { subtotal, tax, total, discount },
         voucherCode: voucherCode || undefined,
       };
 
       const res = await createOrder(payload);
       console.log('Create order response:', res);
-      
+
       // Interceptor có thể return nhiều dạng:
       // 1. { success: true, data: { id: "...", ... } }
       // 2. { id: "...", ... } (direct order object)
       // 3. { data: { id: "...", ... } }
-      
+
       let orderId = null;
       const response = res as any;
-      
+
       // Check nếu res có success field
       if (response?.success === true || response?.success === false) {
         // Response có success flag
@@ -107,7 +107,7 @@ export default function CheckoutPage() {
         // Response có data wrapper
         orderId = response.data.id;
       }
-      
+
       if (!orderId) {
         console.error('Cannot get order ID from response:', res);
         throw new Error('Không lấy được ID đơn hàng');
@@ -120,14 +120,14 @@ export default function CheckoutPage() {
         console.log('Creating VNPAY payment for order:', orderId);
         const paymentRes = await createVNPayPayment(orderId);
         console.log('VNPAY payment response:', paymentRes);
-        
+
         // Response có thể có nhiều dạng:
         // 1. { success: true, data: { paymentUrl: "..." } }
         // 2. { data: { paymentUrl: "..." } }
         // 3. { paymentUrl: "..." } (trực tiếp)
         const response = paymentRes as any;
         const paymentUrl = response?.data?.paymentUrl || response?.paymentUrl;
-        
+
         if (paymentUrl) {
           toast.success('Đang chuyển đến trang thanh toán...');
           // Redirect to VNPay payment gateway
@@ -136,11 +136,15 @@ export default function CheckoutPage() {
           console.error('No payment URL found in response:', paymentRes);
           throw new Error('Không tạo được link thanh toán');
         }
+      } else if (paymentMethod === "MOMO" || paymentMethod === "BANK_TRANSFER") {
+        toast.success('Đặt hàng thành công! Vui lòng thực hiện thanh toán.');
+        await refreshCart();
+        router.push(`/profile/orders/${orderId}`);
       } else {
-        // COD - just redirect to orders page
+        // COD
         toast.success('Đặt hàng thành công! Bạn sẽ thanh toán khi nhận hàng.');
         await refreshCart();
-        router.push('/profile/orders');
+        router.push(`/profile/orders/${orderId}`);
       }
     } catch (error: any) {
       console.error('Place order error:', error);
@@ -155,7 +159,7 @@ export default function CheckoutPage() {
       <h1 className="text-3xl font-bold mb-6 bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent animate-slide-in-left">
         Thanh toán đơn hàng
       </h1>
-      
+
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Left: Address & Payment */}
         <div className="lg:col-span-2 space-y-6 animate-slide-in-left">
@@ -166,7 +170,7 @@ export default function CheckoutPage() {
                 <MapPin className="w-5 h-5 text-blue-600" />
                 <h2 className="font-semibold text-lg">Địa chỉ giao hàng</h2>
               </div>
-              <AddressManager 
+              <AddressManager
                 mode="select"
                 onSelect={setSelectedAddress}
               />
@@ -180,8 +184,8 @@ export default function CheckoutPage() {
                 <Wallet className="w-5 h-5 text-green-600" />
                 <h2 className="font-semibold text-lg">Phương thức thanh toán</h2>
               </div>
-              
-              <RadioGroup value={paymentMethod} onValueChange={(v: any) => setPaymentMethod(v as "COD" | "VNPAY")}>
+
+              <RadioGroup value={paymentMethod} onValueChange={(v: any) => setPaymentMethod(v as "COD" | "VNPAY" | "MOMO" | "BANK_TRANSFER")}>
                 <div className="flex items-center space-x-3 p-4 border rounded-lg hover:bg-blue-50 hover:border-blue-300 cursor-pointer transition-all duration-200">
                   <RadioGroupItem value="COD" id="cod" />
                   <Label htmlFor="cod" className="flex-1 cursor-pointer">
@@ -203,6 +207,36 @@ export default function CheckoutPage() {
                       <div>
                         <p className="font-medium">Thanh toán qua VNPAY</p>
                         <p className="text-sm text-gray-500">Thanh toán bằng thẻ ATM/Visa/MasterCard</p>
+                      </div>
+                    </div>
+                  </Label>
+                </div>
+
+                <div className="flex items-center space-x-3 p-4 border rounded-lg hover:bg-pink-50 hover:border-pink-300 cursor-pointer mt-3 transition-all duration-200">
+                  <RadioGroupItem value="MOMO" id="momo" />
+                  <Label htmlFor="momo" className="flex-1 cursor-pointer">
+                    <div className="flex items-center gap-2">
+                      <div className="w-5 h-5 rounded bg-[#A50064] flex items-center justify-center text-white text-[10px] font-bold">Mo</div>
+                      <div>
+                        <p className="font-medium">Thanh toán qua ví MoMo</p>
+                        <p className="text-sm text-gray-500">Quét mã QR để thanh toán</p>
+                      </div>
+                    </div>
+                  </Label>
+                </div>
+
+                <div className="flex items-center space-x-3 p-4 border rounded-lg hover:bg-green-50 hover:border-green-300 cursor-pointer mt-3 transition-all duration-200">
+                  <RadioGroupItem value="BANK_TRANSFER" id="bank" />
+                  <Label htmlFor="bank" className="flex-1 cursor-pointer">
+                    <div className="flex items-center gap-2">
+                      <div className="w-5 h-5 flex items-center justify-center">
+                        <svg className="w-5 h-5 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 14v3m4-3v3m4-3v3M3 21h18M3 10h18M3 7l9-4 9 4M4 10h16v11H4V10z" />
+                        </svg>
+                      </div>
+                      <div>
+                        <p className="font-medium">Chuyển khoản ngân hàng</p>
+                        <p className="text-sm text-gray-500">Chuyển khoản thủ công qua STK</p>
                       </div>
                     </div>
                   </Label>
@@ -231,13 +265,13 @@ export default function CheckoutPage() {
           <Card className="shadow-lg sticky top-6 transition-all duration-300 hover:shadow-xl">
             <CardContent className="p-6">
               <h2 className="font-semibold text-lg mb-4">Tóm tắt đơn hàng</h2>
-              
+
               {/* Cart items preview */}
               <div className="space-y-3 mb-4 max-h-60 overflow-y-auto">
                 {cart?.data?.items?.map((item: any) => (
                   <div key={item.id} className="flex gap-3 text-sm">
-                    <img 
-                      src={item.variant?.product?.images?.[0] || "/placeholder.png"} 
+                    <img
+                      src={item.variant?.product?.images?.[0] || "/placeholder.png"}
                       alt={item.variant?.product?.name}
                       className="w-16 h-16 object-cover rounded"
                     />
@@ -246,7 +280,7 @@ export default function CheckoutPage() {
                       <p className="text-gray-500">x{item.quantity}</p>
                     </div>
                     <p className="font-medium whitespace-nowrap">
-                      {new Intl.NumberFormat('vi-VN',{style:'currency',currency:'VND',maximumFractionDigits:0}).format(item.variant.price * item.quantity)}
+                      {new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND', maximumFractionDigits: 0 }).format(item.variant.price * item.quantity)}
                     </p>
                   </div>
                 ))}
@@ -255,11 +289,11 @@ export default function CheckoutPage() {
               <div className="border-t pt-4 space-y-2">
                 <div className="flex justify-between text-sm">
                   <span className="text-gray-600">Tạm tính</span>
-                  <span>{new Intl.NumberFormat('vi-VN',{style:'currency',currency:'VND',maximumFractionDigits:0}).format(subtotal)}</span>
+                  <span>{new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND', maximumFractionDigits: 0 }).format(subtotal)}</span>
                 </div>
                 <div className="flex justify-between text-sm">
                   <span className="text-gray-600">Thuế (10%)</span>
-                  <span>{new Intl.NumberFormat('vi-VN',{style:'currency',currency:'VND',maximumFractionDigits:0}).format(tax)}</span>
+                  <span>{new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND', maximumFractionDigits: 0 }).format(tax)}</span>
                 </div>
                 <div className="space-y-2 pt-2">
                   <Label className="text-sm text-gray-700">Mã giảm giá</Label>
@@ -278,23 +312,23 @@ export default function CheckoutPage() {
                 {discount > 0 && (
                   <div className="flex justify-between text-sm text-green-600">
                     <span>Giảm giá</span>
-                    <span>-{new Intl.NumberFormat('vi-VN',{style:'currency',currency:'VND',maximumFractionDigits:0}).format(discount)}</span>
+                    <span>-{new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND', maximumFractionDigits: 0 }).format(discount)}</span>
                   </div>
                 )}
                 <div className="flex justify-between font-bold text-lg pt-2 border-t">
                   <span>Tổng cộng</span>
-                  <span className="text-red-600">{new Intl.NumberFormat('vi-VN',{style:'currency',currency:'VND',maximumFractionDigits:0}).format(total)}</span>
+                  <span className="text-red-600">{new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND', maximumFractionDigits: 0 }).format(total)}</span>
                 </div>
               </div>
 
-              <Button 
-                onClick={handlePlaceOrder} 
-                disabled={loading || !selectedAddress} 
+              <Button
+                onClick={handlePlaceOrder}
+                disabled={loading || !selectedAddress}
                 className="w-full mt-6 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
               >
                 {loading ? 'Đang xử lý...' : paymentMethod === 'VNPAY' ? 'Thanh toán ngay' : 'Đặt hàng'}
               </Button>
-              
+
               {!selectedAddress && (
                 <p className="text-sm text-red-500 text-center mt-2">Vui lòng chọn địa chỉ giao hàng</p>
               )}

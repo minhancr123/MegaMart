@@ -5,10 +5,10 @@ import { formatPrice } from 'src/utils/price.util';
 
 @Injectable()
 export class ProductsService {
-    constructor(private prisma : PrismaService) {}
-    async findAll(search?: string){
-        
-        return new Promise(async (resolve , reject) => {
+    constructor(private prisma: PrismaService) { }
+    async findAll(search?: string) {
+
+        return new Promise(async (resolve, reject) => {
             try {
                 const whereClause: any = {
                     deletedAt: null
@@ -77,17 +77,17 @@ export class ProductsService {
                         createdAt: 'desc'
                     }
                 });
-                
-                // Convert BigInt fields to Number
+
+                // Convert BigInt fields to Number and scale
                 const serializedProducts = products.map(product => ({
                     ...product,
                     variants: product.variants.map(variant => ({
                         ...variant,
-                        price: Number(variant.price),
+                        price: formatPrice(variant.price),
                         colors: variant.colors || []
                     })),
                 }));
-                
+
                 console.log(`✅ Found ${products.length} products with full data`);
                 resolve(serializedProducts);
             } catch (error) {
@@ -97,84 +97,83 @@ export class ProductsService {
         })
     }
 
-    async getFeaturedProducts() : Promise<ProductResponseDto[]> {
+    async getFeaturedProducts(): Promise<ProductResponseDto[]> {
         const products = await this.prisma.product.findMany({
-            take : 8,
-            where : {
-                deletedAt : null,
-                variants : {
-                    some : {
-                        stock : {
-                            gt : 0
+            take: 8,
+            where: {
+                deletedAt: null,
+                variants: {
+                    some: {
+                        stock: {
+                            gt: 0
                         }
                     }
                 }
             },
-            select : {
-                id : true,
-                slug : true,
-                name : true,
-                description : true,
-                brand : true,
-                soldCount : true,
-                createdAt : true,
-                updatedAt : true,
-                category : {
-                    select : {
-                        id : true,
-                        name : true,
-                        slug : true
+            select: {
+                id: true,
+                slug: true,
+                name: true,
+                description: true,
+                brand: true,
+                soldCount: true,
+                createdAt: true,
+                updatedAt: true,
+                category: {
+                    select: {
+                        id: true,
+                        name: true,
+                        slug: true
                     }
                 },
-                images : true,
-                variants : {
+                images: true,
+                variants: {
                     select: {
-                        id : true,
-                        sku : true, 
-                        price : true,
-                        stock : true,
-                        colors : true,
-                        attributes : true
+                        id: true,
+                        sku: true,
+                        price: true,
+                        stock: true,
+                        colors: true,
+                        attributes: true
                     },
-                    where :{
-                        stock : {
+                    where: {
+                        stock: {
                             gt: 0
                         }
                     },
-                    orderBy : {
-                        price : 'asc'
+                    orderBy: {
+                        price: 'asc'
                     }
                 }
             },
-            orderBy : {
-                createdAt : 'desc'
+            orderBy: {
+                createdAt: 'desc'
             }
         });
 
         return products.map(product => this.formatProductResponse(product));
 
     }
-   async getCategoryList() {
-    return this.prisma.category.findMany({
-        where: { parentId: null },
-        select: {
-        id: true,
-        name: true,
-        slug: true,
-        children: {
+    async getCategoryList() {
+        return this.prisma.category.findMany({
+            where: { parentId: null },
             select: {
-            id: true,
-            name: true,
-            slug: true,
+                id: true,
+                name: true,
+                slug: true,
+                children: {
+                    select: {
+                        id: true,
+                        name: true,
+                        slug: true,
+                    },
+                },
             },
-        },
-        },
-    })
+        })
     }
 
 
-     async getProductByCategory(categorySlug : string , page : number = 1 , limit : number = 10) : Promise<{products : ProductResponseDto[] , total: number ,  totalItems : number}> 
-    {
+    async getProductByCategory(categorySlug: string, page: number = 1, limit: number = 10): Promise<{ products: ProductResponseDto[], total: number, totalItems: number }> {
         const skip = (page - 1) * limit;
 
         // First, find the category and get all child category IDs
@@ -194,89 +193,89 @@ export class ProductsService {
         // Build list of category IDs (parent + all children)
         const categoryIds = [category.id, ...category.children.map(c => c.id)];
 
-        const [products , total] = await Promise.all([
+        const [products, total] = await Promise.all([
             this.prisma.product.findMany({
                 skip,
-                take : limit,
-                where : {
-                    deletedAt : null,
+                take: limit,
+                where: {
+                    deletedAt: null,
                     categoryId: {
                         in: categoryIds
                     },
-                    variants : {
-                        some : {
-                            stock : {
-                                gt : 0
+                    variants: {
+                        some: {
+                            stock: {
+                                gt: 0
                             }
                         }
                     }
                 },
-                select : {
-                    id : true,
-                    slug : true,
-                    name : true,
-                    description : true,
-                    brand : true,
-                    soldCount : true,
-                    createdAt : true,
-                    updatedAt : true,
-                    category : {
-                        select :{
-                            id : true,
-                            name : true,
-                            slug : true
+                select: {
+                    id: true,
+                    slug: true,
+                    name: true,
+                    description: true,
+                    brand: true,
+                    soldCount: true,
+                    createdAt: true,
+                    updatedAt: true,
+                    category: {
+                        select: {
+                            id: true,
+                            name: true,
+                            slug: true
                         }
                     },
-                    images : {
-                        select : {
-                            id : true,
-                            url : true,
-                            alt : true
+                    images: {
+                        select: {
+                            id: true,
+                            url: true,
+                            alt: true
                         }
                     },
-                    variants :{
-                        select : {
-                            id : true,
-                            sku : true,
-                            price : true,
-                            stock : true,
-                            colors : true,
-                            attributes : true
+                    variants: {
+                        select: {
+                            id: true,
+                            sku: true,
+                            price: true,
+                            stock: true,
+                            colors: true,
+                            attributes: true
                         },
-                        where : {
-                            stock : {
-                                gt : 0
-                            }   
+                        where: {
+                            stock: {
+                                gt: 0
+                            }
                         },
-                        orderBy : {
-                            price : 'asc'
+                        orderBy: {
+                            price: 'asc'
                         }
                     }
                 },
-                orderBy : {
-                    createdAt : 'desc'
+                orderBy: {
+                    createdAt: 'desc'
                 }
             }),
             this.prisma.product.count({
-                where : {
-                    deletedAt : null,
+                where: {
+                    deletedAt: null,
                     categoryId: {
                         in: categoryIds
                     },
-                    variants : {
-                        some : {
-                            stock : {
-                                gt : 0
+                    variants: {
+                        some: {
+                            stock: {
+                                gt: 0
                             }
                         }
-                    }   
+                    }
                 }
             })
         ]);
         return {
-            products : products.map(product => this.formatProductResponse(product)),
-            total : Math.ceil(total / limit),
-            totalItems : total
+            products: products.map(product => this.formatProductResponse(product)),
+            total: Math.ceil(total / limit),
+            totalItems: total
         }
     }
     async getProductById(id: string): Promise<ProductResponseDto | null> {
@@ -328,7 +327,7 @@ export class ProductsService {
                             sku: variant.sku,
                             price: BigInt(Math.round(variant.price * 100)),
                             stock: variant.stock || 0,
-            colors: variant.colors || null,
+                            colors: variant.colors || null,
                             attributes: variant.attributes || {}
                         }))
                     },
@@ -416,17 +415,17 @@ export class ProductsService {
                             // Parse price and validate
                             const priceValue = Number(variantDto.price);
                             console.log('Updating variant price:', { original: variantDto.price, parsed: priceValue });
-                            
+
                             if (isNaN(priceValue) || priceValue < 0) {
                                 throw new Error(`Invalid price value: ${variantDto.price}`);
                             }
-                            
+
                             // Check if price is too large
                             const priceInCents = Math.round(priceValue * 100);
                             if (priceInCents > Number.MAX_SAFE_INTEGER) {
                                 throw new Error(`Price too large: ${priceValue}`);
                             }
-                            
+
                             variantUpdateData.price = BigInt(priceInCents);
                         }
                         if (variantDto.stock !== undefined) variantUpdateData.stock = variantDto.stock;
@@ -464,14 +463,14 @@ export class ProductsService {
                 });
 
                 // Check if any image has isPrimary flag set to true
-                const hasPrimaryImage = updateProductDto.images.some(img => 
+                const hasPrimaryImage = updateProductDto.images.some(img =>
                     typeof img === 'object' && img.isPrimary === true
                 );
 
                 // Create new images
                 for (let i = 0; i < updateProductDto.images.length; i++) {
                     const imageData = updateProductDto.images[i];
-                    
+
                     // Handle both string URLs and image objects
                     if (typeof imageData === 'string') {
                         await this.prisma.productImage.create({

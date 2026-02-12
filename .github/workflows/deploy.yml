@@ -41,6 +41,9 @@ jobs:
           key: ${{ secrets.VPS_SSH_KEY }}
           script: |
             cd ~/megamart
+            cd ~/megamart
+            docker stop megamart_server megamart_nginx || true
+            docker rm -f megamart_server megamart_nginx || true
             docker compose pull
             docker compose up -d
             docker image prune -f

@@ -4,6 +4,7 @@ import { CreateOrderDto } from './dto/create-order.dto';
 import { UpdateOrderDto } from './dto/update-order.dto';
 import { OrderResponseDto } from './dto/order-response.dto';
 import { OrderStatus, PaymentStatus } from '@prisma/client';
+import { AuditLogService, AuditAction, AuditEntity } from '../audit-log/audit-log.service';
 import { formatPrice } from 'src/utils/price.util';
 import {
   validateTransition,
@@ -14,7 +15,10 @@ import {
 
 @Injectable()
 export class OrdersService {
-  constructor(private readonly prisma: PrismaService) { }
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly auditLogService: AuditLogService
+  ) { }
 
   // Generate unique order code
   private generateOrderCode(): string {
@@ -24,8 +28,8 @@ export class OrdersService {
   }
 
   // Create new order
-  async createOrder(createOrderDto: CreateOrderDto): Promise<OrderResponseDto> {
-    const { cartId, shipping, paymentMethod, totals, userId, voucherCode } = createOrderDto;
+  async createOrder(createOrderDto: CreateOrderDto, userId?: string): Promise<OrderResponseDto> {
+    const { cartId, shipping, paymentMethod, totals, voucherCode } = createOrderDto;
 
     // Get cart with items
     const cart = await this.prisma.cart.findUnique({
@@ -129,6 +133,18 @@ export class OrdersService {
       return newOrder;
     });
 
+    // Log creation
+    const effectiveUserId = userId || cart.userId;
+    if (effectiveUserId) {
+      await this.auditLogService.log(
+        AuditAction.ORDER_CREATE,
+        AuditEntity.ORDER,
+        effectiveUserId,
+        order.id,
+        { code: order.code, total: order.total.toString() }
+      );
+    }
+
     return this.formatOrderResponse(order);
   }
 
@@ -219,7 +235,7 @@ export class OrdersService {
   }
 
   // Update order status
-  async updateOrderStatus(orderId: string, updateOrderDto: UpdateOrderDto): Promise<OrderResponseDto> {
+  async updateOrderStatus(orderId: string, updateOrderDto: UpdateOrderDto, userId?: string): Promise<OrderResponseDto> {
     const order = await this.prisma.order.findUnique({
       where: { id: orderId },
       include: {
@@ -336,6 +352,86 @@ export class OrdersService {
       return updated;
     });
 
+    // Log status change
+    if (userId) {
+      await this.auditLogService.log(
+        AuditAction.ORDER_STATUS_CHANGE,
+        AuditEntity.ORDER,
+        userId,
+        orderId,
+        { from: currentStatus, to: newStatus, note: updateOrderDto.note }
+      );
+    }
+
+    return this.formatOrderResponse(updatedOrder);
+  }
+
+  // Update payment method
+  async updatePaymentMethod(orderId: string, newPaymentMethod: string, userId?: string): Promise<OrderResponseDto> {
+    const order = await this.prisma.order.findUnique({
+      where: { id: orderId },
+      include: {
+        items: true,
+        payments: true
+      }
+    });
+
+    if (!order) {
+      throw new NotFoundException('Không tìm thấy đơn hàng');
+    }
+
+    // Only allow payment method change for PENDING or CONFIRMED orders
+    if (order.status !== OrderStatus.PENDING && order.status !== OrderStatus.CONFIRMED) {
+      throw new HttpException(
+        { success: false, message: 'Chỉ có thể thay đổi phương thức thanh toán cho đơn hàng đang chờ xử lý hoặc đã xác nhận' },
+        HttpStatus.BAD_REQUEST
+      );
+    }
+
+    // Check if payment exists
+    if (!order.payments || order.payments.length === 0) {
+      throw new HttpException(
+        { success: false, message: 'Không tìm thấy thông tin thanh toán' },
+        HttpStatus.BAD_REQUEST
+      );
+    }
+
+    // Update payment provider
+    await this.prisma.payment.update({
+      where: { id: order.payments[0].id },
+      data: {
+        provider: newPaymentMethod as any
+      }
+    });
+
+    // Fetch updated order with full details
+    const updatedOrder = await this.prisma.order.findUnique({
+      where: { id: orderId },
+      include: {
+        items: {
+          include: {
+            variant: {
+              include: {
+                product: true
+              }
+            }
+          }
+        },
+        payments: true
+      }
+    });
+
+    // Log payment method change
+    if (userId) {
+      await this.auditLogService.log(
+        AuditAction.ORDER_STATUS_CHANGE,
+        AuditEntity.ORDER,
+        userId,
+        orderId,
+        { action: 'payment_method_change', from: order.payments[0].provider, to: newPaymentMethod }
+      );
+    }
+
     return this.formatOrderResponse(updatedOrder);
   }
 
@@ -430,6 +526,17 @@ export class OrdersService {
 
       return updated;
     });
+
+    // Log cancellation
+    if (userId) {
+      await this.auditLogService.log(
+        AuditAction.ORDER_CANCEL,
+        AuditEntity.ORDER,
+        userId,
+        orderId,
+        { code: order.code }
+      );
+    }
 
     return this.formatOrderResponse(cancelledOrder);
   }

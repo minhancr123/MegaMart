@@ -106,3 +106,15 @@ export const cancelOrder = async (orderId: string) => {
     throw error;
   }
 };
+
+export const updateOrderPaymentMethod = async (orderId: string, paymentMethod: string) => {
+  try {
+    const res = await axiosClient.patch(`/orders/${orderId}/payment-method`, {
+      paymentMethod
+    });
+    return res;
+  } catch (error: unknown) {
+    console.error('Update payment method error:', error);
+    throw error;
+  }
+};

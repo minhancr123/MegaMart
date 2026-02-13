@@ -40,11 +40,11 @@ export default function ForgotPasswordPage() {
     };
 
     return (
-        <div className="min-h-screen w-full flex items-center justify-center bg-gray-50 p-4">
-            <div className="w-full max-w-md bg-white rounded-xl shadow-lg p-8 space-y-6">
+        <div className="min-h-screen w-full flex items-center justify-center bg-gray-50 dark:bg-gray-950 p-4">
+            <div className="w-full max-w-md bg-white dark:bg-gray-900 rounded-xl shadow-lg p-8 space-y-6">
                 <div className="text-center space-y-2">
-                    <h1 className="text-2xl font-bold text-gray-900">Quên mật khẩu?</h1>
-                    <p className="text-gray-500 text-sm">
+                    <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Quên mật khẩu?</h1>
+                    <p className="text-gray-500 dark:text-gray-400 text-sm">
                         {!submitted
                             ? "Nhập email của bạn và chúng tôi sẽ gửi hướng dẫn đặt lại mật khẩu."
                             : "Chúng tôi đã gửi hướng dẫn đến email của bạn."}
@@ -56,7 +56,7 @@ export default function ForgotPasswordPage() {
                         <div className="space-y-2">
                             <Label htmlFor="email">Email</Label>
                             <div className="relative">
-                                <Mail className="absolute left-3 top-3 text-gray-400" size={18} />
+                                <Mail className="absolute left-3 top-3 text-gray-400 dark:text-gray-500" size={18} />
                                 <Input
                                     id="email"
                                     type="email"

@@ -4,6 +4,8 @@ import "./globals.css";
 import { Toaster } from "@/components/ui/sonner";
 import ScrollToTop from "@/components/ScrollToTop";
 import { ThemeProvider } from "@/components/theme-provider";
+import SocialProofToast from "@/components/SocialProofToast";
+import ChatbotWidget from "@/components/ChatbotWidget";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -79,6 +81,8 @@ export default function RootLayout({
           {children}
           <Toaster />
           <ScrollToTop />
+          <SocialProofToast />
+          <ChatbotWidget />
         </ThemeProvider>
       </body>
     </html>

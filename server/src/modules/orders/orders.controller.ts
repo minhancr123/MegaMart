@@ -1,10 +1,10 @@
-import { 
-  Controller, 
-  Get, 
-  Post, 
-  Body, 
-  Patch, 
-  Param, 
+import {
+  Controller,
+  Get,
+  Post,
+  Body,
+  Patch,
+  Param,
   Delete,
   UseGuards,
   Request,
@@ -16,20 +16,26 @@ import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiIAmATeapotRespons
 import { OrdersService } from './orders.service';
 import { CreateOrderDto } from './dto/create-order.dto';
 import { UpdateOrderDto } from './dto/update-order.dto';
+import { UpdatePaymentMethodDto } from './dto/update-payment-method.dto';
 import { OrderResponseDto } from './dto/order-response.dto';
 import { JwtAuthGuard } from 'src/guards/jwt-auth.guard';
+import { PaymentService } from '../payment/payment.service';
 
 @ApiTags('orders')
 @Controller('orders')
 export class OrdersController {
-  constructor(private readonly ordersService: OrdersService) {}
+  constructor(
+    private readonly ordersService: OrdersService,
+    private readonly paymentService: PaymentService
+  ) { }
 
   @Post()
   @ApiOperation({ summary: 'Create new order' })
   @ApiResponse({ status: 201, description: 'Order created successfully', type: OrderResponseDto })
-  async createOrder(@Body() createOrderDto: CreateOrderDto) {
+  async createOrder(@Body() createOrderDto: CreateOrderDto, @Request() req) {
     try {
-      const order = await this.ordersService.createOrder(createOrderDto);
+      const userId = req.user?.userId || req.user?.sub || createOrderDto.userId;
+      const order = await this.ordersService.createOrder(createOrderDto, userId);
       return {
         success: true,
         data: order,
@@ -166,10 +172,12 @@ export class OrdersController {
   @ApiResponse({ status: 200, description: 'Order status updated successfully' })
   async updateOrderStatus(
     @Param('id') id: string,
-    @Body() updateOrderDto: UpdateOrderDto
+    @Body() updateOrderDto: UpdateOrderDto,
+    @Request() req
   ) {
     try {
-      const order = await this.ordersService.updateOrderStatus(id, updateOrderDto);
+      const userId = req.user?.userId || req.user?.sub;
+      const order = await this.ordersService.updateOrderStatus(id, updateOrderDto, userId);
       return {
         success: true,
         data: order,
@@ -181,6 +189,46 @@ export class OrdersController {
       }
       throw new HttpException(
         { success: false, message: 'Lỗi khi cập nhật trạng thái đơn hàng', detail: error.message },
+        HttpStatus.INTERNAL_SERVER_ERROR
+      );
+    }
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Patch(':id/payment-method')
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Update order payment method' })
+  @ApiResponse({ status: 200, description: 'Payment method updated successfully' })
+  async updatePaymentMethod(
+    @Param('id') id: string,
+    @Body() updatePaymentMethodDto: UpdatePaymentMethodDto,
+    @Request() req
+  ) {
+    try {
+      const userId = req.user?.userId || req.user?.sub;
+      const order = await this.ordersService.updatePaymentMethod(id, updatePaymentMethodDto.paymentMethod, userId);
+      
+      // If changing to VNPAY, create payment URL
+      let paymentUrl: string | null = null;
+      if (updatePaymentMethodDto.paymentMethod === 'VNPAY') {
+        const ipAddr = req.headers['x-forwarded-for'] || req.connection.remoteAddress || '127.0.0.1';
+        paymentUrl = await this.paymentService.createVNPayPaymentUrl(id, ipAddr as string);
+      }
+      
+      return {
+        success: true,
+        data: {
+          order,
+          paymentUrl
+        },
+        message: 'Cập nhật phương thức thanh toán thành công'
+      };
+    } catch (error) {
+      if (error instanceof HttpException) {
+        throw error;
+      }
+      throw new HttpException(
+        { success: false, message: 'Lỗi khi cập nhật phương thức thanh toán', detail: error.message },
         HttpStatus.INTERNAL_SERVER_ERROR
       );
     }

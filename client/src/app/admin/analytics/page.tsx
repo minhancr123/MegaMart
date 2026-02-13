@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { 
   Activity, 
@@ -100,7 +101,41 @@ export default function AnalyticsPage() {
   };
 
   if (loading) {
-    return <div className="flex items-center justify-center h-96">Đang tải...</div>;
+    return (
+      <div className="p-4 sm:p-6 space-y-6">
+        <Skeleton className="h-10 w-64" />
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <Card key={i}>
+              <CardHeader className="pb-2">
+                <Skeleton className="h-4 w-24" />
+              </CardHeader>
+              <CardContent>
+                <Skeleton className="h-8 w-32" />
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <Card>
+            <CardHeader>
+              <Skeleton className="h-6 w-48" />
+            </CardHeader>
+            <CardContent>
+              <Skeleton className="h-64 w-full" />
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader>
+              <Skeleton className="h-6 w-48" />
+            </CardHeader>
+            <CardContent>
+              <Skeleton className="h-64 w-full" />
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+    );
   }
 
   return (
@@ -298,15 +333,15 @@ export default function AnalyticsPage() {
             <CardContent>
               <div className="space-y-2">
                 {searchTerms.length === 0 ? (
-                  <p className="text-gray-500">Chưa có dữ liệu tìm kiếm</p>
+                  <p className="text-gray-500 dark:text-gray-400">Chưa có dữ liệu tìm kiếm</p>
                 ) : (
                   searchTerms.map((item, index) => (
-                    <div key={index} className="flex justify-between items-center p-2 hover:bg-gray-50">
+                    <div key={index} className="flex justify-between items-center p-2 hover:bg-gray-50 dark:hover:bg-gray-800">
                       <div className="flex items-center gap-2">
-                        <span className="text-gray-500 text-sm">#{index + 1}</span>
-                        <span className="font-medium">{item.term}</span>
+                        <span className="text-gray-500 dark:text-gray-400 text-sm">#{index + 1}</span>
+                        <span className="font-medium dark:text-white">{item.term}</span>
                       </div>
-                      <span className="text-sm text-gray-600">{item.count} lần</span>
+                      <span className="text-sm text-gray-600 dark:text-gray-300">{item.count} lần</span>
                     </div>
                   ))
                 )}
@@ -345,30 +380,30 @@ export default function AnalyticsPage() {
               href="https://clarity.microsoft.com"
               target="_blank"
               rel="noopener noreferrer"
-              className="p-4 border rounded hover:bg-gray-50 transition"
+              className="p-4 border rounded hover:bg-gray-50 dark:hover:bg-gray-800 transition"
             >
-              <h3 className="font-bold mb-2">Microsoft Clarity</h3>
-              <p className="text-sm text-gray-600">Session recordings & heatmaps</p>
+              <h3 className="font-bold mb-2 dark:text-white">Microsoft Clarity</h3>
+              <p className="text-sm text-gray-600 dark:text-gray-300">Session recordings & heatmaps</p>
             </a>
             
             <a
               href="https://analytics.google.com"
               target="_blank"
               rel="noopener noreferrer"
-              className="p-4 border rounded hover:bg-gray-50 transition"
+              className="p-4 border rounded hover:bg-gray-50 dark:hover:bg-gray-800 transition"
             >
-              <h3 className="font-bold mb-2">Google Analytics</h3>
-              <p className="text-sm text-gray-600">Traffic & behavior analysis</p>
+              <h3 className="font-bold mb-2 dark:text-white">Google Analytics</h3>
+              <p className="text-sm text-gray-600 dark:text-gray-300">Traffic & behavior analysis</p>
             </a>
             
             <a
               href="https://sentry.io"
               target="_blank"
               rel="noopener noreferrer"
-              className="p-4 border rounded hover:bg-gray-50 transition"
+              className="p-4 border rounded hover:bg-gray-50 dark:hover:bg-gray-800 transition"
             >
-              <h3 className="font-bold mb-2">Sentry</h3>
-              <p className="text-sm text-gray-600">Error tracking & monitoring</p>
+              <h3 className="font-bold mb-2 dark:text-white">Sentry</h3>
+              <p className="text-sm text-gray-600 dark:text-gray-300">Error tracking & monitoring</p>
             </a>
           </div>
         </CardContent>

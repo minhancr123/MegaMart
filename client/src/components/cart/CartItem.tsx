@@ -50,7 +50,7 @@ export const CartItem = ({ item, onUpdateQuantity, onRemoveItem }: CartItemProps
   const totalPrice = item.variant.price * item.quantity;
 
   return (
-    <div className="flex items-center p-4 border-b last:border-b-0 bg-white">
+    <div className="flex items-center p-4 border-b last:border-b-0 bg-white dark:bg-gray-900">
       {/* Product Image */}
       <div className="w-20 h-20 flex-shrink-0 mr-4">
         <Image
@@ -64,14 +64,14 @@ export const CartItem = ({ item, onUpdateQuantity, onRemoveItem }: CartItemProps
 
       {/* Product Info */}
       <div className="flex-1 min-w-0">
-        <h3 className="font-semibold text-gray-900 truncate">
+        <h3 className="font-semibold text-gray-900 dark:text-white truncate">
           {item.variant.product.name}
         </h3>
-        <p className="text-sm text-gray-600 mt-1">
+        <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
           SKU: {item.variant.sku}
         </p>
         {item.variant.attributes && (
-          <div className="text-sm text-gray-500 mt-1">
+          <div className="text-sm text-gray-500 dark:text-gray-400 mt-1">
             {Object.entries(item.variant.attributes).map(([key, value]) => (
               <span key={key} className="mr-2">
                 {key}: {String(value)}
@@ -79,7 +79,7 @@ export const CartItem = ({ item, onUpdateQuantity, onRemoveItem }: CartItemProps
             ))}
           </div>
         )}
-        <p className="text-lg font-bold text-red-600 mt-2">
+        <p className="text-lg font-bold text-red-600 dark:text-red-400 mt-2">
           {formatPrice(item.variant.price)}
         </p>
       </div>
@@ -95,7 +95,7 @@ export const CartItem = ({ item, onUpdateQuantity, onRemoveItem }: CartItemProps
         >
           <Minus className="h-4 w-4" />
         </Button>
-        <span className="mx-3 font-medium min-w-[2rem] text-center">
+        <span className="mx-3 font-medium min-w-[2rem] text-center dark:text-white">
           {item.quantity}
         </span>
         <Button
@@ -111,10 +111,10 @@ export const CartItem = ({ item, onUpdateQuantity, onRemoveItem }: CartItemProps
 
       {/* Total Price */}
       <div className="text-right mr-4 min-w-[120px]">
-        <p className="text-lg font-bold text-gray-900">
+        <p className="text-lg font-bold text-gray-900 dark:text-white">
           {formatPrice(totalPrice)}
         </p>
-        <p className="text-sm text-gray-500">
+        <p className="text-sm text-gray-500 dark:text-gray-400">
           {item.quantity} × {formatPrice(item.variant.price)}
         </p>
       </div>

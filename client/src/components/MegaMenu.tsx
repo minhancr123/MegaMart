@@ -65,15 +65,15 @@ export default function MegaMenu() {
     const [activeCategory, setActiveCategory] = useState<string | null>(null);
 
     return (
-        <div className="flex bg-white rounded-b-lg shadow-xl border-t border-gray-100 min-h-[400px]">
+        <div className="flex bg-white dark:bg-gray-900 rounded-b-lg shadow-xl border-t border-gray-100 dark:border-gray-800 min-h-[400px]">
             {/* Sidebar Categories */}
-            <div className="w-64 border-r border-gray-100 py-2 bg-gray-50/50">
+            <div className="w-64 border-r border-gray-100 dark:border-gray-800 py-2 bg-gray-50/50 dark:bg-gray-800/50">
                 {categories.map((category) => (
                     <div
                         key={category.id}
                         className={`flex items-center justify-between px-4 py-3 cursor-pointer transition-colors ${activeCategory === category.id
-                            ? "bg-white text-red-600 font-medium shadow-sm border-l-4 border-red-600"
-                            : "text-gray-700 hover:bg-white hover:text-red-600"
+                            ? "bg-white dark:bg-gray-800 text-red-600 dark:text-red-400 font-medium shadow-sm border-l-4 border-red-600 dark:border-red-400"
+                            : "text-gray-700 dark:text-gray-300 hover:bg-white dark:hover:bg-gray-800 hover:text-red-600 dark:hover:text-red-400"
                             }`}
                         onMouseEnter={() => setActiveCategory(category.id)}
                     >
@@ -81,18 +81,18 @@ export default function MegaMenu() {
                             <category.icon className="w-5 h-5" />
                             <span>{category.name}</span>
                         </div>
-                        <ChevronRight className="w-4 h-4 text-gray-400" />
+                        <ChevronRight className="w-4 h-4 text-gray-400 dark:text-gray-500" />
                     </div>
                 ))}
-                <div className="mt-2 pt-2 border-t border-gray-200 px-4">
-                    <Link href="/categories" className="text-sm text-red-600 hover:underline flex items-center gap-1">
+                <div className="mt-2 pt-2 border-t border-gray-200 dark:border-gray-700 px-4">
+                    <Link href="/categories" className="text-sm text-red-600 dark:text-red-400 hover:underline flex items-center gap-1">
                         Xem tất cả danh mục <ChevronRight className="w-3 h-3" />
                     </Link>
                 </div>
             </div>
 
             {/* Content Area */}
-            <div className="flex-1 p-6 bg-white">
+            <div className="flex-1 p-6 bg-white dark:bg-gray-900">
                 {activeCategory ? (
                     (() => {
                         const category = categories.find(c => c.id === activeCategory);

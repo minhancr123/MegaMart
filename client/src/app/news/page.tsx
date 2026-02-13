@@ -100,9 +100,9 @@ export default function NewsPage() {
   return (
     <>
       <Header />
-      <div className="min-h-screen bg-gray-50">
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-950 pt-[100px] md:pt-[120px]">
         {/* Header */}
-        <div className="bg-gradient-to-r from-blue-600 to-blue-800 text-white py-16">
+        <div className="bg-gradient-to-r from-blue-600 to-blue-800 dark:from-blue-700 dark:to-blue-900 text-white py-16">
           <div className="container mx-auto px-4">
             <div className="flex items-center gap-3 mb-4">
               <Newspaper className="w-10 h-10" />

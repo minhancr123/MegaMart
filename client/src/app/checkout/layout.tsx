@@ -5,7 +5,7 @@ export default function CheckoutLayout({ children }: { children: React.ReactNode
   return (
     <>
       <Header />
-      <main className="min-h-screen bg-gray-50">{children}</main>
+      <main className="min-h-screen bg-gray-50 dark:bg-gray-950">{children}</main>
       <Footer />
     </>
   );

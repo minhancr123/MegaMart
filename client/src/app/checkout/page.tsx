@@ -13,12 +13,14 @@ import { Card, CardContent } from "@/components/ui/card";
 import AddressManager from "@/components/AddressManager";
 import { toast } from "sonner";
 import { useAuthStore } from "@/store/authStore";
+import { useCartStore } from "@/store/cartStore";
 import { Wallet, CreditCard, MapPin } from "lucide-react";
 
 export default function CheckoutPage() {
   const router = useRouter();
   const { cart, refreshCart } = useCart();
   const { user } = useAuthStore();
+  const cartStore = useCartStore();
   const [loading, setLoading] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState<"COD" | "VNPAY" | "MOMO" | "BANK_TRANSFER">("COD");
   const [selectedAddress, setSelectedAddress] = useState<any>(null);
@@ -27,9 +29,28 @@ export default function CheckoutPage() {
   const [discount, setDiscount] = useState(0);
   const [voucherStatus, setVoucherStatus] = useState<string | null>(null);
 
-  const subtotal = cart?.data?.items?.reduce((s: any, item: any) => s + (item.variant.price * item.quantity), 0) || 0;
-  const tax = subtotal * 0.1;
-  const total = Math.max(0, subtotal + tax - discount);
+  // Tính toán chi tiết giỏ hàng
+  const subtotal = cart?.data?.items?.reduce((s: any, item: any) => {
+    const itemPrice = Number(item.variant.price) || 0;
+    const itemQuantity = Number(item.quantity) || 0;
+    console.log(`Item: ${item.variant.product?.name}, Price: ${itemPrice}, Quantity: ${itemQuantity}, Subtotal: ${itemPrice * itemQuantity}`);
+    return s + (itemPrice * itemQuantity);
+  }, 0) || 0;
+  
+  const tax = Math.round(subtotal * 0.1); // Thuế VAT 10%, làm tròn
+  const shippingFee = 0; // Phí ship (nếu có)
+  const total = Math.max(0, subtotal + tax + shippingFee - discount);
+
+  // Debug logs
+  useEffect(() => {
+    console.log('=== CHECKOUT CALCULATION ===');
+    console.log('Subtotal:', subtotal);
+    console.log('Tax (10%):', tax);
+    console.log('Shipping:', shippingFee);
+    console.log('Discount:', discount);
+    console.log('Total:', total);
+    console.log('Cart items:', cart?.data?.items);
+  }, [subtotal, tax, discount, total, cart]);
 
   const handleApplyVoucher = async () => {
     if (!voucherCode) {
@@ -138,11 +159,13 @@ export default function CheckoutPage() {
         }
       } else if (paymentMethod === "MOMO" || paymentMethod === "BANK_TRANSFER") {
         toast.success('Đặt hàng thành công! Vui lòng thực hiện thanh toán.');
+        cartStore.clearCart(); // Clear local cart
         await refreshCart();
         router.push(`/profile/orders/${orderId}`);
       } else {
         // COD
         toast.success('Đặt hàng thành công! Bạn sẽ thanh toán khi nhận hàng.');
+        cartStore.clearCart(); // Clear local cart
         await refreshCart();
         router.push(`/profile/orders/${orderId}`);
       }
@@ -186,46 +209,46 @@ export default function CheckoutPage() {
               </div>
 
               <RadioGroup value={paymentMethod} onValueChange={(v: any) => setPaymentMethod(v as "COD" | "VNPAY" | "MOMO" | "BANK_TRANSFER")}>
-                <div className="flex items-center space-x-3 p-4 border rounded-lg hover:bg-blue-50 hover:border-blue-300 cursor-pointer transition-all duration-200">
+                <div className="flex items-center space-x-3 p-4 border rounded-lg hover:bg-blue-50 dark:hover:bg-blue-950/50 hover:border-blue-300 dark:hover:border-blue-700 cursor-pointer transition-all duration-200">
                   <RadioGroupItem value="COD" id="cod" />
                   <Label htmlFor="cod" className="flex-1 cursor-pointer">
                     <div className="flex items-center gap-2">
                       <Wallet className="w-5 h-5 text-orange-500" />
                       <div>
                         <p className="font-medium">Thanh toán khi nhận hàng (COD)</p>
-                        <p className="text-sm text-gray-500">Thanh toán bằng tiền mặt khi nhận hàng</p>
+                        <p className="text-sm text-gray-500 dark:text-gray-400">Thanh toán bằng tiền mặt khi nhận hàng</p>
                       </div>
                     </div>
                   </Label>
                 </div>
 
-                <div className="flex items-center space-x-3 p-4 border rounded-lg hover:bg-blue-50 hover:border-blue-300 cursor-pointer mt-3 transition-all duration-200">
+                <div className="flex items-center space-x-3 p-4 border rounded-lg hover:bg-blue-50 dark:hover:bg-blue-950/50 hover:border-blue-300 dark:hover:border-blue-700 cursor-pointer mt-3 transition-all duration-200">
                   <RadioGroupItem value="VNPAY" id="vnpay" />
                   <Label htmlFor="vnpay" className="flex-1 cursor-pointer">
                     <div className="flex items-center gap-2">
                       <CreditCard className="w-5 h-5 text-blue-500" />
                       <div>
                         <p className="font-medium">Thanh toán qua VNPAY</p>
-                        <p className="text-sm text-gray-500">Thanh toán bằng thẻ ATM/Visa/MasterCard</p>
+                        <p className="text-sm text-gray-500 dark:text-gray-400">Thanh toán bằng thẻ ATM/Visa/MasterCard</p>
                       </div>
                     </div>
                   </Label>
                 </div>
 
-                <div className="flex items-center space-x-3 p-4 border rounded-lg hover:bg-pink-50 hover:border-pink-300 cursor-pointer mt-3 transition-all duration-200">
+                <div className="flex items-center space-x-3 p-4 border rounded-lg hover:bg-pink-50 dark:hover:bg-pink-950/50 hover:border-pink-300 dark:hover:border-pink-700 cursor-pointer mt-3 transition-all duration-200">
                   <RadioGroupItem value="MOMO" id="momo" />
                   <Label htmlFor="momo" className="flex-1 cursor-pointer">
                     <div className="flex items-center gap-2">
                       <div className="w-5 h-5 rounded bg-[#A50064] flex items-center justify-center text-white text-[10px] font-bold">Mo</div>
                       <div>
                         <p className="font-medium">Thanh toán qua ví MoMo</p>
-                        <p className="text-sm text-gray-500">Quét mã QR để thanh toán</p>
+                        <p className="text-sm text-gray-500 dark:text-gray-400">Quét mã QR để thanh toán</p>
                       </div>
                     </div>
                   </Label>
                 </div>
 
-                <div className="flex items-center space-x-3 p-4 border rounded-lg hover:bg-green-50 hover:border-green-300 cursor-pointer mt-3 transition-all duration-200">
+                <div className="flex items-center space-x-3 p-4 border rounded-lg hover:bg-green-50 dark:hover:bg-green-950/50 hover:border-green-300 dark:hover:border-green-700 cursor-pointer mt-3 transition-all duration-200">
                   <RadioGroupItem value="BANK_TRANSFER" id="bank" />
                   <Label htmlFor="bank" className="flex-1 cursor-pointer">
                     <div className="flex items-center gap-2">
@@ -236,7 +259,7 @@ export default function CheckoutPage() {
                       </div>
                       <div>
                         <p className="font-medium">Chuyển khoản ngân hàng</p>
-                        <p className="text-sm text-gray-500">Chuyển khoản thủ công qua STK</p>
+                        <p className="text-sm text-gray-500 dark:text-gray-400">Chuyển khoản thủ công qua STK</p>
                       </div>
                     </div>
                   </Label>
@@ -288,13 +311,19 @@ export default function CheckoutPage() {
 
               <div className="border-t pt-4 space-y-2">
                 <div className="flex justify-between text-sm">
-                  <span className="text-gray-600">Tạm tính</span>
+                  <span className="text-gray-600">Tạm tính ({cart?.data?.items?.length || 0} sản phẩm)</span>
                   <span>{new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND', maximumFractionDigits: 0 }).format(subtotal)}</span>
                 </div>
                 <div className="flex justify-between text-sm">
-                  <span className="text-gray-600">Thuế (10%)</span>
+                  <span className="text-gray-600">Thuế VAT (10%)</span>
                   <span>{new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND', maximumFractionDigits: 0 }).format(tax)}</span>
                 </div>
+                {shippingFee > 0 && (
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-600">Phí vận chuyển</span>
+                    <span>{new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND', maximumFractionDigits: 0 }).format(shippingFee)}</span>
+                  </div>
+                )}
                 <div className="space-y-2 pt-2">
                   <Label className="text-sm text-gray-700">Mã giảm giá</Label>
                   <div className="flex gap-2">

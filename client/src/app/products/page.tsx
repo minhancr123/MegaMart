@@ -2,12 +2,12 @@
 
 import { useState, useEffect } from 'react';
 import { ProductCard } from '@/components/product/ProductCard';
-import { ProductGridSkeleton } from '@/components/ProductCardSkeleton';
 import { fetchAllProducts, fetchCategoriesList } from '@/lib/productApi';
 import { useRouter } from 'next/navigation';
 import { Product, Category } from '@/interfaces/product';
 import { addToCart } from '@/lib/cartApi';
 import { useAuthStore } from '@/store/authStore';
+import { useCartStore } from '@/store/cartStore';
 import { toast } from 'sonner';
 import {
     Filter,
@@ -23,6 +23,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Slider } from '@/components/ui/slider';
+import { Skeleton } from '@/components/ui/skeleton';
 import {
     Select,
     SelectContent,
@@ -42,6 +43,7 @@ import { Badge } from '@/components/ui/badge';
 export default function ProductsPage() {
     const router = useRouter();
     const { user } = useAuthStore();
+    const cartStore = useCartStore();
 
     const [products, setProducts] = useState<Product[]>([]);
     const [filteredProducts, setFilteredProducts] = useState<Product[]>([]);
@@ -72,7 +74,7 @@ export default function ProductsPage() {
                 console.log('✅ Products count:', productsData?.length);
                 console.log('✅ Categories loaded:', categoriesData);
                 console.log('✅ Categories count:', categoriesData?.length);
-
+                
                 // Debug: Log category structure with parent info
                 if (categoriesData?.length > 0) {
                     console.log('🏷️ Category structure:', categoriesData.map(c => ({
@@ -82,7 +84,7 @@ export default function ProductsPage() {
                         slug: c.slug
                     })));
                 }
-
+                
                 setProducts(productsData || []);
                 setCategories(categoriesData || []);
             } catch (error) {
@@ -103,7 +105,7 @@ export default function ProductsPage() {
             priceRange,
             searchQuery
         });
-
+        
         let result = [...products];
 
         // Debug: Log first product structure (only once when products change)
@@ -122,27 +124,27 @@ export default function ProductsPage() {
             console.log('🏷️ Filtering by category:', selectedCategory);
             console.log('🏷️ Available categories:', categories.length);
             const beforeCount = result.length;
-
+            
             // Get child category IDs from the category object
             const selectedCategoryObj = categories.find(c => c.id === selectedCategory);
-
+            
             // Backend returns children array instead of parentId
             const childCategoryIds = (selectedCategoryObj as any)?.children?.map((child: any) => child.id) || [];
-
+            
             console.log('🏷️ Selected category:', selectedCategoryObj);
             console.log('🏷️ Child categories found:', childCategoryIds.length);
             console.log('🏷️ Child category IDs:', childCategoryIds);
-
+            
             result = result.filter((p) => {
                 const productCategoryId = p.categoryId || p.category?.id;
                 const matchDirectly = productCategoryId === selectedCategory;
                 const matchViaChild = childCategoryIds.length > 0 && childCategoryIds.includes(productCategoryId || '');
-
+                
                 const matches = matchDirectly || matchViaChild;
                 if (!matches) {
                     console.log(`❌ Product: ${p.name} | categoryId: ${productCategoryId} | Direct: ${matchDirectly} | Child: ${matchViaChild}`);
                 }
-
+                
                 return matches;
             });
             console.log(`✅ Category filter: ${beforeCount} → ${result.length} products`);
@@ -198,6 +200,21 @@ export default function ProductsPage() {
             const response = await addToCart(user.id, variantId, quantity);
             if (response.success) {
                 toast.success(response.message || 'Đã thêm sản phẩm vào giỏ hàng');
+                
+                // Cập nhật cartStore
+                const product = products.find(p => p.variants?.some(v => v.id === variantId));
+                if (product) {
+                    const variant = product.variants?.find(v => v.id === variantId);
+                    if (variant) {
+                        cartStore.addItem({
+                            id: parseInt(variantId),
+                            name: product.name,
+                            price: variant.price,
+                            quantity: quantity,
+                            imageUrl: product.images?.[0]?.url || ''
+                        });
+                    }
+                }
             } else {
                 toast.error(response.message || 'Có lỗi xảy ra');
             }
@@ -250,8 +267,8 @@ export default function ProductsPage() {
                             setSelectedCategory('all');
                         }}
                         className={`w-full text-left px-4 py-2 rounded-lg transition-colors ${selectedCategory === 'all'
-                            ? 'bg-indigo-50 text-indigo-600 font-medium'
-                            : 'hover:bg-slate-50 text-slate-600'
+                                ? 'bg-indigo-50 text-indigo-600 font-medium'
+                                : 'hover:bg-slate-50 text-slate-600'
                             }`}
                     >
                         Tất cả sản phẩm
@@ -264,8 +281,8 @@ export default function ProductsPage() {
                                 setSelectedCategory(category.id);
                             }}
                             className={`w-full text-left px-4 py-2 rounded-lg transition-colors ${selectedCategory === category.id
-                                ? 'bg-indigo-50 text-indigo-600 font-medium'
-                                : 'hover:bg-slate-50 text-slate-600'
+                                    ? 'bg-indigo-50 text-indigo-600 font-medium'
+                                    : 'hover:bg-slate-50 text-slate-600'
                                 }`}
                         >
                             {category.name}
@@ -308,7 +325,11 @@ export default function ProductsPage() {
                 <div className="mb-8">
                     <h1 className="text-4xl font-bold text-slate-900 dark:text-white mb-3">Tất cả sản phẩm</h1>
                     <p className="text-slate-600 dark:text-gray-400">
-                        {loading ? 'Đang tải...' : `Khám phá ${filteredProducts.length} sản phẩm chất lượng cao`}
+                        {loading ? (
+                            <Skeleton className="h-5 w-64 inline-block" />
+                        ) : (
+                            `Khám phá ${filteredProducts.length} sản phẩm chất lượng cao`
+                        )}
                     </p>
                 </div>
 
@@ -352,8 +373,8 @@ export default function ProductsPage() {
                                     <button
                                         onClick={() => setViewMode('grid')}
                                         className={`p-2 rounded ${viewMode === 'grid'
-                                            ? 'bg-indigo-50 text-indigo-600'
-                                            : 'text-slate-400 hover:text-slate-600'
+                                                ? 'bg-indigo-50 text-indigo-600'
+                                                : 'text-slate-400 hover:text-slate-600'
                                             }`}
                                     >
                                         <Grid3x3 className="w-4 h-4" />
@@ -361,8 +382,8 @@ export default function ProductsPage() {
                                     <button
                                         onClick={() => setViewMode('list')}
                                         className={`p-2 rounded ${viewMode === 'list'
-                                            ? 'bg-indigo-50 text-indigo-600'
-                                            : 'text-slate-400 hover:text-slate-600'
+                                                ? 'bg-indigo-50 text-indigo-600'
+                                                : 'text-slate-400 hover:text-slate-600'
                                             }`}
                                     >
                                         <List className="w-4 h-4" />
@@ -414,21 +435,21 @@ export default function ProductsPage() {
 
                         {/* Loading */}
                         {loading && (
-                            <div className="py-8">
-                                <ProductGridSkeleton count={itemsPerPage} />
+                            <div className="flex items-center justify-center py-20">
+                                <Loader2 className="w-8 h-8 animate-spin text-indigo-600" />
                             </div>
                         )}
 
                         {/* No Results */}
                         {!loading && filteredProducts.length === 0 && (
                             <div className="text-center py-20">
-                                <div className="w-24 h-24 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-6">
-                                    <Package className="w-12 h-12 text-slate-400" />
+                                <div className="w-24 h-24 bg-slate-100 dark:bg-gray-800 rounded-full flex items-center justify-center mx-auto mb-6">
+                                    <Package className="w-12 h-12 text-slate-400 dark:text-gray-500" />
                                 </div>
-                                <h3 className="text-2xl font-bold text-slate-900 mb-2">
+                                <h3 className="text-2xl font-bold text-slate-900 dark:text-white mb-2">
                                     Không tìm thấy sản phẩm
                                 </h3>
-                                <p className="text-slate-600 mb-6">
+                                <p className="text-slate-600 dark:text-gray-400 mb-6">
                                     Thử điều chỉnh bộ lọc hoặc tìm kiếm khác
                                 </p>
                                 <Button onClick={resetFilters} variant="outline">

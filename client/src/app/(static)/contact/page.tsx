@@ -70,7 +70,7 @@ export default function ContactPage() {
                 </div>
 
                 {/* Contact Form */}
-                <div className="bg-white p-8 rounded-2xl shadow-sm border border-gray-100">
+                <div className="bg-white dark:bg-gray-900 p-8 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-800">
                     <h3 className="text-xl font-bold text-gray-900 mb-6">Gửi tin nhắn cho chúng tôi</h3>
                     <form onSubmit={handleSubmit} className="space-y-6">
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">

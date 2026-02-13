@@ -145,8 +145,8 @@ export default function AdminDashboard() {
         <div className="space-y-8">
             <div className="flex justify-between items-center">
                 <div>
-                    <h1 className="text-3xl font-bold text-gray-900">Tổng quan</h1>
-                    <p className="text-gray-500 mt-1">Chào mừng trở lại, Admin!</p>
+                    <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Tổng quan</h1>
+                    <p className="text-gray-500 dark:text-gray-400 mt-1">Chào mừng trở lại, Admin!</p>
                 </div>
 
                 {/* Period Selector */}
@@ -168,16 +168,16 @@ export default function AdminDashboard() {
             {/* Stats Grid */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                 {statCards.map((stat, index) => (
-                    <Card key={index} className="border-none shadow-sm">
+                    <Card key={index} className="border-none shadow-sm dark:bg-gray-900 dark:border-gray-800">
                         <CardContent className="p-6">
                             <div className="flex items-center justify-between mb-4">
                                 <div className={`p-3 rounded-full ${stat.bg} ${stat.color}`}>
                                     <stat.icon className="w-6 h-6" />
                                 </div>
-                                <span className="text-xs font-medium text-gray-500">{stat.change}</span>
+                                <span className="text-xs font-medium text-gray-500 dark:text-gray-400">{stat.change}</span>
                             </div>
-                            <h3 className="text-gray-500 text-sm font-medium">{stat.title}</h3>
-                            <p className="text-2xl font-bold text-gray-900 mt-1">{stat.value}</p>
+                            <h3 className="text-gray-500 dark:text-gray-400 text-sm font-medium">{stat.title}</h3>
+                            <p className="text-2xl font-bold text-gray-900 dark:text-white mt-1">{stat.value}</p>
                         </CardContent>
                     </Card>
                 ))}
@@ -186,9 +186,9 @@ export default function AdminDashboard() {
             {/* Charts Grid */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 {/* Revenue Chart */}
-                <Card className="border-none shadow-sm">
+                <Card className="border-none shadow-sm dark:bg-gray-900 dark:border-gray-800">
                     <CardHeader>
-                        <CardTitle>Biểu đồ doanh thu</CardTitle>
+                        <CardTitle className="dark:text-white">Biểu đồ doanh thu</CardTitle>
                     </CardHeader>
                     <CardContent>
                         <ResponsiveContainer width="100%" height={300}>
@@ -207,9 +207,9 @@ export default function AdminDashboard() {
                 </Card>
 
                 {/* Order Status Distribution */}
-                <Card className="border-none shadow-sm">
+                <Card className="border-none shadow-sm dark:bg-gray-900 dark:border-gray-800">
                     <CardHeader>
-                        <CardTitle>Phân bố đơn hàng</CardTitle>
+                        <CardTitle className="dark:text-white">Phân bố đơn hàng</CardTitle>
                     </CardHeader>
                     <CardContent>
                         <ResponsiveContainer width="100%" height={300}>
@@ -236,9 +236,9 @@ export default function AdminDashboard() {
             </div>
 
             {/* Top Products Bar Chart */}
-            <Card className="border-none shadow-sm">
+            <Card className="border-none shadow-sm dark:bg-gray-900 dark:border-gray-800">
                 <CardHeader>
-                    <CardTitle>Sản phẩm bán chạy nhất</CardTitle>
+                    <CardTitle className="dark:text-white">Sản phẩm bán chạy nhất</CardTitle>
                 </CardHeader>
                 <CardContent>
                     <ResponsiveContainer width="100%" height={300}>

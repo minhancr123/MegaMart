@@ -5,6 +5,7 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { toast } from "sonner";
 import { 
   ArrowLeft, 
   Calendar, 
@@ -69,7 +70,7 @@ export default function NewsDetailPage() {
       });
     } else {
       navigator.clipboard.writeText(window.location.href);
-      alert("Đã copy link bài viết!");
+      toast.success("Đã copy link bài viết!");
     }
   };
 
@@ -77,7 +78,7 @@ export default function NewsDetailPage() {
     return (
       <>
         <Header />
-        <div className="flex justify-center items-center min-h-screen">
+        <div className="flex justify-center items-center min-h-screen pt-[100px] md:pt-[120px]">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
         </div>
         <Footer />
@@ -89,7 +90,7 @@ export default function NewsDetailPage() {
     return (
       <>
         <Header />
-        <div className="container mx-auto px-4 py-12">
+        <div className="container mx-auto px-4 py-12 pt-[100px] md:pt-[120px]">
           <Card>
             <CardContent className="text-center py-12">
               <p className="text-gray-500 mb-4">Không tìm thấy bài viết</p>
@@ -110,9 +111,9 @@ export default function NewsDetailPage() {
   return (
     <>
       <Header />
-      <div className="min-h-screen bg-gray-50">
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-950 pt-[100px] md:pt-[120px]">
         {/* Header */}
-        <div className="bg-white border-b sticky top-0 z-10">
+        <div className="bg-white dark:bg-gray-900 border-b dark:border-gray-800 sticky top-0 z-10">
           <div className="container mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
             <Link href="/news">

@@ -27,6 +27,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { Plus, Pencil, Trash2, GripVertical, Eye, EyeOff } from "lucide-react";
 import { bannerApi, Banner, CreateBannerDto } from "@/lib/marketingApi";
 import { toast } from "sonner";
@@ -36,6 +37,8 @@ export default function BannersPage() {
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingBanner, setEditingBanner] = useState<Banner | null>(null);
+  const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
   const [formData, setFormData] = useState<CreateBannerDto>({
     title: "",
     description: "",
@@ -103,13 +106,16 @@ export default function BannersPage() {
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm("Bạn có chắc chắn muốn xóa banner này?")) return;
+    setIsDeleting(true);
     try {
       await bannerApi.delete(id);
       toast.success("Xóa banner thành công");
       fetchBanners();
     } catch (error) {
       toast.error("Không thể xóa banner");
+    } finally {
+      setIsDeleting(false);
+      setDeleteId(null);
     }
   };
 
@@ -137,8 +143,8 @@ export default function BannersPage() {
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Quản lý Banners</h1>
-          <p className="text-gray-500 mt-1">Quản lý các banner quảng cáo trên trang chủ</p>
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Quản lý Banners</h1>
+          <p className="text-gray-500 dark:text-gray-400 mt-1">Quản lý các banner quảng cáo trên trang chủ</p>
         </div>
         <Dialog open={dialogOpen} onOpenChange={(open) => {
           setDialogOpen(open);
@@ -253,7 +259,7 @@ export default function BannersPage() {
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
             </div>
           ) : banners.length === 0 ? (
-            <div className="text-center py-8 text-gray-500">
+            <div className="text-center py-8 text-gray-500 dark:text-gray-400">
               Chưa có banner nào. Hãy tạo banner đầu tiên!
             </div>
           ) : (
@@ -284,16 +290,16 @@ export default function BannersPage() {
                     </TableCell>
                     <TableCell>
                       <div>
-                        <p className="font-medium">{banner.title}</p>
+                        <p className="font-medium dark:text-white">{banner.title}</p>
                         {banner.description && (
-                          <p className="text-sm text-gray-500 truncate max-w-[200px]">
+                          <p className="text-sm text-gray-500 dark:text-gray-400 truncate max-w-[200px]">
                             {banner.description}
                           </p>
                         )}
                       </div>
                     </TableCell>
                     <TableCell>
-                      <span className="text-sm text-gray-500 truncate max-w-[150px] block">
+                      <span className="text-sm text-gray-500 dark:text-gray-400 truncate max-w-[150px] block">
                         {banner.linkUrl || "-"}
                       </span>
                     </TableCell>
@@ -338,7 +344,7 @@ export default function BannersPage() {
                           variant="ghost"
                           size="icon"
                           className="text-red-600 hover:text-red-700"
-                          onClick={() => handleDelete(banner.id)}
+                          onClick={() => setDeleteId(banner.id)}
                         >
                           <Trash2 className="w-4 h-4" />
                         </Button>
@@ -351,6 +357,17 @@ export default function BannersPage() {
           )}
         </CardContent>
       </Card>
+
+      <ConfirmDialog
+        open={!!deleteId}
+        onOpenChange={(open) => !open && setDeleteId(null)}
+        onConfirm={() => deleteId && handleDelete(deleteId)}
+        title="Xác nhận xóa banner"
+        description="Bạn có chắc chắn muốn xóa banner này? Hành động này không thể hoàn tác."
+        confirmText="Xóa"
+        variant="destructive"
+        isLoading={isDeleting}
+      />
     </div>
   );
 }

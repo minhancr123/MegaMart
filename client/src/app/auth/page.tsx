@@ -4,7 +4,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Eye, EyeOff, Loader2, Lock, Mail, User, ArrowRight } from "lucide-react";
 import Link from "next/link";
-import { useState, useEffect, Suspense } from "react";
+import { useState, useEffect } from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useForm } from 'react-hook-form'
@@ -43,12 +43,13 @@ const registerschema = z.object({
 type loginFormData = z.infer<typeof loginschema>;
 type registerFormData = z.infer<typeof registerschema>;
 
-function AuthContent() {
+export default function AuthPage() {
     const router = useRouter();
     const searchParams = useSearchParams();
     const [islogin, setIsLogin] = useState(true);
     const [showPassword, setShowPassword] = useState(false);
     const [loading, setloading] = useState(false);
+    const [isInteracting, setIsInteracting] = useState(false);
     const { login } = useAuthStore();
 
     // Check if redirected due to expired token
@@ -131,58 +132,74 @@ function AuthContent() {
             {/* Left Side - 3D Scene */}
             <div className="hidden lg:block lg:w-3/5 relative bg-slate-950 dark:bg-black overflow-hidden">
                 <div className="absolute inset-0 z-0">
-                    <IPhoneScene />
+                    <IPhoneScene onInteractionChange={setIsInteracting} />
                 </div>
                 <div className="absolute inset-0 bg-gradient-to-b from-transparent to-slate-950/80 z-10 pointer-events-none" />
 
-                <div className="absolute top-10 left-10 z-20">
-                    <Link href="/" className="flex items-center gap-2 transition-transform hover:scale-105 duration-300">
-                        <LogoDark />
-                    </Link>
-                </div>
+                <AnimatePresence>
+                    {!isInteracting && (
+                        <>
+                            <motion.div 
+                                initial={{ opacity: 1 }}
+                                exit={{ opacity: 0 }}
+                                transition={{ duration: 0.3 }}
+                                className="absolute top-10 left-10 z-20"
+                            >
+                                <Link href="/" className="flex items-center gap-2 transition-transform hover:scale-105 duration-300">
+                                    <LogoDark />
+                                </Link>
+                            </motion.div>
 
-                <div className="absolute bottom-20 left-10 z-20 max-w-xl text-white">
-                    <motion.h1
-                        initial={{ opacity: 0, y: 20 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ delay: 0.5 }}
-                        className="text-5xl font-bold mb-6 leading-tight"
-                    >
-                        Trải nghiệm mua sắm <br />
-                        <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 to-purple-400">
-                            Tương lai
-                        </span>
-                    </motion.h1>
-                    <motion.p
-                        initial={{ opacity: 0, y: 20 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ delay: 0.7 }}
-                        className="text-lg text-slate-300 mb-8"
-                    >
-                        Khám phá hàng ngàn sản phẩm chất lượng cao với ưu đãi hấp dẫn mỗi ngày. Đăng nhập để bắt đầu hành trình mua sắm của bạn.
-                    </motion.p>
+                            <motion.div 
+                                initial={{ opacity: 1 }}
+                                exit={{ opacity: 0 }}
+                                transition={{ duration: 0.3 }}
+                                className="absolute bottom-20 left-10 z-20 max-w-xl text-white"
+                            >
+                                <motion.h1
+                                    initial={{ opacity: 0, y: 20 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    transition={{ delay: 0.5 }}
+                                    className="text-5xl font-bold mb-6 leading-tight"
+                                >
+                                    Trải nghiệm mua sắm <br />
+                                    <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 to-purple-400">
+                                        Tương lai
+                                    </span>
+                                </motion.h1>
+                                <motion.p
+                                    initial={{ opacity: 0, y: 20 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    transition={{ delay: 0.7 }}
+                                    className="text-lg text-slate-300 mb-8"
+                                >
+                                    Khám phá hàng ngàn sản phẩm chất lượng cao với ưu đãi hấp dẫn mỗi ngày. Đăng nhập để bắt đầu hành trình mua sắm của bạn.
+                                </motion.p>
 
-                    <motion.div
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        transition={{ delay: 0.9 }}
-                        className="flex gap-4"
-                    >
-                        <div className="flex -space-x-2">
-                            {[1, 2, 3, 4].map((i) => (
-                                <div key={i} className="w-10 h-10 rounded-full border-2 border-slate-900 bg-slate-700 flex items-center justify-center text-xs text-white">
-                                    U{i}
-                                </div>
-                            ))}
-                        </div>
-                        <div className="flex flex-col justify-center">
-                            <div className="flex items-center gap-1">
-                                {[1, 2, 3, 4, 5].map(i => <div key={i} className="w-4 h-4 text-yellow-400">★</div>)}
-                            </div>
-                            <span className="text-sm text-slate-400">Được tin dùng bởi hơn 10k+ khách hàng</span>
-                        </div>
-                    </motion.div>
-                </div>
+                                <motion.div
+                                    initial={{ opacity: 0 }}
+                                    animate={{ opacity: 1 }}
+                                    transition={{ delay: 0.9 }}
+                                    className="flex gap-4"
+                                >
+                                    <div className="flex -space-x-2">
+                                        {[1, 2, 3, 4].map((i) => (
+                                            <div key={i} className="w-10 h-10 rounded-full border-2 border-slate-900 bg-slate-700 flex items-center justify-center text-xs text-white">
+                                                U{i}
+                                            </div>
+                                        ))}
+                                    </div>
+                                    <div className="flex flex-col justify-center">
+                                        <div className="flex items-center gap-1">
+                                            {[1, 2, 3, 4, 5].map(i => <div key={i} className="w-4 h-4 text-yellow-400">★</div>)}
+                                        </div>
+                                        <span className="text-sm text-slate-400">Được tin dùng bởi hơn 10k+ khách hàng</span>
+                                    </div>
+                                </motion.div>
+                            </motion.div>
+                        </>
+                    )}
+                </AnimatePresence>
             </div>
 
             {/* Right Side - Form */}
@@ -343,17 +360,5 @@ function AuthContent() {
                 </div>
             </div>
         </div>
-    )
-}
-
-export default function AuthPage() {
-    return (
-        <Suspense fallback={
-            <div className="min-h-screen flex items-center justify-center bg-slate-50 dark:bg-gray-950">
-                <Loader2 className="w-10 h-10 text-indigo-600 animate-spin" />
-            </div>
-        }>
-            <AuthContent />
-        </Suspense>
     )
 }

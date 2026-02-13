@@ -103,8 +103,8 @@ export default function SettingsPage() {
     return (
         <div className="space-y-6">
             <div>
-                <h1 className="text-3xl font-bold text-gray-900">Cài đặt</h1>
-                <p className="text-gray-500 mt-1">Quản lý thông tin cửa hàng và cấu hình hệ thống</p>
+                <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Cài đặt</h1>
+                <p className="text-gray-500 dark:text-gray-400 mt-1">Quản lý thông tin cửa hàng và cấu hình hệ thống</p>
             </div>
 
             <Tabs defaultValue="general" className="w-full">
@@ -193,7 +193,7 @@ export default function SettingsPage() {
                             <div className="flex items-center justify-between space-x-2">
                                 <div className="space-y-0.5">
                                     <Label className="text-base">Chế độ bảo trì</Label>
-                                    <p className="text-sm text-gray-500">
+                                    <p className="text-sm text-gray-500 dark:text-gray-400">
                                         Tạm thời đóng cửa website để bảo trì. Chỉ Admin mới có thể truy cập.
                                     </p>
                                 </div>
@@ -205,7 +205,7 @@ export default function SettingsPage() {
                             <div className="flex items-center justify-between space-x-2">
                                 <div className="space-y-0.5">
                                     <Label className="text-base">Cho phép đánh giá</Label>
-                                    <p className="text-sm text-gray-500">
+                                    <p className="text-sm text-gray-500 dark:text-gray-400">
                                         Cho phép khách hàng đánh giá sản phẩm.
                                     </p>
                                 </div>
@@ -217,7 +217,7 @@ export default function SettingsPage() {
                             <div className="flex items-center justify-between space-x-2">
                                 <div className="space-y-0.5">
                                     <Label className="text-base">Đăng ký thành viên</Label>
-                                    <p className="text-sm text-gray-500">
+                                    <p className="text-sm text-gray-500 dark:text-gray-400">
                                         Cho phép người dùng mới đăng ký tài khoản.
                                     </p>
                                 </div>

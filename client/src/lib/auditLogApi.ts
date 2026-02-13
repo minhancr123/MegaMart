@@ -7,6 +7,8 @@ export interface AuditLog {
   entity: string;
   entityId?: string;
   detail?: string;
+  oldData?: any;
+  newData?: any;
   ipAddress?: string;
   createdAt: string;
   user?: {
@@ -63,19 +65,19 @@ export const auditLogApi = {
   },
 
   // Get stats
-  getStats: (days = 30) => 
+  getStats: (days = 30) =>
     axiosClient.get<AuditLogStats>(`/audit-logs/stats?days=${days}`),
 
   // Get logs for specific entity
-  getByEntity: (entity: string, entityId: string) => 
+  getByEntity: (entity: string, entityId: string) =>
     axiosClient.get<AuditLog[]>(`/audit-logs/entity/${entity}/${entityId}`),
 
   // Get logs for specific user
-  getByUser: (userId: string, limit = 50) => 
+  getByUser: (userId: string, limit = 50) =>
     axiosClient.get<AuditLog[]>(`/audit-logs/user/${userId}?limit=${limit}`),
 
   // Cleanup old logs
-  cleanup: (days = 90) => 
+  cleanup: (days = 90) =>
     axiosClient.delete<{ deleted: number }>(`/audit-logs/cleanup?days=${days}`),
 };
 

@@ -49,7 +49,7 @@ function VNPayReturnContent() {
   }, [searchParams]);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-blue-50 flex items-center justify-center p-6">
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-blue-50 dark:from-gray-950 dark:to-gray-900 flex items-center justify-center p-6">
       <Card className="max-w-md w-full shadow-2xl">
         <CardContent className="p-8">
           {status === "loading" && (
@@ -62,15 +62,15 @@ function VNPayReturnContent() {
 
           {status === "success" && (
             <div className="text-center space-y-4">
-              <div className="w-16 h-16 mx-auto bg-green-100 rounded-full flex items-center justify-center">
-                <CheckCircle className="w-10 h-10 text-green-600" />
+              <div className="w-16 h-16 mx-auto bg-green-100 dark:bg-green-900/30 rounded-full flex items-center justify-center">
+                <CheckCircle className="w-10 h-10 text-green-600 dark:text-green-400" />
               </div>
-              <h2 className="text-2xl font-bold text-green-600">Thanh toán thành công!</h2>
-              <p className="text-gray-600">{message}</p>
+              <h2 className="text-2xl font-bold text-green-600 dark:text-green-400">Thanh toán thành công!</h2>
+              <p className="text-gray-600 dark:text-gray-400">{message}</p>
               {orderCode && (
-                <div className="bg-gray-50 p-4 rounded-lg">
-                  <p className="text-sm text-gray-500 mb-1">Mã đơn hàng</p>
-                  <p className="font-mono font-semibold text-lg">{orderCode}</p>
+                <div className="bg-gray-50 dark:bg-gray-800 p-4 rounded-lg">
+                  <p className="text-sm text-gray-500 dark:text-gray-400 mb-1">Mã đơn hàng</p>
+                  <p className="font-mono font-semibold text-lg dark:text-white">{orderCode}</p>
                 </div>
               )}
               <div className="flex gap-3 pt-4">
@@ -93,15 +93,15 @@ function VNPayReturnContent() {
 
           {status === "failed" && (
             <div className="text-center space-y-4">
-              <div className="w-16 h-16 mx-auto bg-red-100 rounded-full flex items-center justify-center">
-                <XCircle className="w-10 h-10 text-red-600" />
+              <div className="w-16 h-16 mx-auto bg-red-100 dark:bg-red-900/30 rounded-full flex items-center justify-center">
+                <XCircle className="w-10 h-10 text-red-600 dark:text-red-400" />
               </div>
-              <h2 className="text-2xl font-bold text-red-600">Thanh toán thất bại!</h2>
-              <p className="text-gray-600">{message}</p>
+              <h2 className="text-2xl font-bold text-red-600 dark:text-red-400">Thanh toán thất bại!</h2>
+              <p className="text-gray-600 dark:text-gray-400">{message}</p>
               {orderCode && (
-                <div className="bg-gray-50 p-4 rounded-lg">
-                  <p className="text-sm text-gray-500 mb-1">Mã đơn hàng</p>
-                  <p className="font-mono font-semibold text-lg">{orderCode}</p>
+                <div className="bg-gray-50 dark:bg-gray-800 p-4 rounded-lg">
+                  <p className="text-sm text-gray-500 dark:text-gray-400 mb-1">Mã đơn hàng</p>
+                  <p className="font-mono font-semibold text-lg dark:text-white">{orderCode}</p>
                 </div>
               )}
               <div className="flex gap-3 pt-4">

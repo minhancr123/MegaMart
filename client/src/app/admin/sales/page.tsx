@@ -131,8 +131,8 @@ export default function SalesManagementPage() {
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Quản lý Sale</h1>
-          <p className="text-gray-500 mt-1">
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Quản lý Sale</h1>
+          <p className="text-gray-500 dark:text-gray-400 mt-1">
             Quản lý giảm giá cho sản phẩm (khác với Flash Sale)
           </p>
         </div>
@@ -146,46 +146,46 @@ export default function SalesManagementPage() {
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-gray-500">
+            <CardTitle className="text-sm font-medium text-gray-500 dark:text-gray-400">
               Sản phẩm đang Sale
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{filteredSales.length}</div>
+            <div className="text-2xl font-bold dark:text-white">{filteredSales.length}</div>
           </CardContent>
         </Card>
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-gray-500">
+            <CardTitle className="text-sm font-medium text-gray-500 dark:text-gray-400">
               Giảm giá TB
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-orange-600">
+            <div className="text-2xl font-bold text-orange-600 dark:text-orange-500">
               {averageDiscount.toFixed(1)}%
             </div>
           </CardContent>
         </Card>
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-gray-500">
+            <CardTitle className="text-sm font-medium text-gray-500 dark:text-gray-400">
               Tổng tiết kiệm
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-green-600">
+            <div className="text-2xl font-bold text-green-600 dark:text-green-500">
               {formatPrice(totalSavings.toString())}
             </div>
           </CardContent>
         </Card>
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-gray-500">
+            <CardTitle className="text-sm font-medium text-gray-500 dark:text-gray-400">
               Sắp hết hạn
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-red-600">
+            <div className="text-2xl font-bold text-red-600 dark:text-red-500">
               {filteredSales.filter((s) => isExpiringSoon(s.saleEndDate)).length}
             </div>
           </CardContent>
@@ -220,14 +220,25 @@ export default function SalesManagementPage() {
         </CardHeader>
         <CardContent>
           {loading ? (
-            <div className="text-center py-8">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900 mx-auto"></div>
-              <p className="mt-2 text-gray-500">Đang tải...</p>
+            <div className="space-y-3">
+              {Array.from({ length: 5 }).map((_, i) => (
+                <div key={i} className="flex items-center gap-4 p-4 border rounded-lg">
+                  <Skeleton className="h-16 w-16 rounded" />
+                  <div className="flex-1 space-y-2">
+                    <Skeleton className="h-4 w-3/4" />
+                    <Skeleton className="h-3 w-1/2" />
+                  </div>
+                  <div className="space-y-2">
+                    <Skeleton className="h-6 w-20" />
+                    <Skeleton className="h-6 w-20" />
+                  </div>
+                </div>
+              ))}
             </div>
           ) : filteredSales.length === 0 ? (
             <div className="text-center py-8">
-              <Tag className="w-12 h-12 text-gray-400 mx-auto mb-2" />
-              <p className="text-gray-500">Chưa có sản phẩm nào đang sale</p>
+              <Tag className="w-12 h-12 text-gray-400 dark:text-gray-600 mx-auto mb-2" />
+              <p className="text-gray-500 dark:text-gray-400">Chưa có sản phẩm nào đang sale</p>
               <Button
                 className="mt-4"
                 onClick={() => (window.location.href = "/admin/sales/apply")}
@@ -279,30 +290,30 @@ export default function SalesManagementPage() {
                           )}
                         </div>
                       </TableCell>
-                      <TableCell className="font-mono text-sm">
+                      <TableCell className="font-mono text-sm dark:text-gray-300">
                         {sale.sku}
                       </TableCell>
-                      <TableCell className="text-right text-gray-500 line-through">
+                      <TableCell className="text-right text-gray-500 dark:text-gray-400 line-through">
                         {formatPrice(sale.originalPrice)}
                       </TableCell>
-                      <TableCell className="text-right font-semibold text-orange-600">
+                      <TableCell className="text-right font-semibold text-orange-600 dark:text-orange-500">
                         {sale.salePrice ? formatPrice(sale.salePrice) : "-"}
                       </TableCell>
                       <TableCell className="text-center">
-                        <Badge variant="secondary" className="bg-orange-100 text-orange-700">
+                        <Badge variant="secondary" className="bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-400">
                           -{sale.discountPercent}%
                         </Badge>
                       </TableCell>
-                      <TableCell className="text-right text-green-600 font-medium">
+                      <TableCell className="text-right text-green-600 dark:text-green-500 font-medium">
                         {formatPrice(sale.savedAmount)}
                       </TableCell>
                       <TableCell>
                         <div className="text-sm">
-                          <div className="flex items-center gap-1 text-gray-600">
+                          <div className="flex items-center gap-1 text-gray-600 dark:text-gray-300">
                             <Calendar className="w-3 h-3" />
                             {formatDate(sale.saleStartDate)}
                           </div>
-                          <div className="flex items-center gap-1 text-gray-600 mt-1">
+                          <div className="flex items-center gap-1 text-gray-600 dark:text-gray-300 mt-1">
                             <Calendar className="w-3 h-3" />
                             {formatDate(sale.saleEndDate)}
                           </div>

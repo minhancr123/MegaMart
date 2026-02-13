@@ -8,6 +8,7 @@ import {
   Param,
   Query,
   UseGuards,
+  Req,
 } from '@nestjs/common';
 import { FlashSaleService } from './flash-sale.service';
 import { CreateFlashSaleDto, UpdateFlashSaleDto, AddFlashSaleItemsDto, UpdateFlashSaleItemDto } from './dto/flash-sale.dto';
@@ -18,7 +19,7 @@ import { ApiTags, ApiBearerAuth, ApiOperation, ApiQuery } from '@nestjs/swagger'
 @ApiTags('flash-sales')
 @Controller('flash-sales')
 export class FlashSaleController {
-  constructor(private readonly flashSaleService: FlashSaleService) {}
+  constructor(private readonly flashSaleService: FlashSaleService) { }
 
   @Get('active')
   @ApiOperation({ summary: 'Get currently active flash sales (public)' })
@@ -47,16 +48,16 @@ export class FlashSaleController {
   @UseGuards(JwtAuthGuard, AdminGuard)
   @ApiBearerAuth('JWT-auth')
   @ApiOperation({ summary: 'Create new flash sale' })
-  async create(@Body() createFlashSaleDto: CreateFlashSaleDto) {
-    return this.flashSaleService.create(createFlashSaleDto);
+  async create(@Body() createFlashSaleDto: CreateFlashSaleDto, @Req() req: any) {
+    return this.flashSaleService.create(createFlashSaleDto, req.user?.id, req.ip);
   }
 
   @Put(':id')
   @UseGuards(JwtAuthGuard, AdminGuard)
   @ApiBearerAuth('JWT-auth')
   @ApiOperation({ summary: 'Update flash sale' })
-  async update(@Param('id') id: string, @Body() updateFlashSaleDto: UpdateFlashSaleDto) {
-    return this.flashSaleService.update(id, updateFlashSaleDto);
+  async update(@Param('id') id: string, @Body() updateFlashSaleDto: UpdateFlashSaleDto, @Req() req: any) {
+    return this.flashSaleService.update(id, updateFlashSaleDto, req.user?.id, req.ip);
   }
 
   @Post(':id/items')
@@ -91,15 +92,15 @@ export class FlashSaleController {
   @UseGuards(JwtAuthGuard, AdminGuard)
   @ApiBearerAuth('JWT-auth')
   @ApiOperation({ summary: 'Toggle flash sale active status' })
-  async toggleActive(@Param('id') id: string) {
-    return this.flashSaleService.toggleActive(id);
+  async toggleActive(@Param('id') id: string, @Req() req: any) {
+    return this.flashSaleService.toggleActive(id, req.user?.id, req.ip);
   }
 
   @Delete(':id')
   @UseGuards(JwtAuthGuard, AdminGuard)
   @ApiBearerAuth('JWT-auth')
   @ApiOperation({ summary: 'Delete flash sale' })
-  async delete(@Param('id') id: string) {
-    return this.flashSaleService.delete(id);
+  async delete(@Param('id') id: string, @Req() req: any) {
+    return this.flashSaleService.delete(id, req.user?.id, req.ip);
   }
 }

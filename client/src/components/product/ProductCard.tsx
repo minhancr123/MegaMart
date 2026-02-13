@@ -16,14 +16,12 @@ import {
   ChevronDown,
   Heart,
   Scale,
-  Sparkles,
   Star
 } from "lucide-react";
-import { useState } from "react";
+import { useState, memo } from "react";
 import Link from "next/link";
 import { useWishlistStore } from "@/store/wishlistStore";
 import { useCompareStore } from "@/store/compareStore";
-import { motion } from "framer-motion";
 import { getPrimaryImageUrl } from "@/lib/imageUtils";
 
 interface ProductCardProps {
@@ -32,22 +30,13 @@ interface ProductCardProps {
   onViewDetails?: (productId: string) => void;
 }
 
-export const ProductCard = ({ product, onAddToCart, onViewDetails }: ProductCardProps) => {
+const ProductCardComponent = ({ product, onAddToCart, onViewDetails }: ProductCardProps) => {
   const [selectedVariant, setSelectedVariant] = useState<Variant | null>(
     product.variants?.[0] || null
   );
   const [selectedColorIndex, setSelectedColorIndex] = useState<number>(0);
   const wishlist = useWishlistStore();
   const compare = useCompareStore();
-
-  // Debug: Log colors data
-  console.log('Product:', product.name);
-  console.log('Variants:', product.variants?.map(v => ({
-    sku: (v as any).sku,
-    hasColors: !!(v as any).colors,
-    colorsLength: Array.isArray((v as any).colors) ? (v as any).colors.length : 'not array',
-    colors: (v as any).colors
-  })));
 
   const formatPrice = (price: number): string => {
     if (!price || isNaN(price)) {
@@ -58,6 +47,36 @@ export const ProductCard = ({ product, onAddToCart, onViewDetails }: ProductCard
       currency: 'VND',
       maximumFractionDigits: 0,
     }).format(price);
+  };
+
+  // Translate attribute keys to Vietnamese
+  const translateAttributeKey = (key: string): string => {
+    const translations: { [key: string]: string } = {
+      'Ram': 'RAM',
+      'RAM': 'RAM',
+      'ram': 'RAM',
+      'Display': 'Màn hình',
+      'display': 'Màn hình',
+      'Storage': 'Bộ nhớ',
+      'storage': 'Bộ nhớ',
+      'Color': 'Màu sắc',
+      'color': 'Màu sắc',
+      'Connectivity': 'Kết nối',
+      'connectivity': 'Kết nối',
+      'Processor': 'Bộ xử lý',
+      'processor': 'Bộ xử lý',
+      'Battery': 'Pin',
+      'battery': 'Pin',
+      'Camera': 'Camera',
+      'camera': 'Camera',
+      'Weight': 'Trọng lượng',
+      'weight': 'Trọng lượng',
+      'Size': 'Kích thước',
+      'size': 'Kích thước',
+      'Material': 'Chất liệu',
+      'material': 'Chất liệu',
+    };
+    return translations[key] || key;
   };
 
   const getVariantStats = () => {
@@ -139,13 +158,8 @@ export const ProductCard = ({ product, onAddToCart, onViewDetails }: ProductCard
   };
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      whileInView={{ opacity: 1, y: 0 }}
-      viewport={{ once: true }}
-      className="group"
-    >
-      <div className="relative flex flex-col bg-white dark:bg-gray-900 rounded-2xl border border-slate-200 dark:border-gray-800 hover:border-indigo-300 dark:hover:border-indigo-700 hover:shadow-xl transition-all duration-300 overflow-hidden h-full">
+    <div className="group h-full">
+      <div className="relative flex flex-col bg-white dark:bg-gray-900 rounded-2xl border border-slate-200 dark:border-gray-800 hover:border-indigo-300 dark:hover:border-indigo-700 hover:shadow-xl transition-all duration-200 overflow-hidden h-full">
         {/* Product Image */}
         <Link href={`/product/${product.id}`} className="relative block overflow-hidden bg-slate-50 dark:bg-gray-800 rounded-t-2xl group">
           <div className="aspect-square relative overflow-hidden">
@@ -153,7 +167,8 @@ export const ProductCard = ({ product, onAddToCart, onViewDetails }: ProductCard
               <img
                 src={productImage}
                 alt={product.name}
-                className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110 dark:brightness-90"
+                loading="lazy"
+                className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105 dark:brightness-90"
               />
             ) : (
               <div className="w-full h-full bg-gradient-to-br from-slate-100 to-slate-200 dark:from-gray-800 dark:to-gray-900 flex items-center justify-center">
@@ -166,7 +181,7 @@ export const ProductCard = ({ product, onAddToCart, onViewDetails }: ProductCard
               <Button
                 variant="secondary"
                 size="sm"
-                className="translate-y-4 group-hover:translate-y-0 transition-transform duration-300 bg-white/90 text-gray-900 hover:bg-white font-medium shadow-xl"
+                className="translate-y-4 group-hover:translate-y-0 transition-transform duration-300 bg-white/90 text-gray-900 hover:bg-white font-medium shadow-xl cursor-pointer"
                 onClick={(e) => {
                   e.preventDefault();
                   if (onViewDetails) onViewDetails(product.id);
@@ -182,8 +197,7 @@ export const ProductCard = ({ product, onAddToCart, onViewDetails }: ProductCard
           <div className="absolute top-3 left-3 flex flex-col gap-2">
             {product.variants && product.variants.length > 0 && (
               <Badge className="bg-gradient-to-r from-indigo-600 to-purple-600 text-white border-none shadow-lg backdrop-blur-sm">
-                <Sparkles className="h-3 w-3 mr-1" />
-                {stats.variantCount} biến thể
+                {stats.variantCount} phiên bản
               </Badge>
             )}
           </div>
@@ -208,7 +222,7 @@ export const ProductCard = ({ product, onAddToCart, onViewDetails }: ProductCard
                 e.preventDefault();
                 wishlist.toggle(product);
               }}
-              className={`h-10 w-10 rounded-xl bg-white/90 backdrop-blur-sm shadow-lg hover:shadow-xl hover:scale-110 transition-all duration-200 flex items-center justify-center ${wishlist.exists(product.id) ? "text-red-500" : "text-slate-600"}`}
+              className={`h-10 w-10 rounded-xl bg-white/90 backdrop-blur-sm shadow-lg hover:shadow-xl hover:scale-110 transition-all duration-200 flex items-center justify-center cursor-pointer ${wishlist.exists(product.id) ? "text-red-500" : "text-slate-600"}`}
             >
               <Heart className="h-5 w-5" fill={wishlist.exists(product.id) ? "currentColor" : "none"} />
             </button>
@@ -217,7 +231,7 @@ export const ProductCard = ({ product, onAddToCart, onViewDetails }: ProductCard
                 e.preventDefault();
                 compare.toggle(product);
               }}
-              className={`h-10 w-10 rounded-xl bg-white/90 backdrop-blur-sm shadow-lg hover:shadow-xl hover:scale-110 transition-all duration-200 flex items-center justify-center ${compare.exists(product.id) ? "text-indigo-600" : "text-slate-600"}`}
+              className={`h-10 w-10 rounded-xl bg-white/90 backdrop-blur-sm shadow-lg hover:shadow-xl hover:scale-110 transition-all duration-200 flex items-center justify-center cursor-pointer ${compare.exists(product.id) ? "text-indigo-600" : "text-slate-600"}`}
             >
               <Scale className="h-5 w-5" />
             </button>
@@ -227,7 +241,7 @@ export const ProductCard = ({ product, onAddToCart, onViewDetails }: ProductCard
         {/* Content */}
         <div className="flex-1 flex flex-col p-5">
           {/* Title */}
-          <Link href={`/product/${product.id}`}>
+          <Link href={`/product/${product.id}`} className="cursor-pointer">
             <h3 className="font-bold text-slate-900 dark:text-white group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors leading-tight line-clamp-2 mb-3 h-12">
               {product.name}
             </h3>
@@ -263,22 +277,22 @@ export const ProductCard = ({ product, onAddToCart, onViewDetails }: ProductCard
                 );
               })}
             </div>
-            <span className="text-xs text-slate-500">
+            <span className="text-xs text-slate-500 dark:text-gray-400">
               {(product as any).rating ? `(${((product as any).rating).toFixed(1)})` : '(4.2)'}
             </span>
           </div>
 
           {/* Price */}
           <div className="mb-4">
-            <div className="text-lg font-bold text-indigo-600">
+            <div className="text-lg font-bold text-indigo-600 dark:text-indigo-400">
               {selectedVariant ? formatPrice(Number(selectedVariant.price)) : getPriceRange()}
             </div>
             {selectedVariant ? (
-              <div className="text-xs text-slate-500 mt-1">
+              <div className="text-xs text-slate-500 dark:text-gray-400 mt-1">
                 {selectedVariant.sku}
               </div>
             ) : stats.variantCount > 1 ? (
-              <div className="text-xs text-slate-500 mt-1">
+              <div className="text-xs text-slate-500 dark:text-gray-400 mt-1">
                 Từ {stats.variantCount} biến thể
               </div>
             ) : null}
@@ -292,24 +306,24 @@ export const ProductCard = ({ product, onAddToCart, onViewDetails }: ProductCard
                 <DropdownMenuTrigger asChild>
                   <Button
                     variant="outline"
-                    className="w-full justify-between text-left hover:bg-indigo-50 hover:border-indigo-300 transition-all rounded-xl"
+                    className="w-full justify-between text-left hover:bg-indigo-50 dark:hover:bg-indigo-900/20 hover:border-indigo-300 dark:hover:border-indigo-700 transition-all rounded-xl dark:bg-gray-800 dark:border-gray-700 dark:text-white"
                   >
                     <div className="flex-1 min-w-0 truncate">
                       {selectedVariant ? (
                         <span className="font-medium text-sm">{selectedVariant.sku}</span>
                       ) : (
-                        <span className="text-slate-500 text-sm">Chọn biến thể</span>
+                        <span className="text-slate-500 dark:text-gray-400 text-sm">Chọn phiên bản</span>
                       )}
                     </div>
-                    <ChevronDown className="h-4 w-4 flex-shrink-0 text-indigo-600" />
+                    <ChevronDown className="h-4 w-4 flex-shrink-0 text-indigo-600 dark:text-indigo-400" />
                   </Button>
                 </DropdownMenuTrigger>
 
-                <DropdownMenuContent className="w-72 max-h-80 overflow-y-auto">
+                <DropdownMenuContent className="w-72 max-h-80 overflow-y-auto dark:bg-gray-900 dark:border-gray-800">
                   {product.variants.map((variant) => (
                     <DropdownMenuItem
                       key={variant.id}
-                      className={`cursor-pointer p-3 ${selectedVariant?.id === variant.id ? 'bg-indigo-50' : ''}`}
+                      className={`cursor-pointer p-3 ${selectedVariant?.id === variant.id ? 'bg-indigo-50 dark:bg-indigo-900/20' : ''} dark:text-white dark:hover:bg-gray-800`}
                       onSelect={() => {
                         if (variant.stock > 0) {
                           setSelectedVariant(variant);
@@ -320,18 +334,18 @@ export const ProductCard = ({ product, onAddToCart, onViewDetails }: ProductCard
                     >
                       <div className="w-full space-y-1">
                         <div className="flex justify-between items-center">
-                          <span className="font-semibold text-xs">{variant.sku}</span>
-                          <span className="text-indigo-600 font-bold text-sm">
+                          <span className="font-semibold text-xs dark:text-white">{variant.sku}</span>
+                          <span className="text-indigo-600 dark:text-indigo-400 font-bold text-sm">
                             {formatPrice(Number(variant.price))}
                           </span>
                         </div>
                         {variant.attributes && (
-                          <div className="text-xs text-slate-600">
-                            {Object.entries(variant.attributes).map(([key, value]) => `${key}: ${value}`).join(", ")}
+                          <div className="text-xs text-slate-600 dark:text-gray-300">
+                            {Object.entries(variant.attributes).map(([key, value]) => `${translateAttributeKey(key)}: ${value}`).join(", ")}
                           </div>
                         )}
                         <div className="text-xs">
-                          <span className={variant.stock > 0 ? 'text-green-600' : 'text-red-600'}>
+                          <span className={variant.stock > 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}>
                             {variant.stock > 0 ? `Còn ${variant.stock}` : 'Hết hàng'}
                           </span>
                         </div>
@@ -369,13 +383,13 @@ export const ProductCard = ({ product, onAddToCart, onViewDetails }: ProductCard
 
               {/* Selected Variant Attributes */}
               {selectedVariant && selectedVariant.attributes && Object.keys(selectedVariant.attributes).length > 0 && (
-                <div className="space-y-2 p-3 bg-slate-50 rounded-lg">
-                  <div className="text-xs font-medium text-slate-600">Thông số:</div>
+                <div className="space-y-2 p-3 bg-slate-50 dark:bg-gray-800 rounded-lg">
+                  <div className="text-xs font-medium text-slate-600 dark:text-gray-300">Thông số:</div>
                   <div className="flex flex-wrap gap-2">
                     {Object.entries(selectedVariant.attributes).map(([key, value]) => (
                       <div key={key} className="flex items-center gap-1 text-xs">
-                        <span className="font-medium text-slate-700 capitalize">{key}:</span>
-                        <span className="text-slate-600">{value as string}</span>
+                        <span className="font-medium text-slate-700 dark:text-gray-300 capitalize">{translateAttributeKey(key)}:</span>
+                        <span className="text-slate-600 dark:text-gray-400">{value as string}</span>
                       </div>
                     ))}
                   </div>
@@ -389,7 +403,7 @@ export const ProductCard = ({ product, onAddToCart, onViewDetails }: ProductCard
           <div className="mt-auto pt-3">
             <Button
               size="default"
-              className="w-full bg-blue-600 hover:bg-blue-700 text-white shadow-md hover:shadow-lg transition-all rounded-xl font-medium h-10"
+              className="w-full bg-blue-600 hover:bg-blue-700 text-white shadow-md hover:shadow-lg transition-all rounded-xl font-medium h-10 cursor-pointer disabled:cursor-not-allowed"
               onClick={handleAddToCart}
               disabled={!selectedVariant || selectedVariant.stock === 0}
             >
@@ -399,6 +413,13 @@ export const ProductCard = ({ product, onAddToCart, onViewDetails }: ProductCard
           </div>
         </div>
       </div>
-    </motion.div>
+    </div>
   );
 };
+
+// Memoized version to prevent unnecessary re-renders
+const MemoizedProductCard = memo(ProductCardComponent);
+
+// Export both named and default
+export { MemoizedProductCard as ProductCard };
+export default MemoizedProductCard;

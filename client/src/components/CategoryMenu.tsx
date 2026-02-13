@@ -41,10 +41,10 @@ export default function CategoryMenu() {
 
   if (loading) {
     return (
-      <div className="bg-white rounded-lg">
+      <div className="bg-white dark:bg-gray-900 rounded-lg">
         <div className="animate-pulse space-y-1">
           {[1, 2, 3, 4, 5].map((i) => (
-            <div key={i} className="h-10 bg-gray-100 rounded"></div>
+            <div key={i} className="h-10 bg-gray-100 dark:bg-gray-800 rounded"></div>
           ))}
         </div>
       </div>
@@ -53,19 +53,19 @@ export default function CategoryMenu() {
 
   if (categories.length === 0) {
     return (
-      <div className="bg-white rounded-lg p-4 text-center text-gray-500 text-sm">
+      <div className="bg-white dark:bg-gray-900 rounded-lg p-4 text-center text-gray-500 dark:text-gray-400 text-sm">
         Chưa có danh mục nào
       </div>
     );
   }
 
   return (
-    <div className="bg-white rounded-lg shadow-lg overflow-hidden">
+    <div className="bg-white dark:bg-gray-900 rounded-lg shadow-lg overflow-hidden border dark:border-gray-800">
       {/* Categories List */}
       <motion.div
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
-        className="divide-y divide-gray-100"
+        className="divide-y divide-gray-100 dark:divide-gray-800"
       >
         {categories.map((category, index) => (
           <motion.div
@@ -89,12 +89,12 @@ function CategoryItem({ category }: { category: Category }) {
     return (
       <Link
         href={`/category/${category.slug}`}
-        className="flex items-center justify-between px-4 py-3 hover:bg-gradient-to-r hover:from-blue-50 hover:to-indigo-50 transition-all duration-300 group"
+        className="flex items-center justify-between px-4 py-3 hover:bg-gradient-to-r hover:from-blue-50 hover:to-indigo-50 dark:hover:from-blue-900/20 dark:hover:to-indigo-900/20 transition-all duration-300 group"
       >
-        <span className="text-sm text-gray-700 group-hover:text-blue-600 font-medium transition-colors duration-200">
+        <span className="text-sm text-gray-700 dark:text-gray-300 group-hover:text-blue-600 dark:group-hover:text-blue-400 font-medium transition-colors duration-200">
           {category.name}
         </span>
-        <ChevronRight className="h-4 w-4 text-gray-400 group-hover:text-blue-600 group-hover:translate-x-1 transition-all duration-200" />
+        <ChevronRight className="h-4 w-4 text-gray-400 dark:text-gray-500 group-hover:text-blue-600 dark:group-hover:text-blue-400 group-hover:translate-x-1 transition-all duration-200" />
       </Link>
     );
   }
@@ -104,19 +104,19 @@ function CategoryItem({ category }: { category: Category }) {
       <HoverCardTrigger asChild>
         <Link
           href={`/category/${category.slug}`}
-          className="flex items-center justify-between px-4 py-3 hover:bg-gradient-to-r hover:from-blue-50 hover:to-indigo-50 transition-all duration-300 group"
+          className="flex items-center justify-between px-4 py-3 hover:bg-gradient-to-r hover:from-blue-50 hover:to-indigo-50 dark:hover:from-blue-900/20 dark:hover:to-indigo-900/20 transition-all duration-300 group"
         >
-          <span className="text-sm text-gray-700 group-hover:text-blue-600 font-medium transition-colors duration-200">
+          <span className="text-sm text-gray-700 dark:text-gray-300 group-hover:text-blue-600 dark:group-hover:text-blue-400 font-medium transition-colors duration-200">
             {category.name}
           </span>
-          <ChevronRight className="h-4 w-4 text-gray-400 group-hover:text-blue-600 group-hover:translate-x-1 transition-all duration-200" />
+          <ChevronRight className="h-4 w-4 text-gray-400 dark:text-gray-500 group-hover:text-blue-600 dark:group-hover:text-blue-400 group-hover:translate-x-1 transition-all duration-200" />
         </Link>
       </HoverCardTrigger>
 
       <HoverCardContent
         side="right"
         align="start"
-        className="w-96 p-0 border-2 border-blue-100"
+        className="w-96 p-0 border-2 border-blue-100 dark:border-blue-900"
         sideOffset={8}
       >
         <motion.div
@@ -124,7 +124,7 @@ function CategoryItem({ category }: { category: Category }) {
           animate={{ opacity: 1, x: 0, scale: 1 }}
           exit={{ opacity: 0, x: -10, scale: 0.95 }}
           transition={{ duration: 0.2, ease: "easeOut" }}
-          className="bg-white rounded-lg shadow-2xl overflow-hidden"
+          className="bg-white dark:bg-gray-900 rounded-lg shadow-2xl border dark:border-gray-800 overflow-hidden"
         >
           {/* Subcategories List */}
           <div className="p-4 max-h-[400px] overflow-y-auto">
@@ -152,7 +152,7 @@ function CategoryItem({ category }: { category: Category }) {
                 >
                   <Link
                     href={`/category/${child.slug}`}
-                    className="block px-3 py-2.5 text-sm text-gray-700 hover:bg-gradient-to-r hover:from-blue-50 hover:to-indigo-50 hover:text-blue-600 rounded-lg transition-all duration-200 hover:shadow-md border border-transparent hover:border-blue-200 hover:scale-105 transform"
+                    className="block px-3 py-2.5 text-sm text-gray-700 dark:text-gray-300 hover:bg-gradient-to-r hover:from-blue-50 hover:to-indigo-50 dark:hover:from-blue-900/20 dark:hover:to-indigo-900/20 hover:text-blue-600 dark:hover:text-blue-400 rounded-lg transition-all duration-200 hover:shadow-md border border-transparent hover:border-blue-200 dark:hover:border-blue-800 hover:scale-105 transform"
                   >
                     {child.name}
                   </Link>

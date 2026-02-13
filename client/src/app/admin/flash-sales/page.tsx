@@ -27,6 +27,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { ConfirmDialog } from "@/components/ConfirmDialog";
 import {
   Select,
   SelectContent,
@@ -46,6 +47,8 @@ export default function FlashSalesPage() {
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingFlashSale, setEditingFlashSale] = useState<FlashSale | null>(null);
+  const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [formData, setFormData] = useState<CreateFlashSaleDto>({
     name: "",
@@ -109,13 +112,16 @@ export default function FlashSalesPage() {
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm("Bạn có chắc chắn muốn xóa Flash Sale này?")) return;
+    setIsDeleting(true);
     try {
       await flashSaleApi.delete(id);
       toast.success("Xóa Flash Sale thành công");
       fetchFlashSales();
     } catch (error) {
       toast.error("Không thể xóa Flash Sale");
+    } finally {
+      setIsDeleting(false);
+      setDeleteId(null);
     }
   };
 
@@ -176,8 +182,8 @@ export default function FlashSalesPage() {
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Quản lý Flash Sale</h1>
-          <p className="text-gray-500 mt-1">Tạo và quản lý các chương trình Flash Sale</p>
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Quản lý Flash Sale</h1>
+          <p className="text-gray-500 dark:text-gray-400 mt-1">Tạo và quản lý các chương trình Flash Sale</p>
         </div>
         <Dialog open={dialogOpen} onOpenChange={(open) => {
           setDialogOpen(open);
@@ -289,7 +295,7 @@ export default function FlashSalesPage() {
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-red-500"></div>
             </div>
           ) : flashSales.length === 0 ? (
-            <div className="text-center py-8 text-gray-500">
+            <div className="text-center py-8 text-gray-500 dark:text-gray-400">
               Chưa có Flash Sale nào. Hãy tạo chương trình đầu tiên!
             </div>
           ) : (
@@ -308,9 +314,9 @@ export default function FlashSalesPage() {
                   <TableRow key={flashSale.id}>
                     <TableCell>
                       <div>
-                        <p className="font-medium">{flashSale.name}</p>
+                        <p className="font-medium dark:text-white">{flashSale.name}</p>
                         {flashSale.description && (
-                          <p className="text-sm text-gray-500 truncate max-w-[250px]">
+                          <p className="text-sm text-gray-500 dark:text-gray-400 truncate max-w-[250px]">
                             {flashSale.description}
                           </p>
                         )}
@@ -361,7 +367,7 @@ export default function FlashSalesPage() {
                           variant="ghost"
                           size="icon"
                           className="text-red-600 hover:text-red-700"
-                          onClick={() => handleDelete(flashSale.id)}
+                          onClick={() => setDeleteId(flashSale.id)}
                         >
                           <Trash2 className="w-4 h-4" />
                         </Button>
@@ -374,6 +380,17 @@ export default function FlashSalesPage() {
           )}
         </CardContent>
       </Card>
+
+      <ConfirmDialog
+        open={!!deleteId}
+        onOpenChange={(open) => !open && setDeleteId(null)}
+        onConfirm={() => deleteId && handleDelete(deleteId)}
+        title="Xác nhận xóa Flash Sale"
+        description="Bạn có chắc chắn muốn xóa Flash Sale này? Hành động này không thể hoàn tác."
+        confirmText="Xóa"
+        variant="destructive"
+        isLoading={isDeleting}
+      />
     </div>
   );
 }

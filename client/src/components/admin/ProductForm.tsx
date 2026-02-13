@@ -925,12 +925,12 @@ export function ProductForm({ initialData, onSubmit, loading }: ProductFormProps
                                     }}
                                     className="w-20 h-10 cursor-pointer"
                                 />
-                                <div className="flex items-center gap-2 flex-1 px-3 h-10 bg-white border rounded-md">
+                                <div className="flex items-center gap-2 flex-1 px-3 h-10 bg-white dark:bg-gray-800 border dark:border-gray-700 rounded-md">
                                     <div
-                                        className="w-6 h-6 rounded border border-gray-300"
+                                        className="w-6 h-6 rounded border border-gray-300 dark:border-gray-600"
                                         style={{ backgroundColor: colorDialog.hex }}
                                     />
-                                    <span className="text-sm font-medium">{getColorName(colorDialog.hex)}</span>
+                                    <span className="text-sm font-medium dark:text-gray-200">{getColorName(colorDialog.hex)}</span>
                                 </div>
                             </div>
                         </div>

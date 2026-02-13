@@ -2,11 +2,23 @@
 
 import { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { fetchOrderById, cancelOrder } from "@/lib/orderApi";
+import { fetchOrderById, cancelOrder, updateOrderPaymentMethod } from "@/lib/orderApi";
+import { createVNPayPayment } from "@/lib/paymentApi";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Loader2, Package, MapPin, Phone, User, Calendar, CreditCard, ArrowLeft, ShoppingBag, Truck, Clock, XCircle } from "lucide-react";
+import { ConfirmDialog } from "@/components/ConfirmDialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Label } from "@/components/ui/label";
+import { Loader2, Package, MapPin, Phone, User, Calendar, CreditCard, ArrowLeft, ShoppingBag, Truck, Clock, XCircle, Edit } from "lucide-react";
 import { toast } from "sonner";
 import Image from "next/image";
 import { motion } from "framer-motion";
@@ -30,6 +42,10 @@ export default function OrderDetailPage() {
   const [order, setOrder] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [cancelling, setCancelling] = useState(false);
+  const [showCancelConfirm, setShowCancelConfirm] = useState(false);
+  const [showPaymentDialog, setShowPaymentDialog] = useState(false);
+  const [newPaymentMethod, setNewPaymentMethod] = useState<string>("");
+  const [updatingPayment, setUpdatingPayment] = useState(false);
 
   const [timeTick, setTimeTick] = useState(0);
 
@@ -76,8 +92,6 @@ export default function OrderDetailPage() {
   const handleCancelOrder = async () => {
     if (!order) return;
 
-    if (!confirm("Bạn có chắc chắn muốn hủy đơn hàng này?")) return;
-
     try {
       setCancelling(true);
       await cancelOrder(order.id);
@@ -88,19 +102,54 @@ export default function OrderDetailPage() {
       toast.error(err?.response?.data?.message || "Không thể hủy đơn hàng");
     } finally {
       setCancelling(false);
+      setShowCancelConfirm(false);
     }
   };
 
+  const handleUpdatePaymentMethod = async () => {
+    if (!order || !newPaymentMethod) return;
+
+    try {
+      setUpdatingPayment(true);
+
+      // Cập nhật phương thức thanh toán
+      const response = await updateOrderPaymentMethod(order.id, newPaymentMethod);
+      console.log("Update payment method response:", response);
+      
+      // Nếu đổi sang VNPAY và có paymentUrl, redirect sang trang thanh toán
+      // Response sau khi interceptor transform sẽ là { order, paymentUrl }
+      if (newPaymentMethod === 'VNPAY' && response?.paymentUrl) {
+        console.log("Redirecting to VNPAY:", response.paymentUrl);
+        window.location.href = response.paymentUrl;
+        return;
+      }
+
+      toast.success("Đã cập nhật phương thức thanh toán");
+      
+      // Reload order
+      await loadOrder(order.id);
+      setShowPaymentDialog(false);
+    } catch (err: any) {
+      console.error("Update payment method error:", err);
+      toast.error(err?.response?.data?.message || "Không thể cập nhật phương thức thanh toán");
+    } finally {
+      setUpdatingPayment(false);
+    }
+  };
+
+  // Kiểm tra xem có thể thay đổi phương thức thanh toán không
+  const canChangePaymentMethod = order && ['PENDING', 'CONFIRMED'].includes(order.status);
+
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 flex justify-center items-center">
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 dark:from-gray-950 dark:via-gray-900 dark:to-gray-950 flex justify-center items-center pt-[100px] md:pt-[120px]">
         <motion.div
           initial={{ opacity: 0, scale: 0.8 }}
           animate={{ opacity: 1, scale: 1 }}
           className="text-center"
         >
           <Loader2 className="h-12 w-12 animate-spin text-blue-600 mx-auto mb-4" />
-          <p className="text-gray-600 font-medium">Đang tải chi tiết đơn hàng...</p>
+          <p className="text-gray-600 dark:text-gray-400 font-medium">Đang tải chi tiết đơn hàng...</p>
         </motion.div>
       </div>
     );
@@ -108,7 +157,7 @@ export default function OrderDetailPage() {
 
   if (!order) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 flex items-center justify-center p-6">
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 dark:from-gray-950 dark:via-gray-900 dark:to-gray-950 flex items-center justify-center p-6 pt-[100px] md:pt-[120px]">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -138,7 +187,7 @@ export default function OrderDetailPage() {
     sum + (Number(item.price) * item.quantity), 0) || 0;
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 py-8">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 dark:from-gray-950 dark:via-gray-900 dark:to-gray-950 pt-[100px] md:pt-[120px] py-8">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Back Button */}
         <motion.div
@@ -172,11 +221,11 @@ export default function OrderDetailPage() {
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-                  <div className="flex items-center gap-2 bg-white/60 p-3 rounded-lg">
+                  <div className="flex items-center gap-2 bg-white/60 dark:bg-gray-800/60 p-3 rounded-lg">
                     <Calendar className="h-5 w-5 text-blue-500" />
                     <div>
-                      <p className="text-gray-600 text-xs">Ngày đặt hàng</p>
-                      <p className="font-semibold text-gray-900">
+                      <p className="text-gray-600 dark:text-gray-400 text-xs">Ngày đặt hàng</p>
+                      <p className="font-semibold text-gray-900 dark:text-white">
                         {new Date(order.createdAt).toLocaleDateString('vi-VN', {
                           day: '2-digit',
                           month: '2-digit',
@@ -188,13 +237,85 @@ export default function OrderDetailPage() {
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-2 bg-white/60 p-3 rounded-lg">
+                  <div className="flex items-center gap-2 bg-white/60 dark:bg-gray-800/60 p-3 rounded-lg">
                     <CreditCard className="h-5 w-5 text-green-500" />
-                    <div>
-                      <p className="text-gray-600 text-xs">Phương thức thanh toán</p>
-                      <p className="font-semibold text-gray-900">
-                        {order.payments?.[0]?.provider === 'OTHER' ? 'COD (Tiền mặt)' : order.payments?.[0]?.provider || 'Chưa thanh toán'}
-                      </p>
+                    <div className="flex-1">
+                      <p className="text-gray-600 dark:text-gray-400 text-xs">Phương thức thanh toán</p>
+                      <div className="flex items-center gap-2">
+                        <p className="font-semibold text-gray-900 dark:text-white">
+                          {order.payments?.[0]?.provider === 'OTHER' ? 'COD (Tiền mặt)' : order.payments?.[0]?.provider || 'Chưa thanh toán'}
+                        </p>
+                        {canChangePaymentMethod && (
+                          <Dialog open={showPaymentDialog} onOpenChange={setShowPaymentDialog}>
+                            <DialogTrigger asChild>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-6 px-2 text-xs text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                                onClick={() => setNewPaymentMethod(order.payments?.[0]?.provider || 'COD')}
+                              >
+                                <Edit className="h-3 w-3 mr-1" />
+                                Đổi
+                              </Button>
+                            </DialogTrigger>
+                            <DialogContent className="sm:max-w-md">
+                              <DialogHeader>
+                                <DialogTitle>Thay đổi phương thức thanh toán</DialogTitle>
+                                <DialogDescription>
+                                  Chọn phương thức thanh toán mới cho đơn hàng của bạn
+                                </DialogDescription>
+                              </DialogHeader>
+                              <div className="space-y-4 py-4">
+                                <RadioGroup value={newPaymentMethod} onValueChange={setNewPaymentMethod}>
+                                  <div className="flex items-center space-x-2 p-3 border dark:border-gray-700 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800">
+                                    <RadioGroupItem value="COD" id="cod" />
+                                    <Label htmlFor="cod" className="flex-1 cursor-pointer">
+                                      <div className="font-medium dark:text-white">Thanh toán khi nhận hàng (COD)</div>
+                                      <div className="text-xs text-gray-500 dark:text-gray-400">Thanh toán bằng tiền mặt</div>
+                                    </Label>
+                                  </div>
+                                  <div className="flex items-center space-x-2 p-3 border dark:border-gray-700 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800">
+                                    <RadioGroupItem value="VNPAY" id="vnpay" />
+                                    <Label htmlFor="vnpay" className="flex-1 cursor-pointer">
+                                      <div className="font-medium dark:text-white">VNPay</div>
+                                      <div className="text-xs text-gray-500 dark:text-gray-400">Thanh toán qua ví điện tử</div>
+                                    </Label>
+                                  </div>
+                                  <div className="flex items-center space-x-2 p-3 border dark:border-gray-700 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800">
+                                    <RadioGroupItem value="BANK_TRANSFER" id="bank" />
+                                    <Label htmlFor="bank" className="flex-1 cursor-pointer">
+                                      <div className="font-medium dark:text-white">Chuyển khoản ngân hàng</div>
+                                      <div className="text-xs text-gray-500 dark:text-gray-400">Chuyển khoản qua tài khoản</div>
+                                    </Label>
+                                  </div>
+                                </RadioGroup>
+                              </div>
+                              <div className="flex gap-2 justify-end">
+                                <Button
+                                  variant="outline"
+                                  onClick={() => setShowPaymentDialog(false)}
+                                  disabled={updatingPayment}
+                                >
+                                  Hủy
+                                </Button>
+                                <Button
+                                  onClick={handleUpdatePaymentMethod}
+                                  disabled={updatingPayment || !newPaymentMethod}
+                                >
+                                  {updatingPayment ? (
+                                    <>
+                                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                                      Đang cập nhật...
+                                    </>
+                                  ) : (
+                                    'Xác nhận'
+                                  )}
+                                </Button>
+                              </div>
+                            </DialogContent>
+                          </Dialog>
+                        )}
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -227,8 +348,8 @@ export default function OrderDetailPage() {
           >
             <Card className="p-6 shadow-lg">
               <div className="flex items-center gap-2 mb-6">
-                <Package className="h-5 w-5 text-blue-600" />
-                <h2 className="text-xl font-bold text-gray-900">Chi tiết sản phẩm</h2>
+                <Package className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+                <h2 className="text-xl font-bold text-gray-900 dark:text-white">Chi tiết sản phẩm</h2>
               </div>
 
               <div className="space-y-4">
@@ -238,10 +359,10 @@ export default function OrderDetailPage() {
                     initial={{ opacity: 0, x: -20 }}
                     animate={{ opacity: 1, x: 0 }}
                     transition={{ delay: 0.3 + idx * 0.1 }}
-                    className="flex gap-4 p-4 bg-gradient-to-r from-gray-50 to-blue-50/30 rounded-xl border border-gray-200 hover:shadow-md transition-all duration-300"
+                    className="flex gap-4 p-4 bg-gradient-to-r from-gray-50 to-blue-50/30 dark:from-gray-800 dark:to-gray-800/50 rounded-xl border border-gray-200 dark:border-gray-700 hover:shadow-md transition-all duration-300"
                   >
                     {item.variant?.product?.images?.[0] && (
-                      <div className="relative w-24 h-24 flex-shrink-0 bg-white rounded-lg overflow-hidden shadow-sm">
+                      <div className="relative w-24 h-24 flex-shrink-0 bg-white dark:bg-gray-800 rounded-lg overflow-hidden shadow-sm">
                         <Image
                           src={item.variant.product.images[0].url}
                           alt={item.variant.product.name}
@@ -252,24 +373,24 @@ export default function OrderDetailPage() {
                     )}
 
                     <div className="flex-1 min-w-0">
-                      <h3 className="font-semibold text-gray-900 mb-1 line-clamp-2">
+                      <h3 className="font-semibold text-gray-900 dark:text-white mb-1 line-clamp-2">
                         {item.variant?.product?.name}
                       </h3>
                       {item.variant?.attributes && (
                         <div className="flex flex-wrap gap-1 mb-2">
                           {Object.entries(item.variant.attributes).map(([key, val]) => (
-                            <span key={key} className="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded-full">
+                            <span key={key} className="text-xs bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 px-2 py-1 rounded-full">
                               {key}: {String(val)}
                             </span>
                           ))}
                         </div>
                       )}
-                      <p className="text-sm text-gray-600">
+                      <p className="text-sm text-gray-600 dark:text-gray-400">
                         <span className="font-medium">Số lượng:</span> {item.quantity}
                       </p>
-                      <p className="text-sm text-gray-600">
+                      <p className="text-sm text-gray-600 dark:text-gray-400">
                         <span className="font-medium">Đơn giá:</span>{' '}
-                        <span className="text-blue-600 font-semibold">
+                        <span className="text-blue-600 dark:text-blue-400 font-semibold">
                           {new Intl.NumberFormat('vi-VN', {
                             style: 'currency',
                             currency: 'VND',
@@ -281,8 +402,8 @@ export default function OrderDetailPage() {
 
                     <div className="text-right flex flex-col justify-between">
                       <div>
-                        <p className="text-xs text-gray-500 mb-1">Thành tiền</p>
-                        <p className="text-lg font-bold text-blue-600">
+                        <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Thành tiền</p>
+                        <p className="text-lg font-bold text-blue-600 dark:text-blue-400">
                           {new Intl.NumberFormat('vi-VN', {
                             style: 'currency',
                             currency: 'VND',
@@ -296,10 +417,10 @@ export default function OrderDetailPage() {
               </div>
 
               {/* Price Summary */}
-              <div className="mt-6 pt-6 border-t border-gray-200 space-y-3 bg-gradient-to-r from-gray-50 to-blue-50/20 p-4 rounded-lg">
+              <div className="mt-6 pt-6 border-t border-gray-200 dark:border-gray-700 space-y-3 bg-gradient-to-r from-gray-50 to-blue-50/20 dark:from-gray-800 dark:to-gray-800/50 p-4 rounded-lg">
                 <div className="flex justify-between text-sm">
-                  <span className="text-gray-600">Tạm tính ({order.items?.length || 0} sản phẩm):</span>
-                  <span className="font-medium text-gray-900">
+                  <span className="text-gray-600 dark:text-gray-400">Tạm tính ({order.items?.length || 0} sản phẩm):</span>
+                  <span className="font-medium text-gray-900 dark:text-white">
                     {new Intl.NumberFormat('vi-VN', {
                       style: 'currency',
                       currency: 'VND',
@@ -310,8 +431,8 @@ export default function OrderDetailPage() {
 
                 {order.discountAmount && Number(order.discountAmount) > 0 && (
                   <div className="flex justify-between text-sm">
-                    <span className="text-gray-600">Giảm giá {order.voucherCode ? `(${order.voucherCode})` : ''}:</span>
-                    <span className="font-medium text-green-600">
+                    <span className="text-gray-600 dark:text-gray-400">Giảm giá {order.voucherCode ? `(${order.voucherCode})` : ''}:</span>
+                    <span className="font-medium text-green-600 dark:text-green-400">
                       -{new Intl.NumberFormat('vi-VN', {
                         style: 'currency',
                         currency: 'VND',
@@ -322,8 +443,8 @@ export default function OrderDetailPage() {
                 )}
 
                 <div className="flex justify-between text-sm">
-                  <span className="text-gray-600">Thuế VAT:</span>
-                  <span className="font-medium text-gray-900">
+                  <span className="text-gray-600 dark:text-gray-400">Thuế VAT:</span>
+                  <span className="font-medium text-gray-900 dark:text-white">
                     {new Intl.NumberFormat('vi-VN', {
                       style: 'currency',
                       currency: 'VND',
@@ -332,9 +453,9 @@ export default function OrderDetailPage() {
                   </span>
                 </div>
 
-                <div className="flex justify-between font-bold text-lg pt-3 border-t border-gray-300">
-                  <span className="text-gray-900">Tổng cộng:</span>
-                  <span className="text-blue-600 text-2xl">
+                <div className="flex justify-between font-bold text-lg pt-3 border-t border-gray-300 dark:border-gray-700">
+                  <span className="text-gray-900 dark:text-white">Tổng cộng:</span>
+                  <span className="text-blue-600 dark:text-blue-400 text-2xl">
                     {new Intl.NumberFormat('vi-VN', {
                       style: 'currency',
                       currency: 'VND',
@@ -360,15 +481,15 @@ export default function OrderDetailPage() {
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.2 }}
               >
-                <Card className="p-6 shadow-lg border-l-4 border-l-pink-500 bg-pink-50/30">
+                <Card className="p-6 shadow-lg border-l-4 border-l-pink-500 bg-pink-50/30 dark:bg-pink-900/10 dark:border-l-pink-400">
                   <div className="flex items-center gap-2 mb-4">
-                    <CreditCard className="h-5 w-5 text-pink-600" />
-                    <h2 className="text-xl font-bold text-gray-900">Thông tin thanh toán</h2>
+                    <CreditCard className="h-5 w-5 text-pink-600 dark:text-pink-400" />
+                    <h2 className="text-xl font-bold text-gray-900 dark:text-white">Thông tin thanh toán</h2>
                   </div>
 
                   {/* Shared Logic for both MoMo and Bank Transfer: Use VietQR pointing to Sacombank */}
                   <div className="text-center">
-                    <p className="font-medium mb-3 text-gray-700">
+                    <p className="font-medium mb-3 text-gray-700 dark:text-gray-300">
                       {order.payments?.[0]?.provider === 'MOMO'
                         ? "Quét mã bằng MoMo hoặc App Ngân hàng"
                         : "Quét mã để chuyển khoản nhanh"}
@@ -409,7 +530,7 @@ export default function OrderDetailPage() {
 
                       return (
                         <div className="flex flex-col items-center">
-                          <div className="bg-white p-4 inline-block rounded-xl border shadow-sm mb-3 relative">
+                          <div className="bg-white dark:bg-gray-900 p-4 inline-block rounded-xl border dark:border-gray-800 shadow-sm mb-3 relative">
                             <div className="relative w-[200px] h-[200px]">
                               <Image
                                 src={qrUrl}
@@ -419,7 +540,7 @@ export default function OrderDetailPage() {
                                 unoptimized
                               />
                             </div>
-                            <div className="absolute -bottom-3 left-1/2 transform -translate-x-1/2 bg-white px-2 py-1 rounded-full shadow border text-xs font-bold text-pink-600 flex items-center gap-1 whitespace-nowrap">
+                            <div className="absolute -bottom-3 left-1/2 transform -translate-x-1/2 bg-white dark:bg-gray-800 px-2 py-1 rounded-full shadow border dark:border-gray-700 text-xs font-bold text-pink-600 dark:text-pink-400 flex items-center gap-1 whitespace-nowrap">
                               <Clock className="w-3 h-3" />
                               {minutes}:{seconds < 10 ? `0${seconds}` : seconds}
                             </div>
@@ -430,15 +551,15 @@ export default function OrderDetailPage() {
                     })()}
 
                     <div className="space-y-4 max-w-md mx-auto">
-                      <div className="bg-white p-4 rounded-xl border shadow-sm space-y-3 text-left">
-                        <div className="flex justify-between items-center pb-2 border-b">
+                      <div className="bg-white dark:bg-gray-900 p-4 rounded-xl border dark:border-gray-800 shadow-sm space-y-3 text-left">
+                        <div className="flex justify-between items-center pb-2 border-b dark:border-gray-800">
                           <span className="text-sm text-gray-500">Ngân hàng</span>
                           <span className="font-bold text-blue-700">VIETCOMBANK</span>
                         </div>
-                        <div className="flex justify-between items-center pb-2 border-b">
-                          <span className="text-sm text-gray-500">Số tài khoản</span>
+                        <div className="flex justify-between items-center pb-2 border-b dark:border-gray-800">
+                          <span className="text-sm text-gray-500 dark:text-gray-400">Số tài khoản</span>
                           <div className="flex items-center gap-2">
-                            <span className="font-bold text-lg text-gray-900">10311656919</span>
+                            <span className="font-bold text-lg text-gray-900 dark:text-white">10311656919</span>
                             <Button variant="ghost" size="sm" className="h-6 w-6 p-0" onClick={() => {
                               navigator.clipboard.writeText("10311656919");
                               toast.success("Đã sao chép STK");
@@ -448,22 +569,22 @@ export default function OrderDetailPage() {
                             </Button>
                           </div>
                         </div>
-                        <div className="flex justify-between items-center pb-2 border-b">
-                          <span className="text-sm text-gray-500">Chủ tài khoản</span>
-                          <span className="font-bold text-gray-900">MEGAMART STORE</span>
+                        <div className="flex justify-between items-center pb-2 border-b dark:border-gray-800">
+                          <span className="text-sm text-gray-500 dark:text-gray-400">Chủ tài khoản</span>
+                          <span className="font-bold text-gray-900 dark:text-white">MEGAMART STORE</span>
                         </div>
                         <div className="pt-2">
-                          <span className="text-sm text-gray-500 block mb-1">Nội dung chuyển khoản</span>
-                          <div className="flex items-center justify-between bg-gray-50 p-2 rounded border border-blue-100">
-                            <b className="text-blue-600 font-mono text-sm">Thanh toan don hang {order.code}</b>
-                            <Button variant="ghost" size="sm" className="h-6 text-xs text-blue-600 hover:text-blue-700" onClick={() => {
+                          <span className="text-sm text-gray-500 dark:text-gray-400 block mb-1">Nội dung chuyển khoản</span>
+                          <div className="flex items-center justify-between bg-gray-50 dark:bg-gray-800 p-2 rounded border border-blue-100 dark:border-blue-900">
+                            <b className="text-blue-600 dark:text-blue-400 font-mono text-sm">Thanh toan don hang {order.code}</b>
+                            <Button variant="ghost" size="sm" className="h-6 text-xs text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300" onClick={() => {
                               navigator.clipboard.writeText(`Thanh toan don hang ${order.code}`);
                               toast.success("Đã sao chép nội dung CK");
                             }}>Sao chép</Button>
                           </div>
                         </div>
                       </div>
-                      <p className="text-xs text-center bg-blue-50 p-2 rounded text-blue-700">
+                      <p className="text-xs text-center bg-blue-50 dark:bg-blue-900/30 p-2 rounded text-blue-700 dark:text-blue-300">
                         Hệ thống sẽ tự động cập nhật trạng thái sau 5-10 phút khi nhận được thanh toán.
                       </p>
                     </div>
@@ -475,47 +596,47 @@ export default function OrderDetailPage() {
             {/* Shipping Info */}
             <Card className="p-6 shadow-lg">
               <div className="flex items-center gap-2 mb-6">
-                <Truck className="h-5 w-5 text-green-600" />
-                <h2 className="text-xl font-bold text-gray-900">Thông tin giao hàng</h2>
+                <Truck className="h-5 w-5 text-green-600 dark:text-green-400" />
+                <h2 className="text-xl font-bold text-gray-900 dark:text-white">Thông tin giao hàng</h2>
               </div>
 
               <div className="space-y-4">
                 <div className="flex gap-3">
-                  <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center flex-shrink-0">
-                    <User className="h-5 w-5 text-blue-600" />
+                  <div className="w-10 h-10 bg-blue-100 dark:bg-blue-900/30 rounded-lg flex items-center justify-center flex-shrink-0">
+                    <User className="h-5 w-5 text-blue-600 dark:text-blue-400" />
                   </div>
                   <div className="flex-1">
-                    <p className="text-xs text-gray-500 mb-1">Người nhận</p>
-                    <p className="font-semibold text-gray-900">{shippingAddr.fullName || 'Chưa có'}</p>
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Người nhận</p>
+                    <p className="font-semibold text-gray-900 dark:text-white">{shippingAddr.fullName || 'Chưa có'}</p>
                   </div>
                 </div>
 
                 <div className="flex gap-3">
-                  <div className="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center flex-shrink-0">
-                    <Phone className="h-5 w-5 text-green-600" />
+                  <div className="w-10 h-10 bg-green-100 dark:bg-green-900/30 rounded-lg flex items-center justify-center flex-shrink-0">
+                    <Phone className="h-5 w-5 text-green-600 dark:text-green-400" />
                   </div>
                   <div className="flex-1">
-                    <p className="text-xs text-gray-500 mb-1">Số điện thoại</p>
-                    <p className="font-semibold text-gray-900">{shippingAddr.phone || 'Chưa có'}</p>
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Số điện thoại</p>
+                    <p className="font-semibold text-gray-900 dark:text-white">{shippingAddr.phone || 'Chưa có'}</p>
                   </div>
                 </div>
 
                 <div className="flex gap-3">
-                  <div className="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center flex-shrink-0">
-                    <MapPin className="h-5 w-5 text-purple-600" />
+                  <div className="w-10 h-10 bg-purple-100 dark:bg-purple-900/30 rounded-lg flex items-center justify-center flex-shrink-0">
+                    <MapPin className="h-5 w-5 text-purple-600 dark:text-purple-400" />
                   </div>
                   <div className="flex-1">
-                    <p className="text-xs text-gray-500 mb-1">Địa chỉ giao hàng</p>
-                    <p className="font-semibold text-gray-900 leading-relaxed">
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Địa chỉ giao hàng</p>
+                    <p className="font-semibold text-gray-900 dark:text-white leading-relaxed">
                       {shippingAddr.address || 'Chưa có'}
                     </p>
                   </div>
                 </div>
 
                 {shippingAddr.note && (
-                  <div className="pt-4 border-t border-gray-200 bg-yellow-50 p-3 rounded-lg">
-                    <p className="text-xs text-gray-600 mb-1 font-medium">Ghi chú đơn hàng</p>
-                    <p className="text-sm text-gray-900 italic">"{shippingAddr.note}"</p>
+                  <div className="pt-4 border-t border-gray-200 dark:border-gray-700 bg-yellow-50 dark:bg-yellow-900/20 p-3 rounded-lg">
+                    <p className="text-xs text-gray-600 dark:text-gray-400 mb-1 font-medium">Ghi chú đơn hàng</p>
+                    <p className="text-sm text-gray-900 dark:text-white italic">"{shippingAddr.note}"</p>
                   </div>
                 )}
               </div>
@@ -531,7 +652,7 @@ export default function OrderDetailPage() {
                 <Button
                   variant="destructive"
                   className="w-full py-6 text-base font-semibold shadow-lg hover:shadow-xl transition-all"
-                  onClick={handleCancelOrder}
+                  onClick={() => setShowCancelConfirm(true)}
                   disabled={cancelling}
                 >
                   {cancelling ? (
@@ -550,6 +671,17 @@ export default function OrderDetailPage() {
             )}
           </motion.div>
         </div>
+
+        <ConfirmDialog
+          open={showCancelConfirm}
+          onOpenChange={(open) => !open && setShowCancelConfirm(false)}
+          onConfirm={handleCancelOrder}
+          title="Xác nhận hủy đơn hàng"
+          description="Bạn có chắc chắn muốn hủy đơn hàng này? Hành động này không thể hoàn tác."
+          confirmText="Hủy đơn hàng"
+          variant="destructive"
+          isLoading={cancelling}
+        />
       </div>
     </div >
   );

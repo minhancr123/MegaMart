@@ -73,8 +73,8 @@ export default function InventoryPage() {
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Quản lý Kho</h1>
-          <p className="text-gray-500 mt-1">Theo dõi tồn kho, nhập xuất và nhà cung cấp</p>
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Quản lý Kho</h1>
+          <p className="text-gray-500 dark:text-gray-400 mt-1">Theo dõi tồn kho, nhập xuất và nhà cung cấp</p>
         </div>
         <div className="flex gap-2">
           <Link href="/admin/inventory/movements/new">
@@ -205,30 +205,30 @@ export default function InventoryPage() {
         </CardHeader>
         <CardContent>
           {warehouses.length === 0 ? (
-            <div className="text-center py-8 text-gray-500">
+            <div className="text-center py-8 text-gray-500 dark:text-gray-400">
               Chưa có kho hàng nào. 
-              <Link href="/admin/inventory/warehouses" className="text-blue-600 ml-1">Tạo kho mới</Link>
+              <Link href="/admin/inventory/warehouses" className="text-blue-600 dark:text-blue-400 ml-1">Tạo kho mới</Link>
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {warehouses.slice(0, 6).map((warehouse) => (
                 <div 
                   key={warehouse.id}
-                  className="p-4 border rounded-lg hover:bg-gray-50 transition-colors"
+                  className="p-4 border rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
                 >
                   <div className="flex justify-between items-start mb-2">
                     <div>
-                      <h3 className="font-semibold">{warehouse.name}</h3>
-                      <p className="text-sm text-gray-500">{warehouse.code}</p>
+                      <h3 className="font-semibold dark:text-white">{warehouse.name}</h3>
+                      <p className="text-sm text-gray-500 dark:text-gray-400">{warehouse.code}</p>
                     </div>
                     <Badge variant={warehouse.isActive ? "default" : "secondary"}>
                       {warehouse.isActive ? "Hoạt động" : "Tạm ngưng"}
                     </Badge>
                   </div>
                   {warehouse.address && (
-                    <p className="text-sm text-gray-600 mb-2">{warehouse.address}</p>
+                    <p className="text-sm text-gray-600 dark:text-gray-300 mb-2">{warehouse.address}</p>
                   )}
-                  <div className="flex gap-4 text-sm text-gray-500">
+                  <div className="flex gap-4 text-sm text-gray-500 dark:text-gray-400">
                     <span>{warehouse._count?.inventories || 0} sản phẩm</span>
                     <span>{warehouse._count?.stockMovements || 0} phiếu kho</span>
                   </div>
@@ -252,9 +252,9 @@ export default function InventoryPage() {
         </CardHeader>
         <CardContent>
           {suppliers.length === 0 ? (
-            <div className="text-center py-8 text-gray-500">
+            <div className="text-center py-8 text-gray-500 dark:text-gray-400">
               Chưa có nhà cung cấp nào.
-              <Link href="/admin/inventory/suppliers" className="text-blue-600 ml-1">Thêm nhà cung cấp</Link>
+              <Link href="/admin/inventory/suppliers" className="text-blue-600 dark:text-blue-400 ml-1">Thêm nhà cung cấp</Link>
             </div>
           ) : (
             <div className="space-y-3">
@@ -264,8 +264,8 @@ export default function InventoryPage() {
                   className="flex justify-between items-center p-3 border rounded-lg"
                 >
                   <div>
-                    <h4 className="font-medium">{supplier.name}</h4>
-                    <p className="text-sm text-gray-500">
+                    <h4 className="font-medium dark:text-white">{supplier.name}</h4>
+                    <p className="text-sm text-gray-500 dark:text-gray-400">
                       {supplier.code} • {supplier.phone || supplier.email || 'Chưa có liên hệ'}
                     </p>
                   </div>

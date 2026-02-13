@@ -114,11 +114,11 @@ export default function CreateCategoryPage() {
             Quay lại
           </Button>
         </Link>
-        <h1 className="text-3xl font-bold text-gray-900">Thêm danh mục mới</h1>
-        <p className="text-gray-600 mt-1">Tạo danh mục sản phẩm mới</p>
+        <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Thêm danh mục mới</h1>
+        <p className="text-gray-600 dark:text-gray-400 mt-1">Tạo danh mục sản phẩm mới</p>
       </div>
 
-      <form onSubmit={handleSubmit(onSubmit)} className="space-y-6 bg-white p-6 rounded-lg shadow-sm border">
+      <form onSubmit={handleSubmit(onSubmit)} className="space-y-6 bg-white dark:bg-gray-900 p-6 rounded-lg shadow-sm border dark:border-gray-800">
         {/* Name */}
         <div className="space-y-2">
           <Label htmlFor="name">
@@ -148,7 +148,7 @@ export default function CreateCategoryPage() {
           {errors.slug && (
             <p className="text-sm text-red-500">{errors.slug.message}</p>
           )}
-          <p className="text-xs text-gray-500">
+          <p className="text-xs text-gray-500 dark:text-gray-400">
             URL thân thiện, tự động tạo từ tên danh mục
           </p>
         </div>
@@ -180,7 +180,7 @@ export default function CreateCategoryPage() {
               ))}
             </SelectContent>
           </Select>
-          <p className="text-xs text-gray-500">
+          <p className="text-xs text-gray-500 dark:text-gray-400">
             Để trống nếu đây là danh mục gốc
           </p>
         </div>
@@ -189,7 +189,7 @@ export default function CreateCategoryPage() {
         <div className="flex items-center justify-between p-4 border rounded-lg">
           <div>
             <Label htmlFor="active">Trạng thái hoạt động</Label>
-            <p className="text-sm text-gray-500">Hiển thị danh mục này trên website</p>
+            <p className="text-sm text-gray-500 dark:text-gray-400">Hiển thị danh mục này trên website</p>
           </div>
           <Switch
             id="active"

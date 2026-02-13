@@ -3,9 +3,13 @@ import { PrismaService } from 'src/prismaClient/prisma.service';
 import { ProductResponseDto } from './dto/product.dto';
 import { formatPrice } from 'src/utils/price.util';
 
+import { AuditLogService, AuditAction, AuditEntity } from '../audit-log/audit-log.service';
 @Injectable()
 export class ProductsService {
-    constructor(private prisma: PrismaService) { }
+    constructor(
+        private prisma: PrismaService,
+        private auditLogService: AuditLogService
+    ) { }
     async findAll(search?: string) {
 
         return new Promise(async (resolve, reject) => {
@@ -312,7 +316,7 @@ export class ProductsService {
         return this.formatProductResponse(product);
     }
 
-    async createProduct(createProductDto: any) {
+    async createProduct(createProductDto: any, userId?: string) {
         try {
             // Create product with variants
             const product = await this.prisma.product.create({
@@ -352,13 +356,24 @@ export class ProductsService {
                 }
             });
 
+            // Log creation
+            if (userId) {
+                await this.auditLogService.log(
+                    AuditAction.PRODUCT_CREATE,
+                    AuditEntity.PRODUCT,
+                    userId,
+                    product.id,
+                    { name: product.name, sku: createProductDto.variants?.[0]?.sku }
+                );
+            }
+
             return this.formatProductResponse(product);
         } catch (error) {
             throw error;
         }
     }
 
-    async updateProduct(id: string, updateProductDto: any) {
+    async updateProduct(id: string, updateProductDto: any, userId?: string) {
         try {
             // Check if product exists
             const existingProduct = await this.prisma.product.findUnique({
@@ -540,6 +555,21 @@ export class ProductsService {
                 }
             });
 
+            // Log update
+            if (userId) {
+                await this.auditLogService.log(
+                    AuditAction.PRODUCT_UPDATE,
+                    AuditEntity.PRODUCT,
+                    userId,
+                    id,
+                    {
+                        oldName: existingProduct.name,
+                        newName: finalProduct?.name,
+                        changes: Object.keys(updateProductDto)
+                    }
+                );
+            }
+
             return this.formatProductResponse(finalProduct);
         } catch (error) {
             console.error('Error updating product:', error);
@@ -547,7 +577,7 @@ export class ProductsService {
         }
     }
 
-    async deleteProduct(id: string) {
+    async deleteProduct(id: string, userId?: string) {
         try {
             // Check if product exists
             const existingProduct = await this.prisma.product.findUnique({
@@ -565,6 +595,17 @@ export class ProductsService {
                     deletedAt: new Date()
                 }
             });
+
+            // Log deletion
+            if (userId) {
+                await this.auditLogService.log(
+                    AuditAction.PRODUCT_DELETE,
+                    AuditEntity.PRODUCT,
+                    userId,
+                    id,
+                    { name: existingProduct.name }
+                );
+            }
 
             return { success: true, message: 'Product deleted successfully' };
         } catch (error) {

@@ -128,8 +128,8 @@ export default function SuppliersPage() {
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Nhà cung cấp</h1>
-          <p className="text-gray-500 mt-1">Quản lý danh sách nhà cung cấp hàng hóa</p>
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Nhà cung cấp</h1>
+          <p className="text-gray-500 dark:text-gray-400 mt-1">Quản lý danh sách nhà cung cấp hàng hóa</p>
         </div>
         <Dialog open={dialogOpen} onOpenChange={(open) => {
           setDialogOpen(open);
@@ -274,7 +274,7 @@ export default function SuppliersPage() {
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
             </div>
           ) : suppliers.length === 0 ? (
-            <div className="text-center py-8 text-gray-500">
+            <div className="text-center py-8 text-gray-500 dark:text-gray-400">
               Chưa có nhà cung cấp nào. Hãy thêm nhà cung cấp đầu tiên!
             </div>
           ) : (
@@ -300,9 +300,9 @@ export default function SuppliersPage() {
                     </TableCell>
                     <TableCell>
                       <div>
-                        <p className="font-medium">{supplier.name}</p>
+                        <p className="font-medium dark:text-white">{supplier.name}</p>
                         {supplier.address && (
-                          <p className="text-sm text-gray-500 truncate max-w-[200px]">
+                          <p className="text-sm text-gray-500 dark:text-gray-400 truncate max-w-[200px]">
                             {supplier.address}
                           </p>
                         )}
@@ -310,11 +310,11 @@ export default function SuppliersPage() {
                     </TableCell>
                     <TableCell>
                       <div className="text-sm">
-                        <p>{supplier.contactName || "-"}</p>
-                        <p className="text-gray-500">{supplier.email || ""}</p>
+                        <p className="dark:text-white">{supplier.contactName || "-"}</p>
+                        <p className="text-gray-500 dark:text-gray-400">{supplier.email || ""}</p>
                       </div>
                     </TableCell>
-                    <TableCell>{supplier.phone || "-"}</TableCell>
+                    <TableCell className="dark:text-gray-300">{supplier.phone || "-"}</TableCell>
                     <TableCell>
                       <Badge variant="outline">
                         {supplier._count?.stockMovements || 0}

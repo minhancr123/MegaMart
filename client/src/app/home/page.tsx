@@ -60,7 +60,7 @@ export default async function Home() {
   console.log("Home page - Featured Products:", featuredProducts);
   console.log("Home page - Categories:", fetchCategories);
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-950">
       <MainContent featuredProducts={featuredProducts} fetchCategories={fetchCategories} newsPosts={latestPosts} />
     </div>
   );

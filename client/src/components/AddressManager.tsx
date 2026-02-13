@@ -18,6 +18,7 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
+import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -39,6 +40,8 @@ export default function AddressManager({ onSelect, selectedId, mode = "manage" }
   const [loading, setLoading] = useState(true);
   const [showDialog, setShowDialog] = useState(false);
   const [editingAddress, setEditingAddress] = useState<Address | null>(null);
+  const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
   const [formData, setFormData] = useState<CreateAddressDto>({
     userId : "",
     fullName: "",
@@ -131,14 +134,16 @@ export default function AddressManager({ onSelect, selectedId, mode = "manage" }
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm("Bạn có chắc muốn xóa địa chỉ này?")) return;
-
+    setIsDeleting(true);
     try {
       await deleteAddress(id);
       toast.success("Xóa địa chỉ thành công");
       loadAddresses();
     } catch (error) {
       toast.error("Không thể xóa địa chỉ");
+    } finally {
+      setIsDeleting(false);
+      setDeleteId(null);
     }
   };
 
@@ -190,26 +195,26 @@ export default function AddressManager({ onSelect, selectedId, mode = "manage" }
               if (addr) handleSelectAddress(addr);
             }}>
               {addresses.map((address) => (
-                <Card
-                  key={address.id}
-                  className={`p-4 cursor-pointer transition-all ${
-                    selectedId === address.id ? "ring-2 ring-blue-500" : ""
-                  }`}
-                  onClick={() => handleSelectAddress(address)}
-                >
-                  <div className="flex items-start gap-3">
-                    <RadioGroupItem value={address.id} id={address.id} />
-                    <div className="flex-1">
-                      <AddressCard 
-                        address={address} 
-                        onEdit={() => handleOpenDialog(address)}
-                        onDelete={() => handleDelete(address.id)}
-                        onSetDefault={() => handleSetDefault(address.id)}
-                        hideActions={mode === "select"}
-                      />
+                <label key={address.id} htmlFor={`address-${address.id}`} className="cursor-pointer">
+                  <Card
+                    className={`p-4 transition-all hover:shadow-md ${
+                      selectedId === address.id ? "ring-2 ring-blue-500 bg-blue-50/50" : ""
+                    }`}
+                  >
+                    <div className="flex items-start gap-3">
+                      <RadioGroupItem value={address.id} id={`address-${address.id}`} />
+                      <div className="flex-1">
+                        <AddressCard 
+                          address={address} 
+                          onEdit={() => handleOpenDialog(address)}
+                          onDelete={() => setDeleteId(address.id)}
+                          onSetDefault={() => handleSetDefault(address.id)}
+                          hideActions={mode === "select"}
+                        />
+                      </div>
                     </div>
-                  </div>
-                </Card>
+                  </Card>
+                </label>
               ))}
             </RadioGroup>
           ) : (
@@ -218,7 +223,7 @@ export default function AddressManager({ onSelect, selectedId, mode = "manage" }
                 <AddressCard 
                   address={address} 
                   onEdit={() => handleOpenDialog(address)}
-                  onDelete={() => handleDelete(address.id)}
+                  onDelete={() => setDeleteId(address.id)}
                   onSetDefault={() => handleSetDefault(address.id)}
                 />
               </Card>
@@ -337,6 +342,17 @@ export default function AddressManager({ onSelect, selectedId, mode = "manage" }
           </form>
         </DialogContent>
       </Dialog>
+
+      <ConfirmDialog
+        open={!!deleteId}
+        onOpenChange={(open) => !open && setDeleteId(null)}
+        onConfirm={() => deleteId && handleDelete(deleteId)}
+        title="Xác nhận xóa địa chỉ"
+        description="Bạn có chắc muốn xóa địa chỉ này? Hành động này không thể hoàn tác."
+        confirmText="Xóa"
+        variant="destructive"
+        isLoading={isDeleting}
+      />
     </div>
   );
 }

@@ -24,9 +24,9 @@ export default function WishlistPage() {
   };
 
   return (
-    <div className="min-h-screen bg-white">
+    <div className="min-h-screen bg-white dark:bg-gray-950">
       <Header />
-      <main className="py-12">
+      <main className="pt-[100px] md:pt-[120px] py-12">
         <div className="max-w-7xl mx-auto px-4">
           {/* Header */}
           <div className="mb-8">
@@ -42,13 +42,13 @@ export default function WishlistPage() {
           {wishlist.items.length === 0 ? (
             /* Empty State */
             <div className="text-center py-20">
-              <div className="w-24 h-24 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-6">
-                <Heart className="w-12 h-12 text-slate-400" />
+              <div className="w-24 h-24 bg-slate-100 dark:bg-gray-800 rounded-full flex items-center justify-center mx-auto mb-6">
+                <Heart className="w-12 h-12 text-slate-400 dark:text-gray-500" />
               </div>
-              <h2 className="text-2xl font-bold text-slate-900 mb-3">
+              <h2 className="text-2xl font-bold text-slate-900 dark:text-white mb-3">
                 Danh sách yêu thích trống
               </h2>
-              <p className="text-slate-600 mb-6">
+              <p className="text-slate-600 dark:text-gray-400 mb-6">
                 Hãy thêm sản phẩm yêu thích để dễ dàng theo dõi và mua sắm sau này
               </p>
               <Link href="/products">
@@ -62,13 +62,13 @@ export default function WishlistPage() {
             <>
               {/* Actions */}
               <div className="flex justify-between items-center mb-6">
-                <div className="text-sm text-slate-600">
+                <div className="text-sm text-slate-600 dark:text-gray-400">
                   Hiển thị {wishlist.items.length} sản phẩm
                 </div>
                 <Button
                   variant="outline"
                   onClick={() => wishlist.clear()}
-                  className="text-red-600 border-red-200 hover:bg-red-50"
+                  className="text-red-600 border-red-200 hover:bg-red-50 dark:border-red-900 dark:hover:bg-red-950/50"
                 >
                   <Trash2 className="w-4 h-4 mr-2" />
                   Xóa tất cả

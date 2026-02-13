@@ -87,8 +87,8 @@ export default function CategoriesPage() {
     <div className="p-8">
       <div className="flex justify-between items-center mb-6">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">Quản lý Danh mục</h1>
-          <p className="text-gray-600 mt-1">Quản lý danh mục sản phẩm</p>
+          <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Quản lý Danh mục</h1>
+          <p className="text-gray-600 dark:text-gray-400 mt-1">Quản lý danh mục sản phẩm</p>
         </div>
         <Link href="/admin/categories/create">
           <Button className="gap-2">
@@ -98,10 +98,10 @@ export default function CategoriesPage() {
         </Link>
       </div>
 
-      <div className="bg-white rounded-lg shadow-sm border">
-        <div className="p-4 border-b">
+      <div className="bg-white dark:bg-gray-900 rounded-lg shadow-sm border dark:border-gray-800">
+        <div className="p-4 border-b dark:border-gray-800">
           <div className="relative max-w-sm">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 dark:text-gray-500" />
             <Input
               placeholder="Tìm kiếm danh mục..."
               value={searchQuery}
@@ -116,8 +116,8 @@ export default function CategoriesPage() {
             <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
           </div>
         ) : filteredCategories.length === 0 ? (
-          <div className="text-center py-12 text-gray-500">
-            <FolderTree className="w-12 h-12 mx-auto mb-3 text-gray-300" />
+          <div className="text-center py-12 text-gray-500 dark:text-gray-400">
+            <FolderTree className="w-12 h-12 mx-auto mb-3 text-gray-300 dark:text-gray-600" />
             <p>Không tìm thấy danh mục nào</p>
           </div>
         ) : (
@@ -135,12 +135,12 @@ export default function CategoriesPage() {
               {parentCategories.map((category) => (
                 <>
                   <TableRow key={category.id}>
-                    <TableCell className="font-medium flex items-center gap-2">
-                      <FolderTree className="w-4 h-4 text-blue-600" />
+                    <TableCell className="font-medium flex items-center gap-2 dark:text-white">
+                      <FolderTree className="w-4 h-4 text-blue-600 dark:text-blue-400" />
                       {category.name}
                     </TableCell>
                     <TableCell>
-                      <code className="text-xs bg-gray-100 px-2 py-1 rounded">
+                      <code className="text-xs bg-gray-100 dark:bg-gray-800 dark:text-gray-300 px-2 py-1 rounded">
                         {category.slug}
                       </code>
                     </TableCell>
@@ -173,12 +173,12 @@ export default function CategoriesPage() {
                   </TableRow>
                   {/* Child categories */}
                   {category.children?.map((child: Category) => (
-                    <TableRow key={child.id} className="bg-gray-50">
-                      <TableCell className="pl-12 text-gray-600">
+                    <TableRow key={child.id} className="bg-gray-50 dark:bg-gray-800/50">
+                      <TableCell className="pl-12 text-gray-600 dark:text-gray-300">
                         └─ {child.name}
                       </TableCell>
                       <TableCell>
-                        <code className="text-xs bg-gray-200 px-2 py-1 rounded">
+                        <code className="text-xs bg-gray-200 dark:bg-gray-800 dark:text-gray-300 px-2 py-1 rounded">
                           {child.slug}
                         </code>
                       </TableCell>

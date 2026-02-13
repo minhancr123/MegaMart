@@ -36,7 +36,7 @@ export default function ScrollToTop() {
         <Button
             onClick={scrollToTop}
             size="icon"
-            className="fixed bottom-8 right-8 z-50 rounded-full shadow-lg bg-blue-600 hover:bg-blue-700 text-white transition-all duration-300 animate-in fade-in slide-in-from-bottom-4"
+            className="fixed bottom-24 right-8 z-50 rounded-full shadow-lg bg-blue-600 hover:bg-blue-700 text-white transition-all duration-300 animate-in fade-in slide-in-from-bottom-4"
             aria-label="Scroll to top"
         >
             <ArrowUp className="h-5 w-5" />

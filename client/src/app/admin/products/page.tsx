@@ -142,8 +142,8 @@ export default function ProductsPage() {
         <div className="space-y-6">
             <div className="flex justify-between items-center">
                 <div>
-                    <h1 className="text-3xl font-bold text-gray-900">Sản phẩm</h1>
-                    <p className="text-gray-500 mt-1">Quản lý danh sách sản phẩm của bạn ({products.length})</p>
+                    <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Sản phẩm</h1>
+                    <p className="text-gray-500 dark:text-gray-400 mt-1">Quản lý danh sách sản phẩm của bạn ({products.length})</p>
                 </div>
                 <div className="flex gap-2">
                     <DropdownMenu>
@@ -179,9 +179,9 @@ export default function ProductsPage() {
             </div>
 
             {/* Filters */}
-            <div className="flex gap-4 bg-white p-4 rounded-lg border border-gray-200 shadow-sm">
+            <div className="flex gap-4 bg-white dark:bg-gray-900 p-4 rounded-lg border border-gray-200 dark:border-gray-800 shadow-sm">
                 <div className="relative flex-1 max-w-sm">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 dark:text-gray-500" />
                     <Input
                         placeholder="Tìm kiếm sản phẩm..."
                         className="pl-9"
@@ -192,10 +192,10 @@ export default function ProductsPage() {
             </div>
 
             {/* Table */}
-            <div className="bg-white rounded-lg border border-gray-200 shadow-sm overflow-hidden">
+            <div className="bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-800 shadow-sm overflow-hidden">
                 <Table>
                     <TableHeader>
-                        <TableRow className="bg-gray-50">
+                        <TableRow className="bg-gray-50 dark:bg-gray-800">
                             <TableHead className="w-[100px]">Mã SP</TableHead>
                             <TableHead>Tên sản phẩm</TableHead>
                             <TableHead>Danh mục</TableHead>
@@ -208,7 +208,7 @@ export default function ProductsPage() {
                     <TableBody>
                         {paginatedProducts.length === 0 ? (
                             <TableRow>
-                                <TableCell colSpan={7} className="text-center py-8 text-gray-500">
+                                <TableCell colSpan={7} className="text-center py-8 text-gray-500 dark:text-gray-400">
                                     Không tìm thấy sản phẩm nào
                                 </TableCell>
                             </TableRow>
@@ -219,8 +219,8 @@ export default function ProductsPage() {
 
                                 return (
                                     <TableRow key={product.id}>
-                                        <TableCell className="font-medium text-xs text-gray-500">#{product.id.slice(-6)}</TableCell>
-                                        <TableCell className="font-medium text-gray-900">
+                                        <TableCell className="font-medium text-xs text-gray-500 dark:text-gray-400">#{product.id.slice(-6)}</TableCell>
+                                        <TableCell className="font-medium text-gray-900 dark:text-white">
                                             <div className="flex items-center gap-2">
                                                 {product.images?.[0]?.url && (
                                                     <img src={product.images[0].url} alt="" className="w-8 h-8 rounded object-cover" />

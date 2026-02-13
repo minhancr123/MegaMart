@@ -28,24 +28,24 @@ const defaultSpecs = [
 
 export function TechSpecs({ specs = defaultSpecs }: TechSpecsProps) {
     return (
-        <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-            <div className="p-4 border-b border-gray-100 bg-gray-50">
-                <h3 className="font-bold text-lg text-gray-900">Thông số kỹ thuật</h3>
+        <div className="bg-white dark:bg-gray-900 rounded-xl shadow-sm border border-gray-100 dark:border-gray-800 overflow-hidden">
+            <div className="p-4 border-b border-gray-100 dark:border-gray-800 bg-gray-50 dark:bg-gray-800">
+                <h3 className="font-bold text-lg text-gray-900 dark:text-white">Thông số kỹ thuật</h3>
             </div>
             <div className="p-0">
                 <Table>
                     <TableBody>
                         {specs.map((spec, index) => (
-                            <TableRow key={index} className={index % 2 === 0 ? "bg-white" : "bg-gray-50/50"}>
-                                <TableCell className="font-medium text-gray-600 w-1/3 py-3">{spec.label}</TableCell>
-                                <TableCell className="text-gray-900 py-3">{spec.value}</TableCell>
+                            <TableRow key={index} className={index % 2 === 0 ? "bg-white dark:bg-gray-900" : "bg-gray-50/50 dark:bg-gray-800/50"}>
+                                <TableCell className="font-medium text-gray-600 dark:text-gray-400 w-1/3 py-3">{spec.label}</TableCell>
+                                <TableCell className="text-gray-900 dark:text-white py-3">{spec.value}</TableCell>
                             </TableRow>
                         ))}
                     </TableBody>
                 </Table>
             </div>
-            <div className="p-3 text-center border-t border-gray-100">
-                <button className="text-blue-600 font-medium text-sm hover:underline">
+            <div className="p-3 text-center border-t border-gray-100 dark:border-gray-800">
+                <button className="text-blue-600 dark:text-blue-400 font-medium text-sm hover:underline">
                     Xem cấu hình chi tiết
                 </button>
             </div>

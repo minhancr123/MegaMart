@@ -152,15 +152,15 @@ export default function UsersPage() {
         <div className="space-y-6">
             <div className="flex justify-between items-center">
                 <div>
-                    <h1 className="text-3xl font-bold text-gray-900">Khách hàng</h1>
-                    <p className="text-gray-500 mt-1">Quản lý danh sách khách hàng ({users.length})</p>
+                    <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Khách hàng</h1>
+                    <p className="text-gray-500 dark:text-gray-400 mt-1">Quản lý danh sách khách hàng ({users.length})</p>
                 </div>
             </div>
 
             {/* Filters */}
-            <div className="flex gap-4 bg-white p-4 rounded-lg border border-gray-200 shadow-sm">
+            <div className="flex gap-4 bg-white dark:bg-gray-900 p-4 rounded-lg border border-gray-200 dark:border-gray-800 shadow-sm">
                 <div className="relative flex-1 max-w-sm">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 dark:text-gray-500" />
                     <Input
                         placeholder="Tìm kiếm khách hàng..."
                         className="pl-9"
@@ -171,10 +171,10 @@ export default function UsersPage() {
             </div>
 
             {/* Table */}
-            <div className="bg-white rounded-lg border border-gray-200 shadow-sm overflow-hidden">
+            <div className="bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-800 shadow-sm overflow-hidden">
                 <Table>
                     <TableHeader>
-                        <TableRow className="bg-gray-50">
+                        <TableRow className="bg-gray-50 dark:bg-gray-800">
                             <TableHead className="w-[80px]">Avatar</TableHead>
                             <TableHead>Họ và tên</TableHead>
                             <TableHead>Email</TableHead>
@@ -186,7 +186,7 @@ export default function UsersPage() {
                     <TableBody>
                         {paginatedUsers.length === 0 ? (
                             <TableRow>
-                                <TableCell colSpan={6} className="text-center py-8 text-gray-500">
+                                <TableCell colSpan={6} className="text-center py-8 text-gray-500 dark:text-gray-400">
                                     Không tìm thấy khách hàng nào
                                 </TableCell>
                             </TableRow>
@@ -194,19 +194,19 @@ export default function UsersPage() {
                             paginatedUsers.map((user) => (
                                 <TableRow key={user.id}>
                                     <TableCell>
-                                        <div className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center overflow-hidden">
+                                        <div className="w-10 h-10 rounded-full bg-gray-100 dark:bg-gray-800 flex items-center justify-center overflow-hidden">
                                             {user.avatarUrl ? (
                                                 <img src={user.avatarUrl} alt={user.name} className="w-full h-full object-cover" />
                                             ) : (
-                                                <UserIcon className="w-5 h-5 text-gray-400" />
+                                                <UserIcon className="w-5 h-5 text-gray-400 dark:text-gray-500" />
                                             )}
                                         </div>
                                     </TableCell>
-                                    <TableCell className="font-medium text-gray-900">{user.name}</TableCell>
-                                    <TableCell>{user.email}</TableCell>
-                                    <TableCell>{user.phone || '---'}</TableCell>
+                                    <TableCell className="font-medium text-gray-900 dark:text-white">{user.name}</TableCell>
+                                    <TableCell className="dark:text-gray-300">{user.email}</TableCell>
+                                    <TableCell className="dark:text-gray-300">{user.phone || '---'}</TableCell>
                                     <TableCell>
-                                        <Badge variant="outline" className={user.role === 'ADMIN' ? 'bg-purple-50 text-purple-700 border-purple-200' : 'bg-gray-50 text-gray-700 border-gray-200'}>
+                                        <Badge variant="outline" className={user.role === 'ADMIN' ? 'bg-purple-50 dark:bg-purple-900/30 text-purple-700 dark:text-purple-400 border-purple-200 dark:border-purple-800' : 'bg-gray-50 dark:bg-gray-800 text-gray-700 dark:text-gray-300 border-gray-200 dark:border-gray-700'}>
                                             {user.role || 'USER'}
                                         </Badge>
                                     </TableCell>

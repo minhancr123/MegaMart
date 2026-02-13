@@ -246,9 +246,17 @@ export default function ApplySalePage() {
         </CardHeader>
         <CardContent>
           {loading ? (
-            <div className="text-center py-8">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900 mx-auto"></div>
-              <p className="mt-2 text-gray-500">Đang tải...</p>
+            <div className="space-y-3">
+              {Array.from({ length: 6 }).map((_, i) => (
+                <div key={i} className="flex items-center gap-4 p-3 border rounded-lg">
+                  <Skeleton className="h-12 w-12 rounded" />
+                  <div className="flex-1 space-y-2">
+                    <Skeleton className="h-4 w-3/4" />
+                    <Skeleton className="h-3 w-1/2" />
+                  </div>
+                  <Skeleton className="h-9 w-9 rounded" />
+                </div>
+              ))}
             </div>
           ) : filteredProducts.length === 0 ? (
             <div className="text-center py-8">

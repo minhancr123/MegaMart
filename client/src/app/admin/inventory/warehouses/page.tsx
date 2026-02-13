@@ -117,8 +117,8 @@ export default function WarehousesPage() {
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Quản lý Kho hàng</h1>
-          <p className="text-gray-500 mt-1">Quản lý các chi nhánh kho trong hệ thống</p>
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Quản lý Kho hàng</h1>
+          <p className="text-gray-500 dark:text-gray-400 mt-1">Quản lý các chi nhánh kho trong hệ thống</p>
         </div>
         <Dialog open={dialogOpen} onOpenChange={(open) => {
           setDialogOpen(open);
@@ -217,7 +217,7 @@ export default function WarehousesPage() {
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
             </div>
           ) : warehouses.length === 0 ? (
-            <div className="text-center py-8 text-gray-500">
+            <div className="text-center py-8 text-gray-500 dark:text-gray-400">
               Chưa có kho nào. Hãy tạo kho đầu tiên!
             </div>
           ) : (

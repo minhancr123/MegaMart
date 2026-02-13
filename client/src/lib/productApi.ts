@@ -14,6 +14,8 @@ const productsAPI = {
   getProductById: (id: string) => axiosClient.get(`/products/${id}`),
   getProductsByCategory: (categorySlug: string) => axiosClient.get(`/products/category/${categorySlug}`),
   getAllProducts: () => axiosClient.get("/products"),
+  searchProducts: (params: { search?: string; minPrice?: number; maxPrice?: number; sort?: string; limit?: number }) => 
+    axiosClient.get("/products", { params }),
 };
 
 export const fetchAllProducts = async () => {
@@ -139,3 +141,29 @@ export const fetchProductsByCategory = async (categorySlug: string) => {
   }
 };
 
+export const searchProducts = async (params: { search?: string; minPrice?: number; maxPrice?: number; sort?: string; limit?: number }) => {
+  try {
+    const res = await productsAPI.searchProducts(params);
+    console.log("Search products response:", res);
+    
+    // Handle different response structures
+    if (Array.isArray(res)) {
+      return res;
+    }
+    
+    const apiRes = res as unknown as ApiResponse;
+    if (apiRes.success && apiRes.data) {
+      return Array.isArray(apiRes.data) ? apiRes.data : [];
+    }
+    
+    // Fallback: check if res has data property directly
+    if ((res as { data?: unknown }).data && Array.isArray((res as { data?: unknown }).data)) {
+      return (res as { data?: Product[] }).data || [];
+    }
+    
+    return [];
+  } catch (error: unknown) {
+    console.error("Search products error:", error);
+    return [];
+  }
+};

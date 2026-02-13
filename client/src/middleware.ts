@@ -91,8 +91,9 @@ export const config = {
      * - _next/static (static files)
      * - _next/image (image optimization files)
      * - favicon.ico (favicon file)
-     * - public folder
+     * - images folder (all images)
+     * - models folder (3D models: gltf, glb, bin)
      */
-    '/((?!api|_next/static|_next/image|favicon.ico|images|.*\\.png$|.*\\.jpg$|.*\\.svg$).*)',
+    '/((?!api|_next/static|_next/image|favicon.ico|images|models).*)',
   ],
 };

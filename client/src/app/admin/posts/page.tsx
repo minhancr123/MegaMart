@@ -2,6 +2,8 @@
 import { useState, useEffect, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Skeleton } from "@/components/ui/skeleton";
+import { ConfirmDialog } from "@/components/ConfirmDialog";
 import {
     Table,
     TableBody,
@@ -46,6 +48,8 @@ export default function PostsPage() {
     const [status, setStatus] = useState("ALL");
     const [page, setPage] = useState(1);
     const [totalPages, setTotalPages] = useState(1);
+    const [deleteId, setDeleteId] = useState<string | null>(null);
+    const [isDeleting, setIsDeleting] = useState(false);
 
     const loadPosts = useCallback(async () => {
         setLoading(true);
@@ -124,10 +128,10 @@ export default function PostsPage() {
                 </Link>
             </div>
 
-            <div className="flex gap-4 items-center bg-white p-4 rounded-lg shadow-sm">
+            <div className="flex gap-4 items-center bg-white dark:bg-gray-900 p-4 rounded-lg shadow-sm border dark:border-gray-800">
                 <form onSubmit={handleSearch} className="flex-1 flex gap-2">
                     <div className="relative flex-1">
-                        <Search className="absolute left-2 top-2.5 h-4 w-4 text-gray-500" />
+                        <Search className="absolute left-2 top-2.5 h-4 w-4 text-gray-500 dark:text-gray-400" />
                         <Input
                             placeholder="Tìm kiếm bài viết..."
                             value={search}
@@ -160,10 +164,10 @@ export default function PostsPage() {
                 </Select>
             </div>
 
-            <div className="bg-white rounded-lg shadow-sm overflow-hidden">
+            <div className="bg-white dark:bg-gray-900 rounded-lg shadow-sm border dark:border-gray-800 overflow-hidden">
                 <Table>
                     <TableHeader>
-                        <TableRow>
+                        <TableRow className="dark:bg-gray-800">
                             <TableHead>Tiêu đề</TableHead>
                             <TableHead>Loại</TableHead>
                             <TableHead>Trạng thái</TableHead>
@@ -174,9 +178,21 @@ export default function PostsPage() {
                     </TableHeader>
                     <TableBody>
                         {loading ? (
-                            <TableRow>
-                                <TableCell colSpan={6} className="text-center py-8">Đang tải...</TableCell>
-                            </TableRow>
+                            Array.from({ length: 5 }).map((_, i) => (
+                                <TableRow key={i}>
+                                    <TableCell><Skeleton className="h-4 w-full" /></TableCell>
+                                    <TableCell><Skeleton className="h-6 w-20" /></TableCell>
+                                    <TableCell><Skeleton className="h-6 w-24" /></TableCell>
+                                    <TableCell><Skeleton className="h-4 w-32" /></TableCell>
+                                    <TableCell><Skeleton className="h-4 w-24" /></TableCell>
+                                    <TableCell className="text-right">
+                                        <div className="flex justify-end gap-2">
+                                            <Skeleton className="h-8 w-8" />
+                                            <Skeleton className="h-8 w-8" />
+                                        </div>
+                                    </TableCell>
+                                </TableRow>
+                            ))
                         ) : posts.length === 0 ? (
                             <TableRow>
                                 <TableCell colSpan={6} className="text-center py-8">Không có bài viết nào</TableCell>
@@ -204,7 +220,12 @@ export default function PostsPage() {
                                                     <Pencil className="w-4 h-4" />
                                                 </Button>
                                             </Link>
-                                            <Button variant="ghost" size="icon" className="text-red-600 hover:text-red-700 hover:bg-red-50" onClick={() => handleDelete(post.id)}>
+                                            <Button 
+                                                variant="ghost" 
+                                                size="icon" 
+                                                className="text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950" 
+                                                onClick={() => setDeleteId(post.id)}
+                                            >
                                                 <Trash2 className="w-4 h-4" />
                                             </Button>
                                         </div>
@@ -224,7 +245,7 @@ export default function PostsPage() {
                 >
                     Trước
                 </Button>
-                <span className="py-2 px-4 bg-white rounded border">
+                <span className="py-2 px-4 bg-white dark:bg-gray-900 dark:text-white rounded border dark:border-gray-700">
                     Trang {page} / {totalPages}
                 </span>
                 <Button
@@ -235,6 +256,17 @@ export default function PostsPage() {
                     Sau
                 </Button>
             </div>
+
+            <ConfirmDialog
+                open={!!deleteId}
+                onOpenChange={(open) => !open && setDeleteId(null)}
+                onConfirm={() => deleteId && handleDelete(deleteId)}
+                title="Xác nhận xóa bài viết"
+                description="Bạn có chắc chắn muốn xóa bài viết này? Hành động này không thể hoàn tác."
+                confirmText="Xóa"
+                variant="destructive"
+                isLoading={isDeleting}
+            />
         </div>
     );
 }

@@ -85,15 +85,15 @@ export default function FeaturedCategories({ categories }: FeaturedCategoriesPro
                         <motion.div key={category.id} variants={itemVariants}>
                             <Link
                                 href={`/category/${category.slug || category.id}`}
-                                className="group flex flex-col items-center p-6 bg-white rounded-2xl border border-slate-100 shadow-sm hover:shadow-lg hover:border-indigo-100 hover:-translate-y-1 transition-all duration-300"
+                                className="group flex flex-col items-center p-6 bg-white dark:bg-gray-900 rounded-2xl border border-slate-100 dark:border-gray-800 shadow-sm hover:shadow-lg hover:border-indigo-100 dark:hover:border-indigo-700 hover:-translate-y-1 transition-all duration-300"
                             >
-                                <div className="w-16 h-16 rounded-2xl bg-slate-50 text-slate-600 flex items-center justify-center mb-4 group-hover:bg-indigo-50 group-hover:text-indigo-600 group-hover:scale-110 transition-all duration-300">
+                                <div className="w-16 h-16 rounded-2xl bg-slate-50 dark:bg-gray-800 text-slate-600 dark:text-gray-400 flex items-center justify-center mb-4 group-hover:bg-indigo-50 dark:group-hover:bg-indigo-950 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 group-hover:scale-110 transition-all duration-300">
                                     <Icon className="w-8 h-8" strokeWidth={1.5} />
                                 </div>
-                                <h3 className="font-semibold text-slate-900 text-center group-hover:text-indigo-600 transition-colors">
+                                <h3 className="font-semibold text-slate-900 dark:text-white text-center group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">
                                     {category.name}
                                 </h3>
-                                <span className="text-xs text-slate-400 mt-1">100+ sản phẩm</span>
+                                <span className="text-xs text-slate-400 dark:text-gray-500 mt-1">100+ sản phẩm</span>
                             </Link>
                         </motion.div>
                     );

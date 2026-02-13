@@ -28,6 +28,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { ArrowLeft, Plus, Trash2, Search, Circle, Edit } from "lucide-react";
 import { flashSaleApi, FlashSale, FlashSaleItem } from "@/lib/marketingApi";
 import { Product } from "@/interfaces/product";
@@ -71,6 +72,10 @@ export default function FlashSaleDetailPage() {
   const [editItemSalePrice, setEditItemSalePrice] = useState("");
   const [editItemDiscountPercent, setEditItemDiscountPercent] = useState("");
   const [editItemQuantity, setEditItemQuantity] = useState("");
+
+  // Delete confirmation
+  const [deleteItemId, setDeleteItemId] = useState<string | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   // Add item form
   const [searchQuery, setSearchQuery] = useState("");
@@ -227,14 +232,16 @@ export default function FlashSaleDetailPage() {
   };
 
   const handleRemoveItem = async (itemId: string) => {
-    if (!confirm("Bạn có chắc muốn xóa sản phẩm này?")) return;
-
+    setIsDeleting(true);
     try {
       await flashSaleApi.removeItem(flashSaleId, itemId);
       toast.success("Xóa sản phẩm thành công");
       fetchFlashSale();
     } catch (error: unknown) {
       toast.error("Không thể xóa sản phẩm");
+    } finally {
+      setIsDeleting(false);
+      setDeleteItemId(null);
     }
   };
 
@@ -631,7 +638,7 @@ export default function FlashSaleDetailPage() {
                           <Button
                             variant="ghost"
                             size="sm"
-                            onClick={() => handleRemoveItem(item.id)}
+                            onClick={() => setDeleteItemId(item.id)}
                             title="Xóa"
                           >
                             <Trash2 className="w-4 h-4 text-red-500" />
@@ -813,6 +820,17 @@ export default function FlashSaleDetailPage() {
           )}
         </DialogContent>
       </Dialog>
+
+      <ConfirmDialog
+        open={!!deleteItemId}
+        onOpenChange={(open) => !open && setDeleteItemId(null)}
+        onConfirm={() => deleteItemId && handleRemoveItem(deleteItemId)}
+        title="Xác nhận xóa sản phẩm"
+        description="Bạn có chắc muốn xóa sản phẩm này khỏi Flash Sale? Hành động này không thể hoàn tác."
+        confirmText="Xóa"
+        variant="destructive"
+        isLoading={isDeleting}
+      />
     </div>
   );
 }

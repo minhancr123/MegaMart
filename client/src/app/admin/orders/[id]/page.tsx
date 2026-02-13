@@ -197,12 +197,12 @@ export default function AdminOrderDetailPage() {
       {/* Header */}
       <div className="flex justify-between items-start">
         <div>
-          <Button variant="ghost" onClick={() => router.push('/admin/orders')} className="mb-4">
+          <Button variant="ghost" onClick={() => router.push('/admin/orders')} className="mb-4 cursor-pointer">
             <ArrowLeft className="h-4 w-4 mr-2" />
             Quay lại danh sách
           </Button>
-          <h1 className="text-3xl font-bold text-gray-900">Chi tiết đơn hàng #{order.code}</h1>
-          <p className="text-gray-500 mt-1">
+          <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Chi tiết đơn hàng #{order.code}</h1>
+          <p className="text-gray-500 dark:text-gray-400 mt-1">
             Đặt ngày {new Date(order.createdAt).toLocaleDateString('vi-VN', {
               day: '2-digit',
               month: '2-digit',
@@ -214,7 +214,7 @@ export default function AdminOrderDetailPage() {
         </div>
         <div className="flex items-center gap-3">
           <Badge className={`${status.color} text-base px-4 py-2`}>{status.label}</Badge>
-          <Button onClick={handleOpenStatusDialog} className="gap-2">
+          <Button onClick={handleOpenStatusDialog} className="gap-2 cursor-pointer">
             <Edit className="w-4 h-4" /> Cập nhật trạng thái
           </Button>
         </div>
@@ -223,17 +223,17 @@ export default function AdminOrderDetailPage() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Products Section */}
         <div className="lg:col-span-2 space-y-6">
-          <Card className="p-6">
+          <Card className="p-6 dark:bg-gray-900 dark:border-gray-800">
             <div className="flex items-center gap-2 mb-6">
-              <Package className="h-5 w-5 text-blue-600" />
-              <h2 className="text-xl font-bold text-gray-900">Chi tiết sản phẩm</h2>
+              <Package className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+              <h2 className="text-xl font-bold text-gray-900 dark:text-white">Chi tiết sản phẩm</h2>
             </div>
             
             <div className="space-y-4">
               {order.items?.map((item: OrderItem) => (
-                <div key={item.id} className="flex gap-4 p-4 bg-gray-50 rounded-lg border">
+                <div key={item.id} className="flex gap-4 p-4 bg-gray-50 dark:bg-gray-800 rounded-lg border dark:border-gray-700">
                   {item.variant?.product?.images?.[0] && (
-                    <div className="relative w-20 h-20 flex-shrink-0 bg-white rounded overflow-hidden">
+                    <div className="relative w-20 h-20 flex-shrink-0 bg-white dark:bg-gray-700 rounded overflow-hidden">
                       <Image
                         src={item.variant.product.images[0].url}
                         alt={item.variant.product.name}
@@ -244,20 +244,20 @@ export default function AdminOrderDetailPage() {
                   )}
                   
                   <div className="flex-1">
-                    <h3 className="font-semibold text-gray-900 mb-1">
+                    <h3 className="font-semibold text-gray-900 dark:text-white mb-1">
                       {item.variant?.product?.name}
                     </h3>
                     {item.variant?.attributes && (
                       <div className="flex flex-wrap gap-1 mb-2">
                         {Object.entries(item.variant.attributes as Record<string, string>).map(([key, val]) => (
-                          <span key={key} className="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded">
+                          <span key={key} className="text-xs bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 px-2 py-1 rounded">
                             {key}: {val}
                           </span>
                         ))}
                       </div>
                     )}
-                    <p className="text-sm text-gray-600">Số lượng: {item.quantity}</p>
-                    <p className="text-sm text-gray-600">
+                    <p className="text-sm text-gray-600 dark:text-gray-400">Số lượng: {item.quantity}</p>
+                    <p className="text-sm text-gray-600 dark:text-gray-400">
                       Đơn giá: {new Intl.NumberFormat('vi-VN', {
                         style: 'currency',
                         currency: 'VND'
@@ -266,8 +266,8 @@ export default function AdminOrderDetailPage() {
                   </div>
                   
                   <div className="text-right">
-                    <p className="text-xs text-gray-500 mb-1">Thành tiền</p>
-                    <p className="text-lg font-bold text-blue-600">
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Thành tiền</p>
+                    <p className="text-lg font-bold text-blue-600 dark:text-blue-400">
                       {new Intl.NumberFormat('vi-VN', {
                         style: 'currency',
                         currency: 'VND'
@@ -279,33 +279,33 @@ export default function AdminOrderDetailPage() {
             </div>
 
             {/* Price Summary */}
-            <div className="mt-6 pt-6 border-t space-y-3">
+            <div className="mt-6 pt-6 border-t dark:border-gray-700 space-y-3">
               <div className="flex justify-between text-sm">
-                <span className="text-gray-600">Tạm tính:</span>
-                <span className="font-medium">
+                <span className="text-gray-600 dark:text-gray-400">Tạm tính:</span>
+                <span className="font-medium dark:text-gray-300">
                   {new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(subtotal)}
                 </span>
               </div>
               
               {order.discountAmount && Number(order.discountAmount) > 0 && (
                 <div className="flex justify-between text-sm">
-                  <span className="text-gray-600">Giảm giá {order.voucherCode ? `(${order.voucherCode})` : ''}:</span>
-                  <span className="font-medium text-green-600">
+                  <span className="text-gray-600 dark:text-gray-400">Giảm giá {order.voucherCode ? `(${order.voucherCode})` : ''}:</span>
+                  <span className="font-medium text-green-600 dark:text-green-400">
                     -{new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(Number(order.discountAmount))}
                   </span>
                 </div>
               )}
               
               <div className="flex justify-between text-sm">
-                <span className="text-gray-600">Thuế VAT:</span>
-                <span className="font-medium">
+                <span className="text-gray-600 dark:text-gray-400">Thuế VAT:</span>
+                <span className="font-medium dark:text-gray-300">
                   {new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(Number(order.vatAmount || 0))}
                 </span>
               </div>
               
-              <div className="flex justify-between font-bold text-lg pt-3 border-t">
-                <span>Tổng cộng:</span>
-                <span className="text-blue-600 text-xl">
+              <div className="flex justify-between font-bold text-lg pt-3 border-t dark:border-gray-700">
+                <span className="dark:text-white">Tổng cộng:</span>
+                <span className="text-blue-600 dark:text-blue-400 text-xl">
                   {new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(Number(order.total))}
                 </span>
               </div>
@@ -316,75 +316,75 @@ export default function AdminOrderDetailPage() {
         {/* Sidebar */}
         <div className="space-y-6">
           {/* Customer Info */}
-          <Card className="p-6">
+          <Card className="p-6 dark:bg-gray-900 dark:border-gray-800">
             <div className="flex items-center gap-2 mb-6">
-              <User className="h-5 w-5 text-blue-600" />
-              <h2 className="text-xl font-bold text-gray-900">Thông tin khách hàng</h2>
+              <User className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+              <h2 className="text-xl font-bold text-gray-900 dark:text-white">Thông tin khách hàng</h2>
             </div>
             
             <div className="space-y-4">
               <div>
-                <p className="text-xs text-gray-500 mb-1">Tên khách hàng</p>
-                <p className="font-semibold text-gray-900">{order.user?.name || 'Khách lẻ'}</p>
+                <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Tên khách hàng</p>
+                <p className="font-semibold text-gray-900 dark:text-white">{order.user?.name || 'Khách lẻ'}</p>
               </div>
               <div>
-                <p className="text-xs text-gray-500 mb-1">Email</p>
-                <p className="font-semibold text-gray-900">{order.user?.email || 'N/A'}</p>
+                <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Email</p>
+                <p className="font-semibold text-gray-900 dark:text-white">{order.user?.email || 'N/A'}</p>
               </div>
               <div>
-                <p className="text-xs text-gray-500 mb-1">Số điện thoại</p>
-                <p className="font-semibold text-gray-900">{shippingAddr.phone || 'N/A'}</p>
+                <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Số điện thoại</p>
+                <p className="font-semibold text-gray-900 dark:text-white">{shippingAddr.phone || 'N/A'}</p>
               </div>
             </div>
           </Card>
 
           {/* Shipping Info */}
-          <Card className="p-6">
+          <Card className="p-6 dark:bg-gray-900 dark:border-gray-800">
             <div className="flex items-center gap-2 mb-6">
-              <Truck className="h-5 w-5 text-green-600" />
-              <h2 className="text-xl font-bold text-gray-900">Thông tin giao hàng</h2>
+              <Truck className="h-5 w-5 text-green-600 dark:text-green-400" />
+              <h2 className="text-xl font-bold text-gray-900 dark:text-white">Thông tin giao hàng</h2>
             </div>
             
             <div className="space-y-4">
               <div>
-                <p className="text-xs text-gray-500 mb-1">Người nhận</p>
-                <p className="font-semibold text-gray-900">{shippingAddr.fullName || 'Chưa có'}</p>
+                <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Người nhận</p>
+                <p className="font-semibold text-gray-900 dark:text-white">{shippingAddr.fullName || 'Chưa có'}</p>
               </div>
               <div>
-                <p className="text-xs text-gray-500 mb-1">Số điện thoại</p>
-                <p className="font-semibold text-gray-900">{shippingAddr.phone || 'Chưa có'}</p>
+                <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Số điện thoại</p>
+                <p className="font-semibold text-gray-900 dark:text-white">{shippingAddr.phone || 'Chưa có'}</p>
               </div>
               <div>
-                <p className="text-xs text-gray-500 mb-1">Địa chỉ</p>
-                <p className="font-semibold text-gray-900 leading-relaxed">
+                <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Địa chỉ</p>
+                <p className="font-semibold text-gray-900 dark:text-white leading-relaxed">
                   {shippingAddr.address || 'Chưa có'}
                 </p>
               </div>
               {shippingAddr.note && (
-                <div className="pt-4 border-t">
-                  <p className="text-xs text-gray-500 mb-1">Ghi chú</p>
-                  <p className="text-sm text-gray-900 italic">&ldquo;{shippingAddr.note}&rdquo;</p>
+                <div className="pt-4 border-t dark:border-gray-700">
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Ghi chú</p>
+                  <p className="text-sm text-gray-900 dark:text-gray-300 italic">&ldquo;{shippingAddr.note}&rdquo;</p>
                 </div>
               )}
             </div>
           </Card>
 
           {/* Payment Info */}
-          <Card className="p-6">
+          <Card className="p-6 dark:bg-gray-900 dark:border-gray-800">
             <div className="flex items-center gap-2 mb-6">
-              <CreditCard className="h-5 w-5 text-purple-600" />
-              <h2 className="text-xl font-bold text-gray-900">Thanh toán</h2>
+              <CreditCard className="h-5 w-5 text-purple-600 dark:text-purple-400" />
+              <h2 className="text-xl font-bold text-gray-900 dark:text-white">Thanh toán</h2>
             </div>
             
             <div className="space-y-3">
               <div className="flex justify-between">
-                <span className="text-gray-600">Phương thức:</span>
-                <span className="font-semibold">
+                <span className="text-gray-600 dark:text-gray-400">Phương thức:</span>
+                <span className="font-semibold dark:text-gray-300">
                   {order.payments?.[0]?.provider === 'OTHER' ? 'COD' : order.payments?.[0]?.provider || 'N/A'}
                 </span>
               </div>
               <div className="flex justify-between">
-                <span className="text-gray-600">Trạng thái:</span>
+                <span className="text-gray-600 dark:text-gray-400">Trạng thái:</span>
                 <Badge className={status.color}>{status.label}</Badge>
               </div>
             </div>

@@ -112,8 +112,8 @@ export default function OrdersPage() {
         <div className="space-y-6">
             <div className="flex justify-between items-center">
                 <div>
-                    <h1 className="text-3xl font-bold text-gray-900">Đơn hàng</h1>
-                    <p className="text-gray-500 mt-1">Quản lý và theo dõi đơn hàng ({orders.length})</p>
+                    <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Đơn hàng</h1>
+                    <p className="text-gray-500 dark:text-gray-400 mt-1">Quản lý và theo dõi đơn hàng ({orders.length})</p>
                 </div>
                 <Button variant="outline" className="gap-2">
                     <Filter className="w-4 h-4" /> Xuất báo cáo
@@ -121,9 +121,9 @@ export default function OrdersPage() {
             </div>
 
             {/* Filters */}
-            <div className="flex gap-4 bg-white p-4 rounded-lg border border-gray-200 shadow-sm">
+            <div className="flex gap-4 bg-white dark:bg-gray-900 p-4 rounded-lg border border-gray-200 dark:border-gray-800 shadow-sm">
                 <div className="relative flex-1 max-w-sm">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 dark:text-gray-500" />
                     <Input
                         placeholder="Tìm kiếm mã đơn, khách hàng..."
                         className="pl-9"
@@ -134,10 +134,10 @@ export default function OrdersPage() {
             </div>
 
             {/* Table */}
-            <div className="bg-white rounded-lg border border-gray-200 shadow-sm overflow-hidden">
+            <div className="bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-800 shadow-sm overflow-hidden">
                 <Table>
                     <TableHeader>
-                        <TableRow className="bg-gray-50">
+                        <TableRow className="bg-gray-50 dark:bg-gray-800">
                             <TableHead>Mã đơn hàng</TableHead>
                             <TableHead>Khách hàng</TableHead>
                             <TableHead>Ngày đặt</TableHead>
@@ -150,29 +150,29 @@ export default function OrdersPage() {
                     <TableBody>
                         {paginatedOrders.length === 0 ? (
                             <TableRow>
-                                <TableCell colSpan={7} className="text-center py-8 text-gray-500">
+                                <TableCell colSpan={7} className="text-center py-8 text-gray-500 dark:text-gray-400">
                                     Không tìm thấy đơn hàng nào
                                 </TableCell>
                             </TableRow>
                         ) : (
                             paginatedOrders.map((order) => (
                                 <TableRow key={order.id}>
-                                    <TableCell className="font-medium text-blue-600">#{order.code}</TableCell>
-                                    <TableCell className="font-medium text-gray-900">
+                                    <TableCell className="font-medium text-blue-600 dark:text-blue-400">#{order.code}</TableCell>
+                                    <TableCell className="font-medium text-gray-900 dark:text-white">
                                         {order.shippingAddress?.fullName || order.user?.name || "Khách lẻ"}
                                     </TableCell>
-                                    <TableCell>{new Date(order.createdAt).toLocaleDateString('vi-VN')}</TableCell>
-                                    <TableCell className="font-bold text-red-600">
+                                    <TableCell className="dark:text-gray-300">{new Date(order.createdAt).toLocaleDateString('vi-VN')}</TableCell>
+                                    <TableCell className="font-bold text-red-600 dark:text-red-400">
                                         {new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(Number(order.total))}
                                     </TableCell>
-                                    <TableCell>
+                                    <TableCell className="dark:text-gray-300">
                                         {order.payments?.[0]?.provider === 'OTHER' ? 'COD' : order.payments?.[0]?.provider || 'N/A'}
                                     </TableCell>
                                     <TableCell>{getStatusBadge(order.status)}</TableCell>
                                     <TableCell className="text-right">
                                         <div className="flex justify-end gap-2">
                                             <Link href={`/admin/orders/${order.id}`}>
-                                                <Button variant="ghost" size="sm" className="text-gray-600 hover:text-gray-700 hover:bg-gray-50">
+                                                <Button variant="ghost" size="sm" className="text-gray-600 dark:text-gray-300 hover:text-gray-700 dark:hover:text-white hover:bg-gray-50 dark:hover:bg-gray-800 cursor-pointer">
                                                     <Eye className="w-4 h-4 mr-1" /> Xem
                                                 </Button>
                                             </Link>

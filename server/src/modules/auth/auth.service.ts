@@ -6,11 +6,16 @@ import { UsersService } from '../users/users.service';
 import { HashUtil } from 'src/utils/hash.util';
 import { User } from '@prisma/client';
 import { CreateUserDto, UserResponseDto } from '../users/dto/user.dto';
+import { AuditLogService, AuditAction, AuditEntity } from '../audit-log/audit-log.service';
 
 
 @Injectable()
 export class AuthService {
-  constructor(private userService: UsersService, private JwtService: JwtService) {
+  constructor(
+    private userService: UsersService,
+    private JwtService: JwtService,
+    private auditLogService: AuditLogService
+  ) {
 
   }
 
@@ -28,12 +33,22 @@ export class AuthService {
 
   async signIn(user: User): Promise<{ accessToken: string; user: UserResponseDto }> {
     const { passwordHash, ...safeUser } = user;
-    const payload = { 
-      email: safeUser.email, 
+    const payload = {
+      email: safeUser.email,
       sub: safeUser.id,
       role: safeUser.role || 'USER' // Include role in JWT payload
     };
     const accessToken = await this.JwtService.signAsync(payload);
+
+    // Log login action
+    await this.auditLogService.log(
+      AuditAction.LOGIN,
+      AuditEntity.AUTH,
+      safeUser.id,
+      safeUser.id,
+      { email: safeUser.email, role: safeUser.role }
+    );
+
     return { accessToken, user: safeUser };
   }
 
@@ -45,6 +60,18 @@ export class AuthService {
     }
     // Không cần hash ở đây vì UsersService đã hash rồi
     const newUser = await this.userService.create({ email, name, password });
+
+    // Log signup action
+    if (newUser) {
+      await this.auditLogService.log(
+        AuditAction.USER_CREATE,
+        AuditEntity.USER,
+        newUser.id, // User triggers their own creation in self-signup context
+        newUser.id,
+        { email, name }
+      );
+    }
+
     return { status: 1, message: 'Đăng ký thành công', newUser };
   }
 

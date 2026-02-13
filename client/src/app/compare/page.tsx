@@ -20,17 +20,17 @@ export default function ComparePage() {
   };
 
   return (
-    <div className="min-h-screen bg-white">
+    <div className="min-h-screen bg-white dark:bg-gray-950">
       <Header />
-      <main className="py-12">
+      <main className="pt-[100px] md:pt-[120px] py-12">
         <div className="max-w-7xl mx-auto px-4">
           {/* Header */}
           <div className="mb-8">
-            <h1 className="text-4xl font-bold text-slate-900 mb-3 flex items-center gap-3">
-              <Scale className="w-10 h-10 text-indigo-600" />
+            <h1 className="text-4xl font-bold text-slate-900 dark:text-white mb-3 flex items-center gap-3">
+              <Scale className="w-10 h-10 text-indigo-600 dark:text-indigo-400" />
               So sánh sản phẩm
             </h1>
-            <p className="text-slate-600">
+            <p className="text-slate-600 dark:text-gray-400">
               Bạn đang so sánh {compare.items.length} sản phẩm (tối đa 4)
             </p>
           </div>
@@ -38,13 +38,13 @@ export default function ComparePage() {
           {compare.items.length === 0 ? (
             /* Empty State */
             <div className="text-center py-20">
-              <div className="w-24 h-24 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-6">
-                <Scale className="w-12 h-12 text-slate-400" />
+              <div className="w-24 h-24 bg-slate-100 dark:bg-gray-800 rounded-full flex items-center justify-center mx-auto mb-6">
+                <Scale className="w-12 h-12 text-slate-400 dark:text-gray-500" />
               </div>
-              <h2 className="text-2xl font-bold text-slate-900 mb-3">
+              <h2 className="text-2xl font-bold text-slate-900 dark:text-white mb-3">
                 Chưa có sản phẩm để so sánh
               </h2>
-              <p className="text-slate-600 mb-6">
+              <p className="text-slate-600 dark:text-gray-400 mb-6">
                 Thêm sản phẩm vào danh sách so sánh để xem chi tiết và đưa ra quyết định mua hàng tốt nhất
               </p>
               <Link href="/products">
@@ -61,19 +61,19 @@ export default function ComparePage() {
                 <Button
                   variant="outline"
                   onClick={() => compare.clear()}
-                  className="text-red-600 border-red-200 hover:bg-red-50"
+                  className="text-red-600 border-red-200 hover:bg-red-50 dark:border-red-900 dark:hover:bg-red-950/50"
                 >
                   Xóa tất cả
                 </Button>
               </div>
 
               {/* Comparison Table */}
-              <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden">
+              <div className="bg-white dark:bg-gray-900 rounded-2xl border border-slate-200 dark:border-gray-800 overflow-hidden">
                 <div className="overflow-x-auto">
                   <table className="w-full">
                     <thead>
-                      <tr className="bg-slate-50">
-                        <th className="text-left p-6 font-bold text-slate-900 sticky left-0 bg-slate-50 z-10">
+                      <tr className="bg-slate-50 dark:bg-gray-800">
+                        <th className="text-left p-6 font-bold text-slate-900 dark:text-white sticky left-0 bg-slate-50 dark:bg-gray-800 z-10">
                           Tiêu chí
                         </th>
                         {compare.items.map((product) => (
@@ -85,7 +85,7 @@ export default function ComparePage() {
                               >
                                 <X className="w-4 h-4" />
                               </button>
-                              <div className="aspect-square bg-slate-100 rounded-lg overflow-hidden mb-3">
+                              <div className="aspect-square bg-slate-100 dark:bg-gray-800 rounded-lg overflow-hidden mb-3">
                                 {product.imageUrl || product.images?.[0] ? (
                                   <img
                                     src={product.imageUrl || product.images?.[0]}
@@ -93,12 +93,12 @@ export default function ComparePage() {
                                     className="w-full h-full object-cover"
                                   />
                                 ) : (
-                                  <div className="w-full h-full flex items-center justify-center text-slate-400">
+                                  <div className="w-full h-full flex items-center justify-center text-slate-400 dark:text-gray-500">
                                     No Image
                                   </div>
                                 )}
                               </div>
-                              <h3 className="font-bold text-slate-900 text-sm line-clamp-2">
+                              <h3 className="font-bold text-slate-900 dark:text-white text-sm line-clamp-2">
                                 {product.name}
                               </h3>
                             </div>
@@ -108,13 +108,13 @@ export default function ComparePage() {
                     </thead>
                     <tbody>
                       {/* Price */}
-                      <tr className="border-t border-slate-200">
-                        <td className="p-6 font-medium text-slate-900 sticky left-0 bg-white">
+                      <tr className="border-t border-slate-200 dark:border-gray-700">
+                        <td className="p-6 font-medium text-slate-900 dark:text-white sticky left-0 bg-white dark:bg-gray-900">
                           Giá
                         </td>
                         {compare.items.map((product) => (
                           <td key={product.id} className="p-6 text-center">
-                            <div className="text-xl font-bold text-indigo-600">
+                            <div className="text-xl font-bold text-indigo-600 dark:text-indigo-400">
                               {product.price ? formatPrice(product.price) : 'Liên hệ'}
                             </div>
                           </td>
@@ -122,20 +122,20 @@ export default function ComparePage() {
                       </tr>
 
                       {/* Category */}
-                      <tr className="border-t border-slate-200 bg-slate-50">
-                        <td className="p-6 font-medium text-slate-900 sticky left-0 bg-slate-50">
+                      <tr className="border-t border-slate-200 dark:border-gray-700 bg-slate-50 dark:bg-gray-800/50">
+                        <td className="p-6 font-medium text-slate-900 dark:text-white sticky left-0 bg-slate-50 dark:bg-gray-800/50">
                           Danh mục
                         </td>
                         {compare.items.map((product) => (
-                          <td key={product.id} className="p-6 text-center text-slate-600">
+                          <td key={product.id} className="p-6 text-center text-slate-600 dark:text-gray-400">
                             {product.category?.name || '-'}
                           </td>
                         ))}
                       </tr>
 
                       {/* Stock Status */}
-                      <tr className="border-t border-slate-200">
-                        <td className="p-6 font-medium text-slate-900 sticky left-0 bg-white">
+                      <tr className="border-t border-slate-200 dark:border-gray-700">
+                        <td className="p-6 font-medium text-slate-900 dark:text-white sticky left-0 bg-white dark:bg-gray-900">
                           Tình trạng
                         </td>
                         {compare.items.map((product) => {
@@ -146,12 +146,12 @@ export default function ComparePage() {
                           return (
                             <td key={product.id} className="p-6 text-center">
                               {totalStock > 0 ? (
-                                <span className="inline-flex items-center gap-1 text-green-600 font-medium">
+                                <span className="inline-flex items-center gap-1 text-green-600 dark:text-green-400 font-medium">
                                   <Check className="w-4 h-4" />
                                   Còn hàng
                                 </span>
                               ) : (
-                                <span className="inline-flex items-center gap-1 text-red-600 font-medium">
+                                <span className="inline-flex items-center gap-1 text-red-600 dark:text-red-400 font-medium">
                                   <Minus className="w-4 h-4" />
                                   Hết hàng
                                 </span>
@@ -162,24 +162,24 @@ export default function ComparePage() {
                       </tr>
 
                       {/* Variants */}
-                      <tr className="border-t border-slate-200 bg-slate-50">
-                        <td className="p-6 font-medium text-slate-900 sticky left-0 bg-slate-50">
+                      <tr className="border-t border-slate-200 dark:border-gray-700 bg-slate-50 dark:bg-gray-800/50">
+                        <td className="p-6 font-medium text-slate-900 dark:text-white sticky left-0 bg-slate-50 dark:bg-gray-800/50">
                           Biến thể
                         </td>
                         {compare.items.map((product) => (
-                          <td key={product.id} className="p-6 text-center text-slate-600">
+                          <td key={product.id} className="p-6 text-center text-slate-600 dark:text-gray-400">
                             {product.variants?.length || 0} biến thể
                           </td>
                         ))}
                       </tr>
 
                       {/* Description */}
-                      <tr className="border-t border-slate-200">
-                        <td className="p-6 font-medium text-slate-900 sticky left-0 bg-white">
+                      <tr className="border-t border-slate-200 dark:border-gray-700">
+                        <td className="p-6 font-medium text-slate-900 dark:text-white sticky left-0 bg-white dark:bg-gray-900">
                           Mô tả
                         </td>
                         {compare.items.map((product) => (
-                          <td key={product.id} className="p-6 text-sm text-slate-600">
+                          <td key={product.id} className="p-6 text-sm text-slate-600 dark:text-gray-400">
                             <div className="line-clamp-3">
                               {product.description || 'Chưa có mô tả'}
                             </div>

@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Patch, Delete, Body, HttpException, HttpStatus, Param, Query, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Patch, Delete, Body, HttpException, HttpStatus, Param, Query, UseGuards, Req } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
 import { ProductsService } from './products.service';
 import { AuthGuard } from '@nestjs/passport';
@@ -89,9 +89,9 @@ export class ProductsController {
     @UseGuards(JwtAuthGuard)
     @ApiOperation({ summary: 'Create new product' })
     @ApiResponse({ status: 201, description: 'Product created successfully' })
-    async createProduct(@Body() createProductDto: CreateProductWithVariantsDto) {
+    async createProduct(@Body() createProductDto: CreateProductWithVariantsDto, @Req() req: any) {
         try {
-            const product = await this.productsService.createProduct(createProductDto);
+            const product = await this.productsService.createProduct(createProductDto, req.user?.userId || req.user?.sub);
 
             return {
                 success: true,
@@ -110,9 +110,9 @@ export class ProductsController {
     @UseGuards(JwtAuthGuard)
     @ApiOperation({ summary: 'Update product' })
     @ApiResponse({ status: 200, description: 'Product updated successfully' })
-    async updateProduct(@Param('id') id: string, @Body() updateProductDto: UpdateProductDto) {
+    async updateProduct(@Param('id') id: string, @Body() updateProductDto: UpdateProductDto, @Req() req: any) {
         try {
-            const product = await this.productsService.updateProduct(id, updateProductDto);
+            const product = await this.productsService.updateProduct(id, updateProductDto, req.user?.userId || req.user?.sub);
 
             return {
                 success: true,
@@ -131,9 +131,9 @@ export class ProductsController {
     @UseGuards(JwtAuthGuard)
     @ApiOperation({ summary: 'Delete product (soft delete)' })
     @ApiResponse({ status: 200, description: 'Product deleted successfully' })
-    async deleteProduct(@Param('id') id: string) {
+    async deleteProduct(@Param('id') id: string, @Req() req: any) {
         try {
-            await this.productsService.deleteProduct(id);
+            await this.productsService.deleteProduct(id, req.user?.userId || req.user?.sub);
 
             return {
                 success: true,

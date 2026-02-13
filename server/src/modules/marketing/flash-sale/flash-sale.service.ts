@@ -134,7 +134,7 @@ export class FlashSaleService {
     return this.serializeFlashSale(flashSale);
   }
 
-  async create(createFlashSaleDto: CreateFlashSaleDto) {
+  async create(createFlashSaleDto: CreateFlashSaleDto, userId?: string, ipAddress?: string) {
     const startTime = new Date(createFlashSaleDto.startTime);
     const endTime = new Date(createFlashSaleDto.endTime);
 
@@ -174,7 +174,7 @@ export class FlashSaleService {
     await this.auditLogService.log(
       AuditAction.FLASHSALE_CREATE,
       AuditEntity.FLASHSALE,
-      undefined,
+      userId,
       flashSale.id,
       {
         name: flashSale.name,
@@ -182,12 +182,13 @@ export class FlashSaleService {
         startTime: flashSale.startTime,
         endTime: flashSale.endTime,
       },
+      ipAddress
     );
 
     return this.serializeFlashSale(flashSale);
   }
 
-  async update(id: string, updateFlashSaleDto: UpdateFlashSaleDto) {
+  async update(id: string, updateFlashSaleDto: UpdateFlashSaleDto, userId?: string, ipAddress?: string) {
     const oldFlashSale = await this.findOne(id);
 
     const updateData: any = { ...updateFlashSaleDto };
@@ -226,12 +227,13 @@ export class FlashSaleService {
     await this.auditLogService.log(
       AuditAction.FLASHSALE_UPDATE,
       AuditEntity.FLASHSALE,
-      undefined,
+      userId,
       id,
       {
         before: { name: oldFlashSale.name, active: oldFlashSale.active },
         after: { name: flashSale.name, active: flashSale.active },
       },
+      ipAddress
     );
 
     return this.serializeFlashSale(flashSale);
@@ -290,7 +292,7 @@ export class FlashSaleService {
     return this.findOne(flashSaleId);
   }
 
-  async toggleActive(id: string) {
+  async toggleActive(id: string, userId?: string, ipAddress?: string) {
     const flashSale = await this.findOne(id);
 
     const updated = await this.prisma.flashSale.update({
@@ -312,7 +314,7 @@ export class FlashSaleService {
     return this.serializeFlashSale(updated);
   }
 
-  async delete(id: string) {
+  async delete(id: string, userId?: string, ipAddress?: string) {
     const flashSale = await this.findOne(id);
 
     await this.prisma.flashSale.delete({
@@ -323,9 +325,10 @@ export class FlashSaleService {
     await this.auditLogService.log(
       AuditAction.FLASHSALE_DELETE,
       AuditEntity.FLASHSALE,
-      undefined,
+      userId,
       id,
       { name: flashSale.name, itemCount: flashSale.items?.length || 0 },
+      ipAddress
     );
 
     return { message: 'Flash sale deleted successfully' };

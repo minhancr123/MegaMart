@@ -10,24 +10,24 @@ export const metadata: Metadata = {
 
 export default function TermsPage() {
     return (
-        <div className="min-h-screen bg-white">
+        <div className="min-h-screen bg-white dark:bg-gray-950">
             <Header />
-            <main className="py-12">
+            <main className="pt-[100px] md:pt-[120px] py-12">
                 <div className="max-w-4xl mx-auto px-4">
                     <div className="text-center mb-12">
-                        <div className="w-20 h-20 bg-indigo-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                            <FileText className="w-10 h-10 text-indigo-600" />
+                        <div className="w-20 h-20 bg-indigo-100 dark:bg-indigo-900/30 rounded-full flex items-center justify-center mx-auto mb-4">
+                            <FileText className="w-10 h-10 text-indigo-600 dark:text-indigo-400" />
                         </div>
-                        <h1 className="text-4xl font-bold text-slate-900 mb-4">
+                        <h1 className="text-4xl font-bold text-slate-900 dark:text-white mb-4">
                             Điều khoản sử dụng
                         </h1>
-                        <p className="text-slate-600">
+                        <p className="text-slate-600 dark:text-gray-400">
                             Cập nhật lần cuối: 29 tháng 01, 2025
                         </p>
                     </div>
 
-                    <div className="prose prose-slate max-w-none">
-                        <div className="bg-amber-50 border border-amber-200 rounded-xl p-6 mb-8">
+                    <div className="prose prose-slate dark:prose-invert max-w-none">
+                        <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-xl p-6 mb-8">
                             <div className="flex gap-3">
                                 <AlertCircle className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
                                 <div className="text-sm text-amber-800">

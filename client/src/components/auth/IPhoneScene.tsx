@@ -242,7 +242,17 @@ function Loader() {
     );
 }
 
-export default function IPhoneScene() {
+export default function IPhoneScene({ onInteractionChange }: { onInteractionChange?: (interacting: boolean) => void }) {
+    const controlsRef = useRef<any>(null);
+    
+    const handleInteractionStart = () => {
+        onInteractionChange?.(true);
+    };
+    
+    const handleInteractionEnd = () => {
+        onInteractionChange?.(false);
+    };
+    
     return (
         <div className="w-full h-full relative">
             <Suspense fallback={<Loader />}>
@@ -254,12 +264,17 @@ export default function IPhoneScene() {
                 >
                     <Scene />
                     <OrbitControls
-                        enableZoom={false}
+                        ref={controlsRef}
+                        enableZoom={true}
                         enablePan={false}
                         autoRotate
                         autoRotateSpeed={1}
                         minPolarAngle={Math.PI / 2.5}
                         maxPolarAngle={Math.PI / 1.5}
+                        minDistance={5}
+                        maxDistance={12}
+                        onStart={handleInteractionStart}
+                        onEnd={handleInteractionEnd}
                     />
                     <Preload all />
                 </Canvas>
@@ -267,3 +282,6 @@ export default function IPhoneScene() {
         </div>
     );
 }
+
+// Preload the GLTF model
+useGLTF.preload('/models/iphone/scene.gltf');

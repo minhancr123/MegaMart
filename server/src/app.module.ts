@@ -27,6 +27,7 @@ import { MarketingModule } from "./modules/marketing/marketing.module";
 import { AuditLogModule } from "./modules/audit-log/audit-log.module";
 import { InventoryModule } from "./modules/inventory/inventory.module";
 import { CategoryModule } from "./modules/category/category.module";
+import { AiModule } from "./modules/ai/ai.module";
 
 @Module({
   imports: [
@@ -67,6 +68,7 @@ import { CategoryModule } from "./modules/category/category.module";
     AuditLogModule,
     InventoryModule,
     CategoryModule,
+    AiModule,
     PrismaModule,
   ],
   controllers: [AppController],

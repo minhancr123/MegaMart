@@ -180,8 +180,8 @@ export default function MovementsPage() {
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Phiếu Nhập/Xuất kho</h1>
-          <p className="text-gray-500 mt-1">Quản lý các phiếu nhập, xuất, chuyển kho</p>
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Phiếu Nhập/Xuất kho</h1>
+          <p className="text-gray-500 dark:text-gray-400 mt-1">Quản lý các phiếu nhập, xuất, chuyển kho</p>
         </div>
         <Link href="/admin/inventory/movements/new">
           <Button className="gap-2">
@@ -274,9 +274,9 @@ export default function MovementsPage() {
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
             </div>
           ) : movements.length === 0 ? (
-            <div className="text-center py-8 text-gray-500">
+            <div className="text-center py-8 text-gray-500 dark:text-gray-400">
               Chưa có phiếu kho nào.
-              <Link href="/admin/inventory/movements/new" className="text-blue-600 ml-1">
+              <Link href="/admin/inventory/movements/new" className="text-blue-600 dark:text-blue-400 ml-1">
                 Tạo phiếu mới
               </Link>
             </div>
@@ -317,7 +317,7 @@ export default function MovementsPage() {
                           {movement.warehouse?.code || movement.warehouse?.name}
                         </Badge>
                       </TableCell>
-                      <TableCell className="text-sm text-gray-500">
+                      <TableCell className="text-sm text-gray-500 dark:text-gray-400">
                         {movement.supplier?.name || movement.toWarehouseId || "-"}
                       </TableCell>
                       <TableCell className="text-center">

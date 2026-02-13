@@ -627,6 +627,63 @@ export default function MainContent({
           </motion.section>
         )}
 
+        {/* Stats Section - New */}
+        <motion.section
+          initial={{ opacity: 0, y: 20 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+          transition={{ duration: 0.6 }}
+          className="relative rounded-3xl overflow-hidden"
+        >
+          <div className="absolute inset-0 bg-gradient-to-br from-blue-600 via-purple-600 to-pink-600 dark:from-blue-700 dark:via-purple-700 dark:to-pink-700"></div>
+          <div className="absolute inset-0 bg-[url('/grid.svg')] opacity-10"></div>
+          
+          <div className="relative z-10 p-8 md:p-12">
+            <div className="text-center mb-12">
+              <motion.h2 
+                className="text-3xl md:text-4xl font-black text-white mb-4"
+                initial={{ opacity: 0, y: 20 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.2 }}
+              >
+                Tại sao chọn MegaMart?
+              </motion.h2>
+              <motion.p 
+                className="text-white/90 text-lg"
+                initial={{ opacity: 0 }}
+                whileInView={{ opacity: 1 }}
+                transition={{ delay: 0.3 }}
+              >
+                Hàng triệu khách hàng tin tưởng
+              </motion.p>
+            </div>
+
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-6 md:gap-8">
+              {[
+                { icon: Users, value: '1M+', label: 'Khách hàng' },
+                { icon: Star, value: '50K+', label: 'Sản phẩm' },
+                { icon: Award, value: '4.8/5', label: 'Đánh giá' },
+                { icon: TrendingUp, value: '99%', label: 'Hài lòng' },
+              ].map((stat, idx) => (
+                <motion.div
+                  key={idx}
+                  initial={{ opacity: 0, scale: 0.8 }}
+                  whileInView={{ opacity: 1, scale: 1 }}
+                  viewport={{ once: true }}
+                  transition={{ delay: idx * 0.1, duration: 0.5 }}
+                  className="text-center"
+                >
+                  <div className="inline-flex items-center justify-center w-16 h-16 md:w-20 md:h-20 bg-white/20 backdrop-blur-md rounded-2xl mb-4">
+                    <stat.icon className="w-8 h-8 md:w-10 md:h-10 text-white" />
+                  </div>
+                  <div className="text-3xl md:text-4xl font-black text-white mb-2">{stat.value}</div>
+                  <div className="text-white/80 text-sm md:text-base font-medium">{stat.label}</div>
+                </motion.div>
+              ))}
+            </div>
+          </div>
+        </motion.section>
+
       </div>
 
       <style jsx global>{`

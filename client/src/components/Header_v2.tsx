@@ -4,7 +4,7 @@ import { useState, type FormEvent } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
-import { User, ShoppingCart, Menu, Search, LogInIcon, Handbag, ChevronDown, Heart, Scale, Store, Percent, Gift } from "lucide-react";
+import { User, ShoppingCart, Menu, Search, LogInIcon, Handbag, ChevronDown, Heart, Scale, Sparkles, Store } from "lucide-react";
 
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -76,44 +76,66 @@ export default function Header() {
 
   return (
     <div className="fixed top-0 z-50 w-full">
-      {/* Top Banner - Simple Gradient */}
-      <div className="relative overflow-hidden bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 dark:from-blue-700 dark:via-purple-700 dark:to-pink-700">
+      {/* Top Banner - Gradient with animation */}
+      <motion.div 
+        className="relative overflow-hidden"
+        initial={{ y: -50, opacity: 0 }}
+        animate={{ y: 0, opacity: 1 }}
+        transition={{ duration: 0.5 }}
+      >
+        <div className="absolute inset-0 bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 dark:from-blue-700 dark:via-purple-700 dark:to-pink-700"></div>
+        <div className="absolute inset-0 bg-[url('/grid.svg')] opacity-10"></div>
+        
         <div className="hidden lg:flex relative z-10 w-full text-white px-6 py-2.5 items-center justify-between">
-          <div className="flex items-center gap-2">
-            <Percent className="w-4 h-4" />
+          <motion.div 
+            className="flex items-center gap-2"
+            initial={{ x: -20, opacity: 0 }}
+            animate={{ x: 0, opacity: 1 }}
+            transition={{ delay: 0.2 }}
+          >
+            <Sparkles className="w-4 h-4 animate-pulse" />
             <span className="text-sm font-semibold tracking-wide">MegaMart · Ưu đãi và tiện ích mỗi ngày</span>
-          </div>
+          </motion.div>
           
-          <div className="flex items-center gap-3">
-            <Link 
-              href="/compare" 
-              className="relative inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-white/20 backdrop-blur-sm text-white hover:bg-white/30 transition-all duration-200"
-            >
-              <Scale className="h-4 w-4" />
-              <span className="text-sm font-semibold">So sánh</span>
-              {compare.items.length > 0 && (
-                <Badge className="bg-white text-purple-600 font-bold">{compare.items.length}</Badge>
-              )}
-            </Link>
+          <motion.div 
+            className="flex items-center gap-3"
+            initial={{ x: 20, opacity: 0 }}
+            animate={{ x: 0, opacity: 1 }}
+            transition={{ delay: 0.3 }}
+          >
+            <motion.div whileHover={{ scale: 1.05, y: -2 }} whileTap={{ scale: 0.95 }}>
+              <Link 
+                href="/compare" 
+                className="relative inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-white/20 backdrop-blur-md border border-white/30 text-white hover:bg-white/30 transition-all duration-300 shadow-lg hover:shadow-xl"
+              >
+                <Scale className="h-4 w-4" />
+                <span className="text-sm font-semibold">So sánh</span>
+                {compare.items.length > 0 && (
+                  <Badge className="bg-white text-purple-600 shadow-md font-bold">{compare.items.length}</Badge>
+                )}
+              </Link>
+            </motion.div>
 
-            <Link 
-              href="/wishlist" 
-              className="relative inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-white/20 backdrop-blur-sm text-white hover:bg-white/30 transition-all duration-200"
-            >
-              <Heart className="h-4 w-4" />
-              <span className="text-sm font-semibold">Yêu thích</span>
-              {wishlist.items.length > 0 && (
-                <Badge className="bg-white text-red-600 font-bold">{wishlist.items.length}</Badge>
-              )}
-            </Link>
-          </div>
+            <motion.div whileHover={{ scale: 1.05, y: -2 }} whileTap={{ scale: 0.95 }}>
+              <Link 
+                href="/wishlist" 
+                className="relative inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-white/20 backdrop-blur-md border border-white/30 text-white hover:bg-white/30 transition-all duration-300 shadow-lg hover:shadow-xl"
+              >
+                <Heart className="h-4 w-4" />
+                <span className="text-sm font-semibold">Yêu thích</span>
+                {wishlist.items.length > 0 && (
+                  <Badge className="bg-white text-red-600 shadow-md font-bold">{wishlist.items.length}</Badge>
+                )}
+              </Link>
+            </motion.div>
+          </motion.div>
         </div>
 
         {/* Mobile Top Banner */}
-        <div className="lg:hidden relative z-10 text-white py-2 px-4">
+        <div className="lg:hidden relative z-10 bg-gradient-to-r from-blue-600 to-purple-600 dark:from-blue-700 dark:to-purple-700 text-white py-2 px-4">
           <div className="flex items-center justify-between text-sm">
             <div className="flex items-center gap-2">
-              <Gift className="w-3 h-3" />
+              <Sparkles className="w-3 h-3 animate-pulse" />
               <span className="font-semibold">MegaMart</span>
             </div>
             {user && (
@@ -121,48 +143,65 @@ export default function Header() {
             )}
           </div>
         </div>
-      </div>
+      </motion.div>
 
-      {/* Main Header */}
-      <header className="relative w-full bg-white dark:bg-gray-900 shadow-md border-b border-gray-200 dark:border-gray-800">
-        <div className="max-w-7xl mx-auto px-3 sm:px-4 py-3 relative z-10">
+      {/* Main Header - Glassmorphism */}
+      <motion.header 
+        className="relative w-full bg-white/80 dark:bg-gray-900/80 backdrop-blur-xl shadow-lg border-b border-gray-200/50 dark:border-gray-700/50"
+        initial={{ y: -20, opacity: 0 }}
+        animate={{ y: 0, opacity: 1 }}
+        transition={{ delay: 0.1, duration: 0.5 }}
+      >
+        {/* Subtle gradient overlay */}
+        <div className="absolute inset-0 bg-gradient-to-r from-blue-50/50 via-purple-50/30 to-pink-50/50 dark:from-blue-900/10 dark:via-purple-900/10 dark:to-pink-900/10 pointer-events-none"></div>
+
+        <div className="max-w-7xl mx-auto px-3 sm:px-4 py-3 sm:py-4 relative z-10">
           <div className="flex items-center justify-between gap-2 sm:gap-4">
-            {/* Logo */}
-            <Link href="/" className="flex-shrink-0 flex items-center gap-2">
-              <div className="w-10 h-10 bg-gradient-to-br from-blue-600 to-purple-600 rounded-lg flex items-center justify-center shadow-md">
-                <Store className="w-6 h-6 text-white" />
-              </div>
-              <h1 className="text-xl sm:text-2xl md:text-3xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-                MegaMart
-              </h1>
+            {/* Logo with gradient */}
+            <Link href="/">
+              <motion.div 
+                className="flex-shrink-0 flex items-center gap-2"
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+              >
+                <div className="w-10 h-10 bg-gradient-to-br from-blue-600 via-purple-600 to-pink-600 rounded-xl flex items-center justify-center shadow-lg">
+                  <Store className="w-6 h-6 text-white" />
+                </div>
+                <h1 className="text-xl sm:text-2xl md:text-3xl font-black bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 dark:from-blue-400 dark:via-purple-400 dark:to-pink-400 bg-clip-text text-transparent">
+                  MegaMart
+                </h1>
+              </motion.div>
             </Link>
 
             {/* Desktop: Category Menu & Products */}
             <div className="hidden lg:flex items-center gap-3">
               <HoverCard openDelay={50} closeDelay={100}>
                 <HoverCardTrigger asChild>
-                  <Button 
-                    variant="outline" 
-                    className="flex items-center gap-2 border-2 border-blue-600 text-blue-600 hover:bg-blue-600 hover:text-white transition-all"
-                    onMouseEnter={() => setShowCategories(true)}
-                    onMouseLeave={() => setShowCategories(false)}
-                  >
-                    <Menu className="h-4 w-4" />
-                    <span className="font-semibold">Danh mục</span>
-                    <ChevronDown className="h-4 w-4" />
-                  </Button>
+                  <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
+                    <Button 
+                      variant="outline" 
+                      className="flex items-center gap-2 bg-gradient-to-r from-blue-600 to-purple-600 text-white border-0 hover:from-blue-700 hover:to-purple-700 transition-all duration-300 shadow-lg hover:shadow-xl"
+                      onMouseEnter={() => setShowCategories(true)}
+                      onMouseLeave={() => setShowCategories(false)}
+                    >
+                      <Menu className="h-4 w-4" />
+                      <span className="font-bold">Danh mục</span>
+                      <ChevronDown className="h-4 w-4" />
+                    </Button>
+                  </motion.div>
                 </HoverCardTrigger>
                 <HoverCardContent 
                   side="bottom" 
                   align="start" 
-                  className="w-72 p-0 mt-2 border-2 border-blue-100 dark:border-blue-900"
+                  className="w-72 p-0 mt-2 border-0 shadow-2xl bg-white/95 dark:bg-gray-900/95 backdrop-blur-xl"
                   onMouseEnter={() => setShowCategories(true)}
                   onMouseLeave={() => setShowCategories(false)}
                 >
                   <motion.div
-                    initial={{ opacity: 0, y: -10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.2 }}
+                    initial={{ opacity: 0, y: -10, scale: 0.95 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    exit={{ opacity: 0, y: -10, scale: 0.95 }}
+                    transition={{ duration: 0.2, ease: "easeOut" }}
                   >
                     <CategoryMenu />
                   </motion.div>
@@ -170,27 +209,29 @@ export default function Header() {
               </HoverCard>
 
               <Link href="/products">
-                <Button className="bg-blue-600 hover:bg-blue-700 text-white font-semibold">
-                  <Handbag className="w-4 h-4 mr-2" />
-                  Sản phẩm
-                </Button>
+                <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
+                  <Button className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white font-bold shadow-lg hover:shadow-xl transition-all duration-300">
+                    <Handbag className="w-4 h-4 mr-2" />
+                    Sản phẩm
+                  </Button>
+                </motion.div>
               </Link>
             </div>
 
-            {/* Desktop: Search Bar */}
+            {/* Desktop: Search Bar - Glassmorphism */}
             <div className="hidden md:flex flex-1 max-w-2xl">
-              <form onSubmit={handleSearch} className="relative w-full flex">
+              <form onSubmit={handleSearch} className="relative w-full flex group">
                 <div className="relative flex-1">
-                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4 pointer-events-none" />
+                  <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400 group-focus-within:text-blue-600 dark:group-focus-within:text-blue-400 h-5 w-5 transition-colors duration-200" />
                   <Input
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
                     placeholder="Tìm kiếm sản phẩm..."
-                    className="pl-10 pr-2 rounded-r-none border-r-0 focus:border-blue-600"
+                    className="pl-12 pr-4 py-6 rounded-l-2xl rounded-r-none border-r-0 bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm border-2 border-gray-200 dark:border-gray-700 focus:border-blue-600 dark:focus:border-blue-400 focus:ring-4 focus:ring-blue-100 dark:focus:ring-blue-900/30 transition-all duration-300 font-medium"
                   />
                 </div>
                 <Button
-                  className="rounded-l-none px-6 bg-blue-600 hover:bg-blue-700 text-white font-semibold"
+                  className="rounded-l-none rounded-r-2xl px-8 py-6 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-bold shadow-lg hover:shadow-xl transition-all duration-300"
                   type="submit"
                 >
                   Tìm kiếm
@@ -408,105 +449,128 @@ export default function Header() {
                   <>
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
-                        <Button
-                          variant="ghost"
-                          className="flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-all"
+                        <motion.button 
+                          className="flex items-center gap-3 px-4 py-2 rounded-xl bg-gradient-to-r from-blue-50 to-purple-50 dark:from-blue-900/30 dark:to-purple-900/30 hover:from-blue-100 hover:to-purple-100 dark:hover:from-blue-900/50 dark:hover:to-purple-900/50 transition-all duration-300 dark:text-white shadow-md hover:shadow-lg"
+                          whileHover={{ scale: 1.05, y: -2 }}
+                          whileTap={{ scale: 0.95 }}
                         >
-                          <div className="w-8 h-8 bg-gradient-to-br from-blue-600 to-purple-600 rounded-full flex items-center justify-center text-white font-bold text-sm">
+                          <div className="w-10 h-10 bg-gradient-to-br from-blue-600 via-purple-600 to-pink-600 rounded-full flex items-center justify-center text-white font-bold shadow-lg">
                             {user.name?.charAt(0).toUpperCase()}
                           </div>
-                          <span className="font-medium text-sm max-w-[100px] truncate">{user.name}</span>
+                          <span className="font-bold">{user.name}</span>
                           <ChevronDown className="h-4 w-4" />
-                        </Button>
+                        </motion.button>
                       </DropdownMenuTrigger>
 
                       <DropdownMenuContent 
-                        className="w-56 p-2 mt-2 border shadow-xl bg-white dark:bg-gray-900"
+                        className="w-64 p-2 mt-2 border-0 shadow-2xl bg-white/95 dark:bg-gray-900/95 backdrop-blur-xl"
                         align="end"
                       >
-                        <DropdownMenuLabel className="text-sm font-bold text-gray-700 dark:text-gray-200 px-3 py-2">
-                          Tài khoản của tôi
-                        </DropdownMenuLabel>
-                        <DropdownMenuSeparator className="my-1 dark:bg-gray-800" />
-                        
-                        {/* Admin menu */}
-                        {user?.role === 'ADMIN' && (
-                          <>
-                            <DropdownMenuItem 
-                              onClick={() => router.push('/admin')}
-                              className="cursor-pointer px-3 py-2.5 rounded-lg hover:bg-purple-50 dark:hover:bg-purple-900/20 transition-all"
-                            >
-                              <User className="h-4 w-4 mr-3 text-purple-600 dark:text-purple-400" />
-                              <span className="font-semibold">Quản trị viên</span>
-                            </DropdownMenuItem>
-                            <DropdownMenuSeparator className="my-1 dark:bg-gray-800" />
-                          </>
-                        )}
-
-                        <DropdownMenuItem 
-                          onClick={() => router.push('/profile/orders')}
-                          className="cursor-pointer px-3 py-2.5 rounded-lg hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-all"
+                        <motion.div
+                          initial={{ opacity: 0, y: -10 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          transition={{ duration: 0.2 }}
                         >
-                          <Handbag className="h-4 w-4 mr-3 text-blue-600 dark:text-blue-400" />
-                          <span className="font-medium">Đơn hàng</span>
-                        </DropdownMenuItem>
+                          <DropdownMenuLabel className="text-sm font-bold text-gray-700 dark:text-gray-200 px-3 py-2">
+                            Tài khoản của tôi
+                          </DropdownMenuLabel>
+                          <DropdownMenuSeparator className="my-1 dark:bg-gray-800" />
+                          
+                          {/* Admin menu */}
+                          {user?.role === 'ADMIN' && (
+                            <>
+                              <motion.div whileHover={{ x: 4 }} transition={{ duration: 0.2 }}>
+                                <DropdownMenuItem 
+                                  onClick={() => router.push('/admin')}
+                                  className="cursor-pointer px-3 py-3 rounded-xl hover:bg-gradient-to-r hover:from-purple-50 hover:to-pink-50 dark:hover:from-purple-900/20 dark:hover:to-pink-900/20 transition-all duration-200 dark:text-gray-200 group"
+                                >
+                                  <div className="w-8 h-8 bg-gradient-to-r from-purple-600 to-pink-600 rounded-lg flex items-center justify-center mr-3 group-hover:scale-110 transition-transform">
+                                    <User className="h-4 w-4 text-white" />
+                                  </div>
+                                  <span className="font-semibold">Quản trị viên</span>
+                                </DropdownMenuItem>
+                              </motion.div>
+                              <DropdownMenuSeparator className="my-1 dark:bg-gray-800" />
+                            </>
+                          )}
 
-                        <DropdownMenuItem 
-                          onClick={() => router.push('/profile/addresses')}
-                          className="cursor-pointer px-3 py-2.5 rounded-lg hover:bg-green-50 dark:hover:bg-green-900/20 transition-all"
-                        >
-                          <Handbag className="h-4 w-4 mr-3 text-green-600 dark:text-green-400" />
-                          <span className="font-medium">Địa chỉ</span>
-                        </DropdownMenuItem>
-
-                        <DropdownMenuItem 
-                          onClick={() => router.push('/profile')}
-                          className="cursor-pointer px-3 py-2.5 rounded-lg hover:bg-purple-50 dark:hover:bg-purple-900/20 transition-all"
-                        >
-                          <User className="h-4 w-4 mr-3 text-purple-600 dark:text-purple-400" />
-                          <span className="font-medium">Hồ sơ</span>
-                        </DropdownMenuItem>
-
-                        <DropdownMenuSeparator className="my-1 dark:bg-gray-800" />
-                        
-                        <DropdownMenuItem 
-                          onClick={handleLogout}
-                          className="cursor-pointer px-3 py-2.5 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 transition-all text-red-600 dark:text-red-400"
-                        >
-                          <span className="font-semibold">Đăng xuất</span>
-                        </DropdownMenuItem>
+                          {[
+                            { href: '/profile/orders', icon: Handbag, label: 'Đơn hàng', gradient: 'from-blue-600 to-indigo-600' },
+                            { href: '/profile/addresses', icon: Handbag, label: 'Địa chỉ', gradient: 'from-green-600 to-emerald-600' },
+                            { href: '/profile', icon: User, label: 'Hồ sơ', gradient: 'from-purple-600 to-pink-600' },
+                          ].map((item) => (
+                            <motion.div key={item.href} whileHover={{ x: 4 }} transition={{ duration: 0.2 }}>
+                              <DropdownMenuItem 
+                                onClick={() => router.push(item.href)}
+                                className="cursor-pointer px-3 py-3 rounded-xl hover:bg-gradient-to-r hover:from-blue-50 hover:to-indigo-50 dark:hover:from-blue-900/20 dark:hover:to-indigo-900/20 transition-all duration-200 dark:text-gray-200 group"
+                              >
+                                <div className={`w-8 h-8 bg-gradient-to-r ${item.gradient} rounded-lg flex items-center justify-center mr-3 group-hover:scale-110 transition-transform`}>
+                                  <item.icon className="h-4 w-4 text-white" />
+                                </div>
+                                <span className="font-semibold">{item.label}</span>
+                              </DropdownMenuItem>
+                            </motion.div>
+                          ))}
+                        </motion.div>
                       </DropdownMenuContent>
                     </DropdownMenu>
                   </>
                 ) : (
-                  <Button
-                    className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white font-semibold px-4"
-                    onClick={() => router.push('/auth')}
-                  >
-                    <LogInIcon className="h-4 w-4" />
-                    <span>Đăng nhập</span>
-                  </Button>
+                  <motion.div whileHover={{ scale: 1.05, y: -2 }} whileTap={{ scale: 0.95 }}>
+                    <Button
+                      className="flex items-center gap-2 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-bold shadow-lg hover:shadow-xl transition-all duration-300 rounded-xl px-6"
+                      onClick={() => router.push('/auth')}
+                    >
+                      <LogInIcon className="h-4 w-4" />
+                      <span>Đăng nhập</span>
+                    </Button>
+                  </motion.div>
                 )}
               
                 {/* Cart Button */}
-                <div className="relative">
+                <motion.div 
+                  className="relative"
+                  whileHover={{ scale: 1.05, y: -2 }}
+                  whileTap={{ scale: 0.95 }}
+                >
                   <Button 
-                    className="flex items-center gap-2 bg-pink-600 hover:bg-pink-700 text-white font-semibold px-4" 
+                    className="flex items-center gap-2 bg-gradient-to-r from-pink-600 to-red-600 hover:from-pink-700 hover:to-red-700 text-white font-bold shadow-lg hover:shadow-xl transition-all duration-300 rounded-xl px-6" 
                     onClick={handleCartClick}
                   >
                     <ShoppingCart className="h-5 w-5" />
                     <span>Giỏ hàng</span>
                   </Button>
-                  {cartStore.items?.length > 0 && (
-                    <Badge className="absolute -top-2 -right-2 h-6 w-6 flex items-center justify-center text-xs font-bold bg-red-600 text-white">
-                      {cartStore.items.length}
-                    </Badge>
-                  )}
-                </div>
+                  <AnimatePresence>
+                    {cartStore.items?.length > 0 && (
+                      <motion.div
+                        initial={{ scale: 0 }}
+                        animate={{ scale: 1 }}
+                        exit={{ scale: 0 }}
+                        transition={{ type: "spring", stiffness: 500, damping: 15 }}
+                      >
+                        <Badge className="absolute -top-2 -right-2 h-6 w-6 flex items-center justify-center text-xs font-bold shadow-lg bg-gradient-to-r from-yellow-400 to-orange-500 text-white border-2 border-white dark:border-gray-900">
+                          {cartStore.items.length}
+                        </Badge>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                </motion.div>
                 
                 {/* Notification & Theme */}
                 <NotificationBell />
                 <ThemeToggle />
+
+                {/* Logout Button */}
+                {user?.id && (
+                  <motion.div whileHover={{ scale: 1.05, y: -2 }} whileTap={{ scale: 0.95 }}>
+                    <Button 
+                      onClick={handleLogout} 
+                      className="bg-gradient-to-r from-red-500 to-pink-500 hover:from-red-600 hover:to-pink-600 text-white border-0 font-bold shadow-lg hover:shadow-xl transition-all duration-300 rounded-xl"
+                    >
+                      Đăng xuất
+                    </Button>
+                  </motion.div>
+                )}
               </div>
             </div>
           </div>
@@ -537,7 +601,7 @@ export default function Header() {
             )}
           </AnimatePresence>
         </div>
-      </header>
+      </motion.header>
     </div>
   );
 }

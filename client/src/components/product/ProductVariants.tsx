@@ -66,23 +66,44 @@ export const ProductVariants = ({ product, onAddToCart }: ProductVariantsProps) 
   // Translate attribute keys to Vietnamese
   const translateAttributeKey = (key: string): string => {
     const translations: { [key: string]: string } = {
+      // RAM
       'Ram': 'RAM',
       'RAM': 'RAM',
       'ram': 'RAM',
+      
+      // Display/Screen
       'Display': 'Màn hình',
       'display': 'Màn hình',
+      'Screen': 'Màn hình',
+      'screen': 'Màn hình',
+      
+      // Storage
       'Storage': 'Bộ nhớ',
       'storage': 'Bộ nhớ',
-      'Color': 'Màu sắc',
-      'color': 'Màu sắc',
-      'Connectivity': 'Kết nối',
-      'connectivity': 'Kết nối',
+      
+      // Processor/CPU
       'Processor': 'Bộ xử lý',
       'processor': 'Bộ xử lý',
+      'CPU': 'Bộ xử lý',
+      'cpu': 'Bộ xử lý',
+      
+      // Color
+      'Color': 'Màu sắc',
+      'color': 'Màu sắc',
+      
+      // Connectivity
+      'Connectivity': 'Kết nối',
+      'connectivity': 'Kết nối',
+      
+      // Battery
       'Battery': 'Pin',
       'battery': 'Pin',
+      
+      // Camera
       'Camera': 'Camera',
       'camera': 'Camera',
+      
+      // Physical
       'Weight': 'Trọng lượng',
       'weight': 'Trọng lượng',
       'Size': 'Kích thước',
@@ -157,28 +178,31 @@ export const ProductVariants = ({ product, onAddToCart }: ProductVariantsProps) 
             </div>
             {selectedVariant && (
               <div className="bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 p-6 rounded-xl border border-blue-100 dark:border-blue-800">
-                <div className="flex items-start justify-between gap-4 mb-4">
-                  <div>
+                <div className="flex items-center justify-between gap-4 mb-4">
+                  <div className="flex-1">
                     <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">Phiên bản đã chọn</p>
-                    <p className="font-semibold text-lg dark:text-white">SKU: {selectedVariant.sku}</p>
+                    <p className="font-semibold text-base dark:text-white">SKU: {selectedVariant.sku}</p>
                   </div>
-                  <Badge variant={getStockStatus(selectedVariant.stock).color as any}>
+                  <Badge variant={getStockStatus(selectedVariant.stock).color as any} className="flex-shrink-0">
                     {getStockStatus(selectedVariant.stock).text}
                   </Badge>
                 </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-3xl font-bold text-red-600 dark:text-red-400">
-                    {formatPrice(selectedVariant.price)}
-                  </span>
-                  {selectedVariant.attributes && (
-                    <div className="text-sm text-gray-600 dark:text-gray-400">
-                      {Object.entries(selectedVariant.attributes).map(([key, value]) => (
-                        <div key={key} className="text-right">
-                          {key}: <strong className="text-gray-900 dark:text-gray-200">{String(value)}</strong>
-                        </div>
-                      ))}
-                    </div>
-                  )}
+                
+                {/* Specs Grid */}
+                {selectedVariant.attributes && (
+                  <div className="grid grid-cols-2 gap-3 mb-4 pb-4 border-b border-blue-200 dark:border-blue-800">
+                    {Object.entries(selectedVariant.attributes).map(([key, value]) => (
+                      <div key={key} className="text-sm">
+                        <span className="text-gray-600 dark:text-gray-400">{translateAttributeKey(key)}: </span>
+                        <span className="font-semibold text-gray-900 dark:text-white">{String(value)}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                
+                {/* Price */}
+                <div className="text-3xl font-bold text-red-600 dark:text-red-400">
+                  {formatPrice(selectedVariant.price)}
                 </div>
               </div>
             )}
@@ -216,20 +240,20 @@ export const ProductVariants = ({ product, onAddToCart }: ProductVariantsProps) 
                     </button>
                   </div>
                 </div>
-                <div className="flex items-center justify-between pt-4 border-t">
-                  <div>
-                    <div className="text-sm text-gray-600 dark:text-gray-400 mb-1">Tổng cộng</div>
-                    <div className="text-2xl font-bold text-red-600 dark:text-red-400">
+                <div className="pt-4 border-t space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div className="text-sm text-gray-600 dark:text-gray-400">Tổng cộng</div>
+                    <div className="text-xl sm:text-2xl font-bold text-red-600 dark:text-red-400">
                       {formatPrice(selectedVariant.price * quantity)}
                     </div>
                   </div>
                   <Button
                     onClick={handleAddToCart}
-                    className="flex items-center gap-2 px-8 py-6 text-base"
+                    className="w-full flex items-center justify-center gap-2 py-6 text-base"
                     disabled={!selectedVariant || selectedVariant.stock < quantity}
                   >
                     <ShoppingCart className="h-5 w-5" />
-                    Thêm vào giỏ hàng
+                    <span>Thêm vào giỏ hàng</span>
                   </Button>
                 </div>
               </div>
@@ -249,35 +273,37 @@ export const ProductVariants = ({ product, onAddToCart }: ProductVariantsProps) 
                 className={`border rounded-lg p-4 cursor-pointer transition-all ${selectedVariant?.id === variant.id ? "border-blue-500 bg-blue-50 dark:bg-blue-900/20 ring-2 ring-blue-200 dark:ring-blue-800" : "border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600 hover:shadow-md"} ${variant.stock === 0 ? "opacity-50 cursor-not-allowed" : ""}`}
                 onClick={() => variant.stock > 0 && handleVariantSelect(variant)}
               >
-                <div className="flex justify-between items-start">
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2 mb-1">
-                      <span className="font-medium dark:text-white">SKU: {variant.sku}</span>
-                      <Badge variant={getStockStatus(variant.stock).color as any} className="text-xs">
-                        {getStockStatus(variant.stock).text}
-                      </Badge>
-                    </div>
-                    {variant.attributes && (
-                      <div className="text-sm text-gray-600 dark:text-gray-400 mb-2">
-                        {Object.entries(variant.attributes).map(([key, value]) => (
-                          <span key={key} className="mr-3">
-                            {translateAttributeKey(key)}: <strong className="dark:text-gray-200">{String(value)}</strong>
-                          </span>
-                        ))}
-                      </div>
-                    )}
+                {/* Row 1: SKU + Badge + Price */}
+                <div className="flex items-center justify-between gap-4 mb-3">
+                  <div className="flex items-center gap-2 flex-shrink min-w-0">
+                    <span className="font-semibold text-gray-900 dark:text-white text-sm">SKU: {variant.sku}</span>
+                    <Badge variant={getStockStatus(variant.stock).color as any} className="text-xs flex-shrink-0">
+                      {getStockStatus(variant.stock).text}
+                    </Badge>
                   </div>
-                  <div className="text-right ml-4">
-                    <div className="text-xl font-bold text-red-600 dark:text-red-400">
+                  <div className="text-right flex-shrink-0">
+                    <div className="text-lg sm:text-xl font-bold text-red-600 dark:text-red-400">
                       {formatPrice(variant.price)}
                     </div>
                     {selectedVariant?.id === variant.id && (
-                      <div className="text-sm text-blue-600 dark:text-blue-400 mt-1 font-medium">
-                         Đã chọn
+                      <div className="text-xs text-blue-600 dark:text-blue-400 font-medium">
+                        ✓ Đã chọn
                       </div>
                     )}
                   </div>
                 </div>
+
+                {/* Row 2: Specs Grid */}
+                {variant.attributes && (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm">
+                    {Object.entries(variant.attributes).map(([key, value]) => (
+                      <div key={key}>
+                        <span className="text-gray-600 dark:text-gray-400">{translateAttributeKey(key)}: </span>
+                        <span className="font-semibold text-gray-900 dark:text-white">{String(value)}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             ))}
           </div>

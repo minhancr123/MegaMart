@@ -50,7 +50,8 @@ function ExpiredTokenChecker() {
     useEffect(() => {
         const expired = searchParams.get('expired');
         if (expired === 'true') {
-            toast.error('Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại!');
+            // Removed automatic error toast - users can browse without login
+            // toast.error('Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại!');
         }
     }, [searchParams]);
 

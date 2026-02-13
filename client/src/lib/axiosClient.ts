@@ -78,17 +78,13 @@ axiosClient.interceptors.response.use((response) => {
         console.error(`API Error [${status}]:`, errormassage);
 
         // ✅ Handle 401 Unauthorized - Token hết hạn
+        // Không redirect tự động - để component xử lý
         if (status === 401 && typeof window !== 'undefined') {
-            console.warn('Token expired or invalid. Logging out...');
-
-            // Lưu URL hiện tại để redirect sau khi login
-            const currentPath = window.location.pathname + window.location.search;
+            console.warn('Token expired or invalid. Silently clearing auth...');
             
             // Clear auth storage
             localStorage.removeItem('auth-storage');
-
-            // Redirect to login page với return URL
-            window.location.href = `/auth?expired=true&returnUrl=${encodeURIComponent(currentPath)}`;
+            // Không redirect - để user tiếp tục browse như guest
         }
 
         return Promise.reject({ status, errormassage, data: error.response.data })

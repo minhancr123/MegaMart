@@ -4,7 +4,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Eye, EyeOff, Loader2, Lock, Mail, User, ArrowRight } from "lucide-react";
 import Link from "next/link";
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useForm } from 'react-hook-form'
@@ -43,22 +43,27 @@ const registerschema = z.object({
 type loginFormData = z.infer<typeof loginschema>;
 type registerFormData = z.infer<typeof registerschema>;
 
-export default function AuthPage() {
-    const router = useRouter();
+// Component to handle search params (must be in Suspense boundary)
+function ExpiredTokenChecker() {
     const searchParams = useSearchParams();
-    const [islogin, setIsLogin] = useState(true);
-    const [showPassword, setShowPassword] = useState(false);
-    const [loading, setloading] = useState(false);
-    const [isInteracting, setIsInteracting] = useState(false);
-    const { login } = useAuthStore();
-
-    // Check if redirected due to expired token
+    
     useEffect(() => {
         const expired = searchParams.get('expired');
         if (expired === 'true') {
             toast.error('Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại!');
         }
     }, [searchParams]);
+
+    return null;
+}
+
+function AuthPageContent() {
+    const router = useRouter();
+    const [islogin, setIsLogin] = useState(true);
+    const [showPassword, setShowPassword] = useState(false);
+    const [loading, setloading] = useState(false);
+    const [isInteracting, setIsInteracting] = useState(false);
+    const { login } = useAuthStore();
 
     const loginform = useForm<loginFormData>({
         resolver: zodResolver(loginschema),
@@ -129,6 +134,10 @@ export default function AuthPage() {
 
     return (
         <div className="min-h-screen flex overflow-hidden bg-gradient-to-br from-slate-50 to-indigo-50/50 dark:from-gray-950 dark:to-gray-900">
+            <Suspense fallback={<div />}>
+                <ExpiredTokenChecker />
+            </Suspense>
+            
             {/* Left Side - 3D Scene */}
             <div className="hidden lg:block lg:w-3/5 relative bg-slate-950 dark:bg-black overflow-hidden">
                 <div className="absolute inset-0 z-0">
@@ -361,4 +370,20 @@ export default function AuthPage() {
             </div>
         </div>
     )
+}
+
+// Main export with Suspense boundary
+export default function AuthPage() {
+    return (
+        <Suspense fallback={
+            <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 to-indigo-50/50">
+                <div className="flex flex-col items-center gap-4">
+                    <div className="w-16 h-16 border-4 border-indigo-200 border-t-indigo-600 rounded-full animate-spin" />
+                    <span className="text-slate-600 text-sm">Đang tải...</span>
+                </div>
+            </div>
+        }>
+            <AuthPageContent />
+        </Suspense>
+    );
 }

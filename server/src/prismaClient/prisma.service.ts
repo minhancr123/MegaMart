@@ -1,31 +1,33 @@
-import { Injectable, OnModuleInit } from "@nestjs/common";
+import { Injectable, OnModuleDestroy, OnModuleInit } from "@nestjs/common";
 import { PrismaClient } from "@prisma/client";
-import { withAccelerate } from "@prisma/extension-accelerate";
 
 @Injectable()
-export class PrismaService extends PrismaClient implements OnModuleInit {
+export class PrismaService extends PrismaClient implements OnModuleInit, OnModuleDestroy {
+  public readonly direct: PrismaClient;
+
   constructor() {
-    super();
+    const envDatabaseUrl = process.env.DATABASE_URL;
+    const dbUrl = envDatabaseUrl?.startsWith("prisma+postgres://")
+      ? process.env.DIRECT_URL
+      : envDatabaseUrl || process.env.DIRECT_URL;
+
+    super({
+      ...(dbUrl ? { datasources: { db: { url: dbUrl } } } : {}),
+      log: process.env.NODE_ENV === "development" ? ["error", "warn"] : ["error"]
+    });
+
+    this.direct = this;
   }
 
   async onModuleInit() {
     await this.$connect();
   }
 
-  // Extend với Accelerate để có caching
-  get accelerated() {
-    return this.$extends(withAccelerate());
+  async onModuleDestroy() {
+    await this.$disconnect();
   }
 
-  // Proxy methods cho các model chính
-  get user() { return this.user; }
-  get product() { return this.product; }
-  get category() { return this.category; }
-  get order() { return this.order; }
-  get orderItem() { return this.orderItem; }
-  get cart() { return this.cart; }
-  get cartItem() { return this.cartItem; }
-  get payment() { return this.payment; }
-  get productVariant() { return this.productVariant; }
-  get review() { return this.review; }
+  // `direct` được gán trong constructor để giữ tương thích với các service đang gọi prisma.direct.
+  // Client chính đã dùng kết nối Postgres trực tiếp nên không cần tạo thêm pool thứ hai.
 }
+

@@ -1,4 +1,3 @@
-import { get } from "http";
 import axiosClient from "./axiosClient";
 import { Product, Category } from "@/interfaces/product";
 
@@ -12,42 +11,65 @@ const productsAPI = {
   getFeatureProducts: () => axiosClient.get("/products/featured"),
   getCategoriesList: () => axiosClient.get("/products/categories"),
   getProductById: (id: string) => axiosClient.get(`/products/${id}`),
+  getProductAvailability: (id: string) => axiosClient.get(`/products/${id}/availability`),
   getProductsByCategory: (categorySlug: string) => axiosClient.get(`/products/category/${categorySlug}`),
-  getAllProducts: () => axiosClient.get("/products"),
-  searchProducts: (params: { search?: string; minPrice?: number; maxPrice?: number; sort?: string; limit?: number }) => 
-    axiosClient.get("/products", { params }),
+  getAllProducts: (params?: ProductQuery) => axiosClient.get("/products", { params }),
+  searchProducts: (params: ProductQuery) => axiosClient.get("/products", { params }),
 };
 
-export const fetchAllProducts = async () => {
+export interface ProductQuery {
+  search?: string;
+  categoryId?: string;
+  minPrice?: number;
+  maxPrice?: number;
+  /** 'newest' (mặc định) | 'price-asc' | 'price-desc' | 'name-asc' */
+  sort?: string;
+  page?: number;
+  limit?: number;
+}
+
+export interface PagedProducts {
+  products: Product[];
+  total: number;
+  page: number;
+  limit: number;
+  totalPages: number;
+}
+
+const EMPTY_PAGE: PagedProducts = { products: [], total: 0, page: 1, limit: 12, totalPages: 0 };
+
+/**
+ * GET /products - lọc, sắp xếp và phân trang đều do server làm.
+ * Trước đây client tải hết 3000+ sản phẩm (4.5MB) rồi mới lọc trong trình duyệt.
+ */
+export const fetchProductsPaged = async (query: ProductQuery = {}): Promise<PagedProducts> => {
   try {
-    const res = await productsAPI.getAllProducts();
-    console.log('🔍 Raw API Response for all products:', res);
-    
-    // Handle different response structures
-    if (Array.isArray(res)) {
-      console.log('✅ Response is array, count:', res.length);
-      return res;
+    // Bỏ tham số rỗng để không gửi ?search=&categoryId= vô nghĩa lên server.
+    const params = Object.fromEntries(
+      Object.entries(query).filter(([, v]) => v !== undefined && v !== null && v !== '')
+    );
+    const res = await productsAPI.getAllProducts(params);
+    const body = res as unknown as Partial<PagedProducts>;
+
+    if (Array.isArray(body?.products)) {
+      return { ...EMPTY_PAGE, ...body } as PagedProducts;
     }
-    
-    const apiRes = res as unknown as ApiResponse;
-    if (apiRes.success && apiRes.data) {
-      const products = Array.isArray(apiRes.data) ? apiRes.data : [];
-      console.log('✅ Response has data, count:', products.length);
-      return products;
-    }
-    
-    // Fallback: check if res has data property directly
-    if ((res as { data?: unknown }).data && Array.isArray((res as { data?: unknown }).data)) {
-      console.log('✅ Response has direct data, count:', ((res as { data?: Product[] }).data)?.length);
-      return (res as { data?: Product[] }).data || [];
-    }
-    
-    console.warn('⚠️ No products found in response');
-    return [];
+
+    console.warn('⚠️ Products response không đúng shape mong đợi:', res);
+    return EMPTY_PAGE;
   } catch (error: unknown) {
-    console.error("❌ Fetch all products error:", error);
-    return [];
+    console.error("❌ Fetch products error:", error);
+    return EMPTY_PAGE;
   }
+};
+
+/**
+ * Trả mảng phẳng cho các màn hình chưa dùng phân trang.
+ * Server kẹp limit tối đa ở 100 nên đây KHÔNG phải toàn bộ danh mục.
+ */
+export const fetchAllProducts = async (limit = 100): Promise<Product[]> => {
+  const { products } = await fetchProductsPaged({ limit });
+  return products;
 };
 
 export const fetchFeaturedProducts = async () => {
@@ -123,6 +145,33 @@ export const fetchProductById = async (id: string) => {
   }
 };
 
+export interface WarehouseAvailability {
+  warehouseId: string;
+  warehouseCode: string;
+  warehouseName: string;
+  variants: Array<{
+    variantId: string;
+    sku: string;
+    inStock: boolean;
+    lowStock: boolean;
+  }>;
+}
+
+export const fetchProductAvailability = async (
+  id: string
+): Promise<WarehouseAvailability[]> => {
+  try {
+    const res: any = await productsAPI.getProductAvailability(id);
+    // axiosClient đã bóc sẵn lớp {data}: response có thể là {warehouses}
+    // trực tiếp hoặc {success, data: {warehouses}} - hứng cả 2 dạng.
+    const payload = res?.warehouses ? res : res?.data;
+    return payload?.warehouses || [];
+  } catch (error: unknown) {
+    console.error("Fetch product availability error:", error);
+    return [];
+  }
+};
+
 export const fetchProductsByCategory = async (categorySlug: string) => {
   try {
     const res = await productsAPI.getProductsByCategory(categorySlug);
@@ -141,29 +190,7 @@ export const fetchProductsByCategory = async (categorySlug: string) => {
   }
 };
 
-export const searchProducts = async (params: { search?: string; minPrice?: number; maxPrice?: number; sort?: string; limit?: number }) => {
-  try {
-    const res = await productsAPI.searchProducts(params);
-    console.log("Search products response:", res);
-    
-    // Handle different response structures
-    if (Array.isArray(res)) {
-      return res;
-    }
-    
-    const apiRes = res as unknown as ApiResponse;
-    if (apiRes.success && apiRes.data) {
-      return Array.isArray(apiRes.data) ? apiRes.data : [];
-    }
-    
-    // Fallback: check if res has data property directly
-    if ((res as { data?: unknown }).data && Array.isArray((res as { data?: unknown }).data)) {
-      return (res as { data?: Product[] }).data || [];
-    }
-    
-    return [];
-  } catch (error: unknown) {
-    console.error("Search products error:", error);
-    return [];
-  }
+export const searchProducts = async (params: ProductQuery): Promise<Product[]> => {
+  const page = await fetchProductsPaged(params);
+  return page.products;
 };

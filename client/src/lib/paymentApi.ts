@@ -13,13 +13,10 @@ export interface CreateVNPayPaymentResponse {
  */
 export const createVNPayPayment = async (orderId: string): Promise<CreateVNPayPaymentResponse> => {
   try {
-    const response = await axiosClient.post(`/payment/vnpay/${orderId}`);
+    const response: any = await axiosClient.post(`/payment/vnpay/${orderId}`);
     console.log('createVNPayPayment raw response:', response);
     
-    // Interceptor có thể đã transform response
-    // Response có thể là: { success: true, data: { paymentUrl: "..." } }
-    // hoặc trực tiếp: { paymentUrl: "..." }
-    return response.data as CreateVNPayPaymentResponse;
+    return (response?.data ?? response) as CreateVNPayPaymentResponse;
   } catch (error: unknown) {
     console.error('createVNPayPayment error:', error);
     const err = error as { response?: { data?: { message?: string } } };
@@ -32,8 +29,8 @@ export const createVNPayPayment = async (orderId: string): Promise<CreateVNPayPa
  */
 export const processCODPayment = async (orderId: string) => {
   try {
-    const response = await axiosClient.post(`/payment/cod/${orderId}`);
-    return response.data;
+    const response: any = await axiosClient.post(`/payment/cod/${orderId}`);
+    return response?.data ?? response;
   } catch (error: unknown) {
     const err = error as { response?: { data?: { message?: string } } };
     throw err?.response?.data || error;
@@ -45,8 +42,8 @@ export const processCODPayment = async (orderId: string) => {
  */
 export const getPaymentByOrderId = async (orderId: string) => {
   try {
-    const response = await axiosClient.get(`/payment/order/${orderId}`);
-    return response.data;
+    const response: any = await axiosClient.get(`/payment/order/${orderId}`);
+    return response?.data ?? response;
   } catch (error: unknown) {
     const err = error as { response?: { data?: { message?: string } } };
     throw err?.response?.data || error;

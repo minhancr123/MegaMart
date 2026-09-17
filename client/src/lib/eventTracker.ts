@@ -35,9 +35,27 @@ export const trackEvent = async (
 
   // Track to backend database
   try {
-    await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'}/analytics/track-event`, {
+    // Get token from localStorage (where zustand persists it in "auth-storage")
+    let token = null;
+    if (typeof window !== 'undefined') {
+      const authStorage = localStorage.getItem('auth-storage');
+      if (authStorage) {
+        try {
+          const parsed = JSON.parse(authStorage);
+          token = parsed?.token ?? null;
+          console.log('[EventTracker] Token found:', token ? 'YES' : 'NO', token ? `(length: ${token.length})` : '');
+        } catch (e) {
+          console.error('Failed to parse auth-storage:', e);
+        }
+      }
+    }
+    
+    await fetch(`${(process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001').replace(/\/$/, '')}/api/analytics/track-event`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 
+        'Content-Type': 'application/json',
+        ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+      },
       body: JSON.stringify({
         eventType,
         eventName,

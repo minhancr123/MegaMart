@@ -2,6 +2,18 @@ import axiosClient from './axiosClient';
 
 // ============== BANNER API ==============
 
+export type BannerPosition = 'HOME_SLIDER' | 'CATEGORY' | 'POPUP';
+export type BannerTemplate = 'STATIC' | 'AUTO' | 'TEMPLATE_1' | 'TEMPLATE_2' | 'TEMPLATE_3';
+export type BannerDisplayStatus = 'active' | 'scheduled' | 'expired' | 'paused';
+
+export interface FeaturedProduct {
+  id: string;
+  name: string;
+  imageUrl: string | null;
+  price: number | null;
+  salePrice: number | null;
+}
+
 export interface Banner {
   id: string;
   title: string;
@@ -10,8 +22,16 @@ export interface Banner {
   linkUrl?: string;
   displayOrder: number;
   active: boolean;
-  startDate?: string;
-  endDate?: string;
+  startDate?: string | null;
+  endDate?: string | null;
+  position?: string;
+  template?: string;
+  ctaText?: string;
+  badgeText?: string;
+  featuredProductIds?: string[];
+  featuredProducts?: FeaturedProduct[];
+  impressions?: number;
+  clicks?: number;
   createdAt: string;
   updatedAt: string;
 }
@@ -23,8 +43,15 @@ export interface CreateBannerDto {
   linkUrl?: string;
   displayOrder?: number;
   active?: boolean;
-  startDate?: string;
-  endDate?: string;
+  startDate?: string | null;
+  endDate?: string | null;
+  position?: string;
+  template?: string;
+  ctaText?: string;
+  badgeText?: string;
+  featuredProductIds?: string[];
+  impressions?: number;
+  clicks?: number;
 }
 
 export interface UpdateBannerDto extends Partial<CreateBannerDto> {}
@@ -51,8 +78,20 @@ export const bannerApi = {
     axiosClient.put<Banner>(`/banners/${id}`, data),
 
   // Reorder banners
-  reorder: (bannerIds: string[]) => 
+  reorder: (bannerIds: string[]) =>
     axiosClient.put('/banners/reorder', { bannerIds }),
+
+  // Thống kê KPI cho trang quản trị
+  getStats: async (): Promise<{
+    active: number;
+    scheduled: number;
+    expired: number;
+    totalClicks: number;
+    totalImpressions: number;
+  }> => {
+    const res: any = await axiosClient.get('/banners/stats');
+    return (res?.data ?? res) as any;
+  },
 
   // Toggle active status
   toggleActive: (id: string) => 

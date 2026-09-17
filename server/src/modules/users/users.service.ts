@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, ConflictException, HttpException } from '@nestjs/common';
+import { Injectable, NotFoundException, ConflictException, HttpException, ForbiddenException, BadRequestException } from '@nestjs/common';
 import { PrismaService } from 'src/prismaClient/prisma.service';
 import { CreateUserDto, UpdateUserDto } from './dto/user.dto';
 import { hash, compare } from 'bcryptjs';
@@ -7,17 +7,114 @@ import { hash, compare } from 'bcryptjs';
 export class UsersService {
     constructor(private prisma: PrismaService) {}
 
-    async findAll() {
+    async findAll(filter?: { role?: string }) {
+        const where: any = {};
+        if (filter?.role && ['USER', 'ADMIN', 'SUPPLIER', 'SHIPPER'].includes(filter.role)) {
+            where.role = filter.role;
+        }
         return this.prisma.user.findMany({
+            where,
             select: {
                 id: true,
                 email: true,
                 name: true,
+                avatarUrl: true,
                 role: true,
+                loyaltyPoints: true,
+                wallet: { select: { balance: true } },
+                supplierId: true,
+                supplier: { select: { id: true, name: true, code: true } },
                 createdAt: true,
                 updatedAt: true,
+                _count: { select: { orders: true } },
             },
+            orderBy: { createdAt: 'desc' },
         });
+    }
+
+    async getCustomer360(id: string) {
+        const user = await this.prisma.user.findUnique({
+            where: { id },
+            include: {
+                wallet: true,
+                shipperProfile: true,
+            }
+        });
+        if (!user) throw new NotFoundException('Không tìm thấy khách hàng');
+
+        const [recentOrders, walletTransactions, loyaltyTransactions, stats] = await Promise.all([
+            this.prisma.order.findMany({
+                where: { userId: id },
+                take: 10,
+                orderBy: { createdAt: 'desc' },
+                include: { _count: { select: { items: true } } }
+            }),
+            (this.prisma as any).walletTransaction.findMany({
+                where: { wallet: { userId: id } },
+                take: 10,
+                orderBy: { createdAt: 'desc' }
+            }),
+            (this.prisma as any).loyaltyTransaction.findMany({
+                where: { userId: id },
+                take: 10,
+                orderBy: { createdAt: 'desc' }
+            }),
+            this.prisma.order.aggregate({
+                where: { userId: id, status: { in: ['DELIVERED', 'COMPLETED', 'PAID'] } },
+                _sum: { total: true },
+                _count: { id: true },
+                _max: { createdAt: true }
+            })
+        ]);
+
+        const lifetimePoints = (user as any).lifetimePoints || 0;
+        const TIER_RULES = [
+            { name: 'Kim Cương', icon: '💎', minPoints: 20000 },
+            { name: 'Vàng', icon: '🥇', minPoints: 5000 },
+            { name: 'Bạc', icon: '🥈', minPoints: 1000 },
+            { name: 'Thành viên', icon: '🥉', minPoints: 0 },
+        ];
+        const tier = TIER_RULES.find(t => lifetimePoints >= t.minPoints) || TIER_RULES[3];
+
+        return {
+            user: {
+                id: user.id,
+                email: user.email,
+                name: user.name,
+                phone: (user as any).shipperProfile?.phone || null,
+                role: user.role,
+                avatarUrl: user.avatarUrl,
+                createdAt: user.createdAt,
+            },
+            financial: {
+                walletBalance: Number(user.wallet?.balance || 0),
+                walletStatus: (user.wallet as any)?.status || 'ACTIVE',
+                loyaltyPoints: (user as any).loyaltyPoints || 0,
+                lifetimePoints,
+                tierName: tier.name,
+                tierIcon: tier.icon,
+            },
+            stats: {
+                totalOrders: stats._count.id || 0,
+                totalSpent: Number(stats._sum.total || 0),
+                lastOrderDate: stats._max.createdAt || null,
+            },
+            recentOrders: recentOrders.map(o => ({
+                id: o.id,
+                code: o.code,
+                status: o.status,
+                total: Number(o.total),
+                createdAt: o.createdAt,
+                itemCount: o._count.items
+            })),
+            recentWalletTransactions: walletTransactions.map((t: any) => ({
+                ...t,
+                amount: Number(t.amount),
+                balanceBefore: Number(t.balanceBefore),
+                balanceAfter: Number(t.balanceAfter)
+            })),
+            recentPointTransactions: loyaltyTransactions
+        };
     }
 
     async findOne(id: string) {
@@ -28,6 +125,7 @@ export class UsersService {
                 email: true,
                 name: true,
                 role: true,
+                supplierId: true,
                 createdAt: true,
                 updatedAt: true,
             },
@@ -55,28 +153,79 @@ export class UsersService {
             throw new ConflictException('User with this email already exists');
         }
 
+        // Role qua API này chỉ cho USER/SUPPLIER (DTO đã chặn ADMIN).
+        // SUPPLIER bắt buộc gắn 1 NCC tồn tại.
+        const role = (createUserDto as any).role || 'USER';
+        let supplierId: string | undefined;
+        if (role === 'SUPPLIER') {
+            supplierId = (createUserDto as any).supplierId;
+            if (!supplierId) {
+                throw new BadRequestException('Tạo tài khoản NCC phải chọn nhà cung cấp');
+            }
+            const supplier = await this.prisma.supplier.findUnique({ where: { id: supplierId } });
+            if (!supplier) {
+                throw new BadRequestException('Nhà cung cấp không tồn tại');
+            }
+        }
+
         // Hash password
         const passwordHash = await hash(password, 12);
-        
+
         return this.prisma.user.create({
             data: {
                 email,
                 passwordHash,
                 name,
+                role: role as any,
+                supplierId,
             },
             select: {
                 id: true,
                 email: true,
                 name: true,
                 role: true,
+                supplierId: true,
                 createdAt: true,
                 updatedAt: true,
             },
         });
     }
 
-    async update(id: string, updateUserDto: UpdateUserDto) {
+    async update(id: string, updateUserDto: UpdateUserDto, requester?: any) {
         const user = await this.findOne(id);
+        const isAdmin = requester?.role === 'ADMIN';
+
+        // Đổi role/supplierId chỉ ADMIN được làm, và không được tự đổi role của mình
+        // (tránh tự khóa quyền admin).
+        const wantsRoleChange =
+            (updateUserDto as any).role !== undefined ||
+            (updateUserDto as any).supplierId !== undefined;
+        if (wantsRoleChange) {
+            if (!isAdmin) {
+                throw new ForbiddenException('Chỉ quản trị viên được đổi vai trò');
+            }
+            if (requester?.userId === id && (updateUserDto as any).role !== undefined) {
+                throw new ForbiddenException('Không được tự đổi vai trò của chính mình');
+            }
+            if ((updateUserDto as any).role === 'SUPPLIER' && !(updateUserDto as any).supplierId && !(user as any).supplierId) {
+                throw new BadRequestException('Gán role NCC phải chọn nhà cung cấp');
+            }
+            if ((updateUserDto as any).supplierId) {
+                const supplier = await this.prisma.supplier.findUnique({
+                    where: { id: (updateUserDto as any).supplierId },
+                });
+                if (!supplier) {
+                    throw new BadRequestException('Nhà cung cấp không tồn tại');
+                }
+            }
+            // Hạ từ SUPPLIER xuống role khác thì gỡ link NCC
+            if ((updateUserDto as any).role && (updateUserDto as any).role !== 'SUPPLIER') {
+                (updateUserDto as any).supplierId = null;
+            }
+        } else if (!isAdmin && requester?.userId !== id) {
+            // User thường chỉ được sửa chính mình
+            throw new ForbiddenException('Bạn chỉ được sửa tài khoản của mình');
+        }
 
         if (updateUserDto.email) {
             const existingUser = await this.findByEmail(updateUserDto.email);
@@ -87,12 +236,13 @@ export class UsersService {
 
         return this.prisma.user.update({
             where: { id },
-            data: updateUserDto,
+            data: updateUserDto as any,
             select: {
                 id: true,
                 email: true,
                 name: true,
                 role: true,
+                supplierId: true,
                 createdAt: true,
                 updatedAt: true,
             },

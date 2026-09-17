@@ -76,18 +76,12 @@ export class AuthService {
   }
 
   async getProfile(userId: string): Promise<UserResponseDto> {
-    const user = await this.userService.findOne(userId);
-    const { passwordHash, ...safeUser } = user;
-    return safeUser;
+    return this.userService.findOne(userId);
   }
 
   async validateUserById(userId: string): Promise<UserResponseDto | null> {
     try {
-      const user = await this.userService.findOne(userId);
-      if (!user) return null;
-
-      const { passwordHash, ...safeUser } = user;
-      return safeUser;
+      return await this.userService.findOne(userId);
     } catch (error) {
       return null;
     }

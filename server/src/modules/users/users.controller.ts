@@ -7,9 +7,15 @@ import {
   Param,
   Delete,
   HttpStatus,
+  HttpException,
   UseGuards,
   ValidationPipe,
+  Req,
+  Query,
+  UnauthorizedException,
 } from '@nestjs/common';
+import { JwtAuthGuard } from 'src/guards/jwt-auth.guard';
+import { AdminGuard } from 'src/guards/admin.guard';
 import {
   ApiTags,
   ApiOperation,
@@ -17,17 +23,26 @@ import {
   ApiParam,
   ApiBearerAuth,
   ApiBody,
+  ApiQuery,
 } from '@nestjs/swagger';
 import { UsersService } from './users.service';
-import { CreateUserDto, UpdateUserDto, UserResponseDto } from './dto/user.dto';
+import { WalletService } from '../wallet/wallet.service';
+import { LoyaltyService } from '../loyalty/loyalty.service';
+import { CreateUserDto, UpdateUserDto, UserResponseDto, QueryUserDto } from './dto/user.dto';
 
 @ApiTags('users')
 @Controller('users')
 export class UsersController {
-  constructor(private readonly usersService: UsersService) {}
+  constructor(
+    private readonly usersService: UsersService,
+    private readonly walletService: WalletService,
+    private readonly loyaltyService: LoyaltyService,
+  ) {}
 
   @Post()
-  @ApiOperation({ summary: 'Create a new user' })
+  @UseGuards(JwtAuthGuard, AdminGuard)
+  @ApiBearerAuth('JWT-auth')
+  @ApiOperation({ summary: 'Create a new user (ADMIN only, đăng ký thường đi qua /auth/signup)' })
   @ApiBody({ type: CreateUserDto })
   @ApiResponse({
     status: HttpStatus.CREATED,
@@ -47,18 +62,48 @@ export class UsersController {
   }
 
   @Get()
-  @ApiOperation({ summary: 'Get all users' })
+  @UseGuards(JwtAuthGuard, AdminGuard)
+  @ApiBearerAuth('JWT-auth')
+  @ApiOperation({ summary: 'Get all users (lọc theo vai trò nếu truyền role)' })
+  @ApiQuery({ name: 'role', required: false, enum: ['USER', 'ADMIN', 'SUPPLIER', 'SHIPPER'] })
   @ApiResponse({
     status: HttpStatus.OK,
     description: 'List of all users',
     type: [UserResponseDto],
   })
-  // @ApiBearerAuth('JWT-auth') // Uncomment when authentication is implemented
-  findAll() {
-    return this.usersService.findAll();
+  findAll(@Query() query: QueryUserDto) {
+    return this.usersService.findAll(query);
+  }
+
+  @Get(':id/customer-360')
+  @UseGuards(JwtAuthGuard, AdminGuard)
+  @ApiBearerAuth('JWT-auth')
+  @ApiOperation({ summary: 'Get customer 360 view (CRM)' })
+  getCustomer360(@Param('id') id: string) {
+    return this.usersService.getCustomer360(id);
+  }
+
+  @Post(':id/adjust-wallet')
+  @UseGuards(JwtAuthGuard, AdminGuard)
+  @ApiBearerAuth('JWT-auth')
+  @ApiOperation({ summary: 'Admin cộng/trừ tiền ví khách hàng' })
+  adjustWallet(@Param('id') id: string, @Body() body: any) {
+    const { amount, reason } = body;
+    return this.walletService.credit(id, amount, undefined, 'ADJUSTMENT', reason);
+  }
+
+  @Post(':id/adjust-points')
+  @UseGuards(JwtAuthGuard, AdminGuard)
+  @ApiBearerAuth('JWT-auth')
+  @ApiOperation({ summary: 'Admin tặng/điều chỉnh điểm loyalty' })
+  adjustPoints(@Param('id') id: string, @Body() body: any) {
+    const { amount, reason, type } = body;
+    return this.loyaltyService.adminAdjustPoints(id, amount, reason, type || 'BONUS');
   }
 
   @Get(':id')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth('JWT-auth')
   @ApiOperation({ summary: 'Get user by ID' })
   @ApiParam({
     name: 'id',
@@ -101,11 +146,13 @@ export class UsersController {
     description: 'Email already in use',
   })
   // @ApiBearerAuth('JWT-auth') // Uncomment when authentication is implemented
+  @UseGuards(JwtAuthGuard)
   update(
     @Param('id') id: string,
     @Body(ValidationPipe) updateUserDto: UpdateUserDto,
+    @Req() req: any,
   ) {
-    return this.usersService.update(id, updateUserDto);
+    return this.usersService.update(id, updateUserDto, req.user);
   }
   @ApiParam({
       name: 'id',
@@ -155,7 +202,14 @@ export class UsersController {
     description: 'User not found',
   })
   // @ApiBearerAuth('JWT-auth') // Uncomment when authentication is implemented
-  remove(@Param('id') id: string) {
+  @UseGuards(JwtAuthGuard, AdminGuard)
+  remove(@Param('id') id: string, @Req() req: any) {
+    if (req.user?.userId === id) {
+      throw new HttpException(
+        { success: false, message: 'Không thể xóa chính tài khoản của mình' },
+        HttpStatus.BAD_REQUEST
+      );
+    }
     return this.usersService.remove(id);
   }
 }

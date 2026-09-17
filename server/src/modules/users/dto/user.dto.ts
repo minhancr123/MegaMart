@@ -1,5 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsEmail, IsNotEmpty, IsOptional, IsString, MinLength } from 'class-validator';
+import { IsEmail, IsNotEmpty, IsOptional, IsString, MinLength, IsIn } from 'class-validator';
 
 export class CreateUserDto {
   @ApiProperty({
@@ -27,6 +27,24 @@ export class CreateUserDto {
   @IsOptional()
   @IsString()
   name?: string;
+
+  @ApiProperty({
+    description: 'Role (chỉ ADMIN được set)',
+    example: 'SUPPLIER',
+    required: false,
+    enum: ['USER', 'SUPPLIER', 'ADMIN', 'SHIPPER'],
+  })
+  @IsOptional()
+  @IsIn(['USER', 'SUPPLIER', 'ADMIN', 'SHIPPER'])
+  role?: string;
+
+  @ApiProperty({
+    description: 'ID nhà cung cấp (bắt buộc khi role=SUPPLIER)',
+    required: false,
+  })
+  @IsOptional()
+  @IsString()
+  supplierId?: string;
 }
 
 export class UpdateUserDto {
@@ -47,6 +65,23 @@ export class UpdateUserDto {
   @IsOptional()
   @IsEmail()
   email?: string;
+
+  @ApiProperty({
+    description: 'Role (chỉ ADMIN được đổi)',
+    required: false,
+    enum: ['USER', 'SUPPLIER', 'ADMIN', 'SHIPPER'],
+  })
+  @IsOptional()
+  @IsIn(['USER', 'SUPPLIER', 'ADMIN', 'SHIPPER'])
+  role?: string;
+
+  @ApiProperty({
+    description: 'ID nhà cung cấp (bắt buộc khi role=SUPPLIER)',
+    required: false,
+  })
+  @IsOptional()
+  @IsString()
+  supplierId?: string;
 }
 
 export class LoginDto {
@@ -105,4 +140,15 @@ export class UserResponseDto {
     example: '2025-01-01T00:00:00.000Z',
   })
   updatedAt: Date;
+}
+
+export class QueryUserDto {
+  @ApiProperty({
+    description: 'Lọc theo vai trò (USER, ADMIN, SUPPLIER, SHIPPER)',
+    required: false,
+    enum: ['USER', 'ADMIN', 'SUPPLIER', 'SHIPPER'],
+  })
+  @IsOptional()
+  @IsIn(['USER', 'ADMIN', 'SUPPLIER', 'SHIPPER'])
+  role?: string;
 }

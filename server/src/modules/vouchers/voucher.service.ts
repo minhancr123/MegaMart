@@ -57,14 +57,15 @@ export class VoucherService {
     return 0;
   }
 
-  async validate(code: string, userId: string | undefined, subtotal: number | undefined) {
-    const voucher = await this.prisma.voucher.findUnique({ where: { code } });
+  async validate(code: string, userId: string | undefined, subtotal: number | undefined, tx?: any) {
+    const client = tx || this.prisma;
+    const voucher = await client.voucher.findUnique({ where: { code } });
     if (!voucher) throw new NotFoundException('Không tìm thấy voucher');
 
     this.assertUsable(voucher, userId, subtotal);
 
     if (userId && voucher.usagePerUser) {
-      const used = await this.prisma.voucherUsage.count({ where: { voucherId: voucher.id, userId } });
+      const used = await client.voucherUsage.count({ where: { voucherId: voucher.id, userId } });
       if (used >= voucher.usagePerUser) throw new BadRequestException('Bạn đã dùng hết lượt voucher này');
     }
 
@@ -72,18 +73,17 @@ export class VoucherService {
     return { voucher, discount };
   }
 
-  async consume(code: string, userId: string | undefined, orderId: string | undefined, subtotal: number) {
-    const { voucher, discount } = await this.validate(code, userId, subtotal);
+  async consume(code: string, userId: string | undefined, orderId: string | undefined, subtotal: number, tx?: any) {
+    const { voucher, discount } = await this.validate(code, userId, subtotal, tx);
+    const client = tx || this.prisma;
 
-    await this.prisma.$transaction(async (tx) => {
-      await tx.voucher.update({ where: { id: voucher.id }, data: { usedCount: { increment: 1 } } });
-      await tx.voucherUsage.create({
-        data: {
-          voucherId: voucher.id,
-          userId: userId || 'guest',
-          orderId,
-        },
-      });
+    await client.voucher.update({ where: { id: voucher.id }, data: { usedCount: { increment: 1 } } });
+    await client.voucherUsage.create({
+      data: {
+        voucherId: voucher.id,
+        userId: userId || 'guest',
+        orderId,
+      },
     });
 
     return { voucher, discount };

@@ -52,7 +52,7 @@ export default function WishlistPage() {
                 Hãy thêm sản phẩm yêu thích để dễ dàng theo dõi và mua sắm sau này
               </p>
               <Link href="/products">
-                <Button className="bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700">
+                <Button className="rounded-full bg-[#fc4c00] hover:bg-[#af3200] text-white">
                   <ShoppingCart className="w-4 h-4 mr-2" />
                   Khám phá sản phẩm
                 </Button>

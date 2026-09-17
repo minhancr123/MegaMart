@@ -56,7 +56,7 @@ export default function ProductRecommendations({
             id: p.id,
             name: p.name,
             price: p.variants?.[0]?.price || p.price || 0,
-            imageUrl: getPrimaryImageUrl(p) || p.images?.[0]?.url || "",
+            imageUrl: getPrimaryImageUrl(p?.images) || p.images?.[0]?.url || p.imageUrl || "",
             categoryName: p.category?.name || categoryName,
             soldCount: p.soldCount || 0,
           }));
@@ -179,7 +179,7 @@ export default function ProductRecommendations({
                 <h3 className="text-xs sm:text-sm font-medium text-gray-900 dark:text-white line-clamp-2 leading-tight mb-1.5">
                   {product.name}
                 </h3>
-                <p className="text-sm font-bold text-red-600 dark:text-red-400">
+                <p className="text-sm font-bold text-[#af3200] dark:text-[#ff571a]">
                   {formatPrice(product.price)}
                 </p>
                 {product.categoryName && (

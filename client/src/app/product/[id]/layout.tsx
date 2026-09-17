@@ -5,9 +5,10 @@ export const dynamic = 'force-dynamic';
 
 export default function ProductDetailLayout({ children }: { children: React.ReactNode }) {
   return (
-    <div className="min-h-screen bg-white dark:bg-gray-950">
+    <div className="min-h-screen bg-[#f7f8fa]">
       <Header />
-      <main className="pt-[100px] md:pt-[120px] min-h-[60vh]">{children}</main>
+      {/* Header fixed cao 92px (promo 28px + navbar 64px) + 8px thở */}
+      <main className="min-h-[60vh] pt-[100px]">{children}</main>
       <Footer />
     </div>
   );

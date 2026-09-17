@@ -22,7 +22,9 @@ import { useState, memo } from "react";
 import Link from "next/link";
 import { useWishlistStore } from "@/store/wishlistStore";
 import { useCompareStore } from "@/store/compareStore";
-import { getPrimaryImageUrl } from "@/lib/imageUtils";
+import { getPrimaryImageUrl, handleImageError } from '@/lib/imageUtils';
+import { visibleAttributes, formatAttributeValue } from '@/lib/productAttributes';
+import { getAvailableStock } from '@/lib/stock';
 
 interface ProductCardProps {
   product: Product;
@@ -91,7 +93,7 @@ const ProductCardComponent = ({ product, onAddToCart, onViewDetails }: ProductCa
     }
 
     const prices = product.variants.map(v => Number(v.price) || 0).filter(p => p > 0);
-    const stocks = product.variants.map(v => Number(v.stock) || 0);
+    const stocks = product.variants.map(v => getAvailableStock(v));
 
     if (prices.length === 0) {
       return {
@@ -158,8 +160,8 @@ const ProductCardComponent = ({ product, onAddToCart, onViewDetails }: ProductCa
   };
 
   return (
-    <div className="group h-full">
-      <div className="relative flex flex-col bg-white dark:bg-gray-900 rounded-2xl border border-slate-200 dark:border-gray-800 hover:border-indigo-300 dark:hover:border-indigo-700 hover:shadow-xl transition-all duration-200 overflow-hidden h-full">
+    <div className="group h-full w-full min-w-0">
+      <div className="relative flex h-full min-w-0 flex-col overflow-hidden rounded-xl border border-slate-200 bg-white transition-[border-color,box-shadow] duration-300 hover:border-[#fc4c00]/40 hover:shadow-md dark:border-gray-800 dark:bg-gray-900 dark:hover:border-[#ff571a]/40">
         {/* Product Image */}
         <Link href={`/product/${product.id}`} className="relative block overflow-hidden bg-slate-50 dark:bg-gray-800 rounded-t-2xl group">
           <div className="aspect-square relative overflow-hidden">
@@ -168,7 +170,8 @@ const ProductCardComponent = ({ product, onAddToCart, onViewDetails }: ProductCa
                 src={productImage}
                 alt={product.name}
                 loading="lazy"
-                className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105 dark:brightness-90"
+                onError={handleImageError}
+                className="h-full w-full object-contain p-3 transition-transform duration-300 group-hover:scale-105 sm:p-4 dark:brightness-90"
               />
             ) : (
               <div className="w-full h-full bg-gradient-to-br from-slate-100 to-slate-200 dark:from-gray-800 dark:to-gray-900 flex items-center justify-center">
@@ -195,8 +198,8 @@ const ProductCardComponent = ({ product, onAddToCart, onViewDetails }: ProductCa
 
           {/* Badges */}
           <div className="absolute top-3 left-3 flex flex-col gap-2">
-            {product.variants && product.variants.length > 0 && (
-              <Badge className="bg-gradient-to-r from-indigo-600 to-purple-600 text-white border-none shadow-lg backdrop-blur-sm">
+            {product.variants && product.variants.length > 1 && (
+              <Badge className="bg-[#fc4c00] text-white border-none shadow-lg backdrop-blur-sm">
                 {stats.variantCount} phiên bản
               </Badge>
             )}
@@ -231,7 +234,7 @@ const ProductCardComponent = ({ product, onAddToCart, onViewDetails }: ProductCa
                 e.preventDefault();
                 compare.toggle(product);
               }}
-              className={`h-10 w-10 rounded-xl bg-white/90 backdrop-blur-sm shadow-lg hover:shadow-xl hover:scale-110 transition-all duration-200 flex items-center justify-center cursor-pointer ${compare.exists(product.id) ? "text-indigo-600" : "text-slate-600"}`}
+              className={`h-10 w-10 rounded-xl bg-white/90 backdrop-blur-sm shadow-lg hover:shadow-xl hover:scale-110 transition-all duration-200 flex items-center justify-center cursor-pointer ${compare.exists(product.id) ? "text-[#af3200]" : "text-slate-600"}`}
             >
               <Scale className="h-5 w-5" />
             </button>
@@ -239,10 +242,10 @@ const ProductCardComponent = ({ product, onAddToCart, onViewDetails }: ProductCa
         </Link>
 
         {/* Content */}
-        <div className="flex-1 flex flex-col p-5">
+        <div className="flex min-w-0 flex-1 flex-col p-5">
           {/* Title */}
           <Link href={`/product/${product.id}`} className="cursor-pointer">
-            <h3 className="font-bold text-slate-900 dark:text-white group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors leading-tight line-clamp-2 mb-3 h-12">
+            <h3 className="mb-3 min-h-[2.7rem] break-words font-bold leading-[1.35] text-slate-900 line-clamp-2 transition-colors group-hover:text-[#af3200] dark:text-white dark:group-hover:text-[#ff571a]">
               {product.name}
             </h3>
           </Link>
@@ -284,7 +287,7 @@ const ProductCardComponent = ({ product, onAddToCart, onViewDetails }: ProductCa
 
           {/* Price */}
           <div className="mb-4">
-            <div className="text-lg font-bold text-indigo-600 dark:text-indigo-400">
+            <div className="text-lg font-bold text-[#af3200] dark:text-[#ff571a]">
               {selectedVariant ? formatPrice(Number(selectedVariant.price)) : getPriceRange()}
             </div>
             {selectedVariant ? (
@@ -302,11 +305,11 @@ const ProductCardComponent = ({ product, onAddToCart, onViewDetails }: ProductCa
           {product.variants && product.variants.length > 0 && (
             <div className="mb-4 space-y-3">
               {/* SKU dropdown - select variant first */}
-              <DropdownMenu>
+              {product.variants.length > 1 && <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button
                     variant="outline"
-                    className="w-full justify-between text-left hover:bg-indigo-50 dark:hover:bg-indigo-900/20 hover:border-indigo-300 dark:hover:border-indigo-700 transition-all rounded-xl dark:bg-gray-800 dark:border-gray-700 dark:text-white"
+                    className="w-full justify-between text-left hover:bg-[#fc4c00]/5 dark:hover:bg-[#fc4c00]/10 hover:border-[#fc4c00]/40 transition-all rounded-xl dark:bg-gray-800 dark:border-gray-700 dark:text-white"
                   >
                     <div className="flex-1 min-w-0 truncate">
                       {selectedVariant ? (
@@ -315,7 +318,7 @@ const ProductCardComponent = ({ product, onAddToCart, onViewDetails }: ProductCa
                         <span className="text-slate-500 dark:text-gray-400 text-sm">Chọn phiên bản</span>
                       )}
                     </div>
-                    <ChevronDown className="h-4 w-4 flex-shrink-0 text-indigo-600 dark:text-indigo-400" />
+                    <ChevronDown className="h-4 w-4 flex-shrink-0 text-[#af3200] dark:text-[#ff571a]" />
                   </Button>
                 </DropdownMenuTrigger>
 
@@ -323,37 +326,37 @@ const ProductCardComponent = ({ product, onAddToCart, onViewDetails }: ProductCa
                   {product.variants.map((variant) => (
                     <DropdownMenuItem
                       key={variant.id}
-                      className={`cursor-pointer p-3 ${selectedVariant?.id === variant.id ? 'bg-indigo-50 dark:bg-indigo-900/20' : ''} dark:text-white dark:hover:bg-gray-800`}
+                      className={`cursor-pointer p-3 ${selectedVariant?.id === variant.id ? 'bg-[#fc4c00]/10 dark:bg-[#fc4c00]/10' : ''} dark:text-white dark:hover:bg-gray-800`}
                       onSelect={() => {
-                        if (variant.stock > 0) {
+                        if (getAvailableStock(variant) > 0) {
                           setSelectedVariant(variant);
                           setSelectedColorIndex(0); // Reset to first color
                         }
                       }}
-                      disabled={variant.stock === 0}
+                      disabled={getAvailableStock(variant) === 0}
                     >
                       <div className="w-full space-y-1">
                         <div className="flex justify-between items-center">
                           <span className="font-semibold text-xs dark:text-white">{variant.sku}</span>
-                          <span className="text-indigo-600 dark:text-indigo-400 font-bold text-sm">
+                          <span className="text-[#af3200] dark:text-[#ff571a] font-bold text-sm">
                             {formatPrice(Number(variant.price))}
                           </span>
                         </div>
                         {variant.attributes && (
                           <div className="text-xs text-slate-600 dark:text-gray-300">
-                            {Object.entries(variant.attributes).map(([key, value]) => `${translateAttributeKey(key)}: ${value}`).join(", ")}
+                            {visibleAttributes(variant.attributes).map(([key, value]) => `${translateAttributeKey(key)}: ${formatAttributeValue(value)}`).join(", ")}
                           </div>
                         )}
                         <div className="text-xs">
-                          <span className={variant.stock > 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}>
-                            {variant.stock > 0 ? `Còn ${variant.stock}` : 'Hết hàng'}
+                          <span className={getAvailableStock(variant) > 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}>
+                            {getAvailableStock(variant) > 0 ? `Còn ${getAvailableStock(variant)}` : 'Hết hàng'}
                           </span>
                         </div>
                       </div>
                     </DropdownMenuItem>
                   ))}
                 </DropdownMenuContent>
-              </DropdownMenu>
+              </DropdownMenu>}
 
               {/* Color swatches - only show colors of selected variant */}
               {selectedVariant && (selectedVariant as any).colors && Array.isArray((selectedVariant as any).colors) && (selectedVariant as any).colors.length > 0 && (
@@ -365,7 +368,7 @@ const ProductCardComponent = ({ product, onAddToCart, onViewDetails }: ProductCa
                         key={index}
                         onClick={() => setSelectedColorIndex(index)}
                         className={`relative h-8 w-8 rounded-full border-2 transition-all ${selectedColorIndex === index
-                          ? 'border-indigo-600 ring-2 ring-indigo-200'
+                          ? 'border-[#af3200] ring-2 ring-[#fc4c00]/30'
                           : 'border-slate-300 hover:border-slate-400'
                           } cursor-pointer`}
                         style={{ backgroundColor: color.hex }}
@@ -382,14 +385,14 @@ const ProductCardComponent = ({ product, onAddToCart, onViewDetails }: ProductCa
               )}
 
               {/* Selected Variant Attributes */}
-              {selectedVariant && selectedVariant.attributes && Object.keys(selectedVariant.attributes).length > 0 && (
-                <div className="space-y-2 p-3 bg-slate-50 dark:bg-gray-800 rounded-lg">
+              {selectedVariant && visibleAttributes(selectedVariant.attributes).length > 0 && (
+                <div className="space-y-2 p-3 bg-slate-50 dark:bg-gray-800 rounded-xl">
                   <div className="text-xs font-medium text-slate-600 dark:text-gray-300">Thông số:</div>
                   <div className="flex flex-wrap gap-2">
-                    {Object.entries(selectedVariant.attributes).map(([key, value]) => (
+                    {visibleAttributes(selectedVariant.attributes).map(([key, value]) => (
                       <div key={key} className="flex items-center gap-1 text-xs">
                         <span className="font-medium text-slate-700 dark:text-gray-300 capitalize">{translateAttributeKey(key)}:</span>
-                        <span className="text-slate-600 dark:text-gray-400">{value as string}</span>
+                        <span className="text-slate-600 dark:text-gray-400">{formatAttributeValue(value)}</span>
                       </div>
                     ))}
                   </div>
@@ -403,12 +406,12 @@ const ProductCardComponent = ({ product, onAddToCart, onViewDetails }: ProductCa
           <div className="mt-auto pt-3">
             <Button
               size="default"
-              className="w-full bg-blue-600 hover:bg-blue-700 text-white shadow-md hover:shadow-lg transition-all rounded-xl font-medium h-10 cursor-pointer disabled:cursor-not-allowed"
+              className="w-full bg-[#fc4c00] hover:bg-[#af3200] text-white shadow-md hover:shadow-lg transition-all rounded-xl font-medium h-10 cursor-pointer disabled:cursor-not-allowed"
               onClick={handleAddToCart}
-              disabled={!selectedVariant || selectedVariant.stock === 0}
+              disabled={!selectedVariant || getAvailableStock(selectedVariant) <= 0}
             >
               <ShoppingCart className="h-4 w-4 mr-2" />
-              {selectedVariant && selectedVariant.stock === 0 ? "Hết hàng" : "Thêm vào giỏ"}
+              {selectedVariant && getAvailableStock(selectedVariant) <= 0 ? "Hết hàng" : "Thêm vào giỏ"}
             </Button>
           </div>
         </div>

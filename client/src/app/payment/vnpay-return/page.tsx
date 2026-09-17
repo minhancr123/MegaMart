@@ -49,12 +49,12 @@ function VNPayReturnContent() {
   }, [searchParams]);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-blue-50 dark:from-gray-950 dark:to-gray-900 flex items-center justify-center p-6">
-      <Card className="max-w-md w-full shadow-2xl">
+    <div className="min-h-screen bg-[#fbf8fd] dark:from-gray-950 dark:to-gray-900 flex items-center justify-center p-6">
+      <Card className="max-w-md w-full rounded-xl shadow-[0_4px_12px_rgba(0,0,0,0.05)]">
         <CardContent className="p-8">
           {status === "loading" && (
             <div className="text-center space-y-4">
-              <Loader2 className="w-16 h-16 mx-auto text-blue-600 animate-spin" />
+              <Loader2 className="w-16 h-16 mx-auto text-[#af3200] animate-spin" />
               <h2 className="text-xl font-semibold">Đang xử lý thanh toán...</h2>
               <p className="text-gray-600">Vui lòng chờ trong giây lát</p>
             </div>
@@ -76,7 +76,7 @@ function VNPayReturnContent() {
               <div className="flex gap-3 pt-4">
                 <Button
                   onClick={() => router.push("/profile/orders")}
-                  className="flex-1 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
+                  className="flex-1 bg-[#fc4c00] hover:bg-[#af3200] text-white rounded-full shadow-md"
                 >
                   Xem đơn hàng
                 </Button>
@@ -107,7 +107,7 @@ function VNPayReturnContent() {
               <div className="flex gap-3 pt-4">
                 <Button
                   onClick={() => router.push("/checkout")}
-                  className="flex-1 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
+                  className="flex-1 bg-[#fc4c00] hover:bg-[#af3200] text-white rounded-full shadow-md"
                 >
                   Thử lại
                 </Button>
@@ -131,7 +131,7 @@ export default function VNPayReturnPage() {
   return (
     <Suspense fallback={
       <div className="min-h-screen flex items-center justify-center">
-        <Loader2 className="w-16 h-16 text-blue-600 animate-spin" />
+        <Loader2 className="w-16 h-16 text-[#af3200] animate-spin" />
       </div>
     }>
       <VNPayReturnContent />

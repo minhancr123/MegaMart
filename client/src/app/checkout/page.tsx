@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { useCart } from "@/hooks/useCart";
 import { createOrder } from "@/lib/orderApi";
@@ -15,6 +15,9 @@ import { toast } from "sonner";
 import { useAuthStore } from "@/store/authStore";
 import { useCartStore } from "@/store/cartStore";
 import { Wallet, CreditCard, MapPin } from "lucide-react";
+import { track } from "@/lib/eventTracker";
+import { calculateGhnFee } from "@/lib/shippingApi";
+import { getMyWallet } from "@/lib/walletApi";
 
 export default function CheckoutPage() {
   const router = useRouter();
@@ -28,6 +31,8 @@ export default function CheckoutPage() {
   const [voucherCode, setVoucherCode] = useState("");
   const [discount, setDiscount] = useState(0);
   const [voucherStatus, setVoucherStatus] = useState<string | null>(null);
+  const [walletBalance, setWalletBalance] = useState(0);
+  const [useWalletChecked, setUseWalletChecked] = useState(false);
 
   // Tính toán chi tiết giỏ hàng
   const subtotal = cart?.data?.items?.reduce((s: any, item: any) => {
@@ -38,8 +43,50 @@ export default function CheckoutPage() {
   }, 0) || 0;
   
   const tax = Math.round(subtotal * 0.1); // Thuế VAT 10%, làm tròn
-  const shippingFee = 0; // Phí ship (nếu có)
+  // Phí ship thật từ GHN theo địa chỉ đã chọn (fallback 0 nếu chưa có mã GHN)
+  const [shippingFee, setShippingFee] = useState(0);
+  const [feeLoading, setFeeLoading] = useState(false);
   const total = Math.max(0, subtotal + tax + shippingFee - discount);
+  const walletDeduction = useWalletChecked ? Math.min(walletBalance, total) : 0;
+  const payableTotal = Math.max(0, total - walletDeduction);
+
+  useEffect(() => {
+    if (!user?.id) {
+      setWalletBalance(0);
+      setUseWalletChecked(false);
+      return;
+    }
+    getMyWallet().then((w) => setWalletBalance(Number((w as any)?.balance || 0))).catch(() => setWalletBalance(0));
+  }, [user?.id]);
+
+  const feeSeq = useRef(0);
+  useEffect(() => {
+    const districtId = selectedAddress?.districtId;
+    const wardCode = selectedAddress?.wardCode;
+    if (!districtId || !wardCode || !cart?.data?.items?.length) {
+      setShippingFee(0);
+      return;
+    }
+    let alive = true;
+    const seq = ++feeSeq.current;
+    setFeeLoading(true);
+    const itemCount = cart.data.items.reduce((s: number, i: any) => s + Number(i.quantity || 0), 0);
+    const weight = Math.min(20000, Math.max(300, itemCount * 500));
+    calculateGhnFee({ toDistrictId: districtId, toWardCode: wardCode, weight, insuranceValue: subtotal })
+      .then((q) => {
+        // Bỏ response cũ khi user đã đổi địa chỉ (chống race)
+        if (alive && seq === feeSeq.current) setShippingFee(Number(q?.fee || 0));
+      })
+      .catch(() => {
+        if (alive && seq === feeSeq.current) setShippingFee(0);
+      })
+      .finally(() => {
+        if (alive && seq === feeSeq.current) setFeeLoading(false);
+      });
+    return () => {
+      alive = false;
+    };
+  }, [selectedAddress?.districtId, selectedAddress?.wardCode, cart, subtotal]);
 
   // Debug logs
   useEffect(() => {
@@ -81,6 +128,13 @@ export default function CheckoutPage() {
       return;
     }
 
+    // Mô hình B: khách trả đúng phí GHN nên bắt buộc địa chỉ phải có mã
+    // Quận/Xã GHN, nếu không sẽ không tính được phí chính xác.
+    if (!selectedAddress.districtId || !selectedAddress.wardCode) {
+      toast.error('Địa chỉ chưa có mã Quận/Xã GHN. Vui lòng sửa địa chỉ và chọn lại Tỉnh/Quận/Xã từ danh sách');
+      return;
+    }
+
     if (!user?.id) {
       toast.error('Vui lòng đăng nhập');
       router.push('/auth');
@@ -96,11 +150,15 @@ export default function CheckoutPage() {
           fullName: selectedAddress.fullName,
           phone: selectedAddress.phone,
           address: `${selectedAddress.address}, ${selectedAddress.ward}, ${selectedAddress.district}, ${selectedAddress.province}`,
+          provinceId: selectedAddress.provinceId ?? undefined,
+          districtId: selectedAddress.districtId ?? undefined,
+          wardCode: selectedAddress.wardCode ?? undefined,
           note: note || undefined,
         },
         paymentMethod: paymentMethod,
-        totals: { subtotal, tax, total, discount },
+        totals: { subtotal, tax, total, discount, shippingFee },
         voucherCode: voucherCode || undefined,
+        useWalletAmount: walletDeduction > 0 ? walletDeduction : undefined,
       };
 
       const res = await createOrder(payload);
@@ -135,6 +193,17 @@ export default function CheckoutPage() {
       }
 
       console.log('Order created with ID:', orderId);
+
+      // Track CHECKOUT_START / CHECKOUT_COMPLETE / PAYMENT_SUCCESS
+      const itemsList = cart?.data?.items?.map((i: any) => ({
+        id: i.variant?.product?.id || i.id,
+        name: i.variant?.product?.name || "Product",
+        price: Number(i.variant?.salePrice || i.variant?.price || 0),
+        quantity: i.quantity
+      })) || [];
+
+      track.checkoutStart(subtotal, itemsList.length);
+      track.purchase(orderId, total, itemsList);
 
       // If VNPay, create payment URL and redirect
       if (paymentMethod === "VNPAY") {
@@ -178,38 +247,54 @@ export default function CheckoutPage() {
   };
 
   return (
-    <div className="max-w-5xl mx-auto p-6 animate-fade-in">
-      <h1 className="text-3xl font-bold mb-6 bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent animate-slide-in-left">
+    <div className="max-w-5xl mx-auto p-6">
+      <h1 className="text-3xl font-bold mb-6 text-[#af3200] dark:text-[#ff571a]">
         Thanh toán đơn hàng
       </h1>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Left: Address & Payment */}
-        <div className="lg:col-span-2 space-y-6 animate-slide-in-left">
+        <div className="lg:col-span-2 space-y-6">
           {/* Address Section */}
-          <Card className="shadow-lg transition-all duration-300 hover:shadow-xl">
+          <Card className="rounded-xl shadow-[0_4px_12px_rgba(0,0,0,0.05)] transition-all duration-300 hover:shadow-md">
             <CardContent className="p-6">
               <div className="flex items-center gap-2 mb-4">
-                <MapPin className="w-5 h-5 text-blue-600" />
+                <MapPin className="w-5 h-5 text-[#af3200]" />
                 <h2 className="font-semibold text-lg">Địa chỉ giao hàng</h2>
               </div>
               <AddressManager
                 mode="select"
+                selectedId={selectedAddress?.id}
                 onSelect={setSelectedAddress}
               />
             </CardContent>
           </Card>
 
           {/* Payment Method */}
-          <Card className="shadow-lg transition-all duration-300 hover:shadow-xl">
+          <Card className="rounded-xl shadow-[0_4px_12px_rgba(0,0,0,0.05)] transition-all duration-300 hover:shadow-md">
             <CardContent className="p-6">
               <div className="flex items-center gap-2 mb-4">
                 <Wallet className="w-5 h-5 text-green-600" />
                 <h2 className="font-semibold text-lg">Phương thức thanh toán</h2>
               </div>
 
+              {user?.id && walletBalance > 0 && (
+                <label className="mb-4 flex cursor-pointer items-center gap-3 rounded-xl border border-emerald-200 bg-emerald-50/60 p-4 text-sm">
+                  <input
+                    type="checkbox"
+                    checked={useWalletChecked}
+                    onChange={(e) => setUseWalletChecked(e.target.checked)}
+                    className="h-4 w-4 accent-emerald-600"
+                  />
+                  <span className="flex-1">
+                    <span className="font-semibold">Sử dụng số dư ví</span>
+                    <span className="text-gray-500"> (Khả dụng: {new Intl.NumberFormat('vi-VN').format(walletBalance)}₫{walletDeduction > 0 ? ` · Trừ ${new Intl.NumberFormat('vi-VN').format(walletDeduction)}₫` : ""})</span>
+                  </span>
+                </label>
+              )}
+
               <RadioGroup value={paymentMethod} onValueChange={(v: any) => setPaymentMethod(v as "COD" | "VNPAY" | "MOMO" | "BANK_TRANSFER")}>
-                <div className="flex items-center space-x-3 p-4 border rounded-lg hover:bg-blue-50 dark:hover:bg-blue-950/50 hover:border-blue-300 dark:hover:border-blue-700 cursor-pointer transition-all duration-200">
+                <div className="flex items-center space-x-3 p-4 border rounded-xl hover:bg-[#fc4c00]/5 dark:hover:bg-[#fc4c00]/10 hover:border-[#fc4c00]/40 cursor-pointer transition-all duration-200">
                   <RadioGroupItem value="COD" id="cod" />
                   <Label htmlFor="cod" className="flex-1 cursor-pointer">
                     <div className="flex items-center gap-2">
@@ -222,11 +307,11 @@ export default function CheckoutPage() {
                   </Label>
                 </div>
 
-                <div className="flex items-center space-x-3 p-4 border rounded-lg hover:bg-blue-50 dark:hover:bg-blue-950/50 hover:border-blue-300 dark:hover:border-blue-700 cursor-pointer mt-3 transition-all duration-200">
+                <div className="flex items-center space-x-3 p-4 border rounded-xl hover:bg-[#fc4c00]/5 dark:hover:bg-[#fc4c00]/10 hover:border-[#fc4c00]/40 cursor-pointer mt-3 transition-all duration-200">
                   <RadioGroupItem value="VNPAY" id="vnpay" />
                   <Label htmlFor="vnpay" className="flex-1 cursor-pointer">
                     <div className="flex items-center gap-2">
-                      <CreditCard className="w-5 h-5 text-blue-500" />
+                      <CreditCard className="w-5 h-5 text-[#af3200]" />
                       <div>
                         <p className="font-medium">Thanh toán qua VNPAY</p>
                         <p className="text-sm text-gray-500 dark:text-gray-400">Thanh toán bằng thẻ ATM/Visa/MasterCard</p>
@@ -269,7 +354,7 @@ export default function CheckoutPage() {
           </Card>
 
           {/* Note */}
-          <Card className="shadow-lg transition-all duration-300 hover:shadow-xl">
+          <Card className="rounded-xl shadow-[0_4px_12px_rgba(0,0,0,0.05)] transition-all duration-300 hover:shadow-md">
             <CardContent className="p-6">
               <Label htmlFor="note" className="text-sm font-medium mb-2 block">Ghi chú đơn hàng (tùy chọn)</Label>
               <Input
@@ -277,15 +362,15 @@ export default function CheckoutPage() {
                 placeholder="Ví dụ: Giao hàng giờ hành chính..."
                 value={note}
                 onChange={(e) => setNote(e.target.value)}
-                className="w-full transition-all duration-200 focus:ring-2 focus:ring-blue-500"
+                className="w-full transition-all duration-200 focus:ring-2 focus:ring-[#fc4c00]"
               />
             </CardContent>
           </Card>
         </div>
 
         {/* Right: Order Summary */}
-        <div className="lg:col-span-1 animate-slide-in-right">
-          <Card className="shadow-lg sticky top-6 transition-all duration-300 hover:shadow-xl">
+        <div className="lg:col-span-1">
+          <Card className="rounded-xl shadow-[0_4px_12px_rgba(0,0,0,0.05)] sticky top-6 transition-all duration-300 hover:shadow-md">
             <CardContent className="p-6">
               <h2 className="font-semibold text-lg mb-4">Tóm tắt đơn hàng</h2>
 
@@ -294,7 +379,11 @@ export default function CheckoutPage() {
                 {cart?.data?.items?.map((item: any) => (
                   <div key={item.id} className="flex gap-3 text-sm">
                     <img
-                      src={item.variant?.product?.images?.[0] || "/placeholder.png"}
+                      src={
+                        item.variant?.product?.images?.find((img: any) => img.isPrimary)?.url ||
+                        item.variant?.product?.images?.[0]?.url ||
+                        "/images/placeholder-product.svg"
+                      }
                       alt={item.variant?.product?.name}
                       className="w-16 h-16 object-cover rounded"
                     />
@@ -318,10 +407,10 @@ export default function CheckoutPage() {
                   <span className="text-gray-600">Thuế VAT (10%)</span>
                   <span>{new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND', maximumFractionDigits: 0 }).format(tax)}</span>
                 </div>
-                {shippingFee > 0 && (
+                {(shippingFee > 0 || feeLoading) && (
                   <div className="flex justify-between text-sm">
-                    <span className="text-gray-600">Phí vận chuyển</span>
-                    <span>{new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND', maximumFractionDigits: 0 }).format(shippingFee)}</span>
+                    <span className="text-gray-600">Phí vận chuyển (GHN)</span>
+                    <span>{feeLoading ? "Đang tính..." : new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND', maximumFractionDigits: 0 }).format(shippingFee)}</span>
                   </div>
                 )}
                 <div className="space-y-2 pt-2">
@@ -344,16 +433,28 @@ export default function CheckoutPage() {
                     <span>-{new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND', maximumFractionDigits: 0 }).format(discount)}</span>
                   </div>
                 )}
+                {walletDeduction > 0 && (
+                  <div className="flex justify-between text-sm text-emerald-600">
+                    <span>Trừ ví MegaMart</span>
+                    <span>-{new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND', maximumFractionDigits: 0 }).format(walletDeduction)}</span>
+                  </div>
+                )}
                 <div className="flex justify-between font-bold text-lg pt-2 border-t">
                   <span>Tổng cộng</span>
-                  <span className="text-red-600">{new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND', maximumFractionDigits: 0 }).format(total)}</span>
+                  <span className="text-[#af3200]">{new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND', maximumFractionDigits: 0 }).format(total)}</span>
                 </div>
+                {walletDeduction > 0 && (
+                  <div className="flex justify-between text-sm font-semibold">
+                    <span>Cần thanh toán thêm</span>
+                    <span>{new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND', maximumFractionDigits: 0 }).format(payableTotal)}</span>
+                  </div>
+                )}
               </div>
 
               <Button
                 onClick={handlePlaceOrder}
-                disabled={loading || !selectedAddress}
-                className="w-full mt-6 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
+                disabled={loading || !selectedAddress || feeLoading}
+                className="w-full mt-6 bg-[#fc4c00] hover:bg-[#af3200] text-white rounded-full shadow-md"
               >
                 {loading ? 'Đang xử lý...' : paymentMethod === 'VNPAY' ? 'Thanh toán ngay' : 'Đặt hàng'}
               </Button>

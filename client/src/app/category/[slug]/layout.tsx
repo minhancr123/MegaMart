@@ -7,7 +7,7 @@ export default function CategoryDetailLayout({ children }: { children: React.Rea
   return (
     <>
       <Header />
-      <main className="min-h-[60vh]">{children}</main>
+      <main className="min-h-[60vh] bg-[#f7f8fa] pt-[130px] sm:pt-[140px] md:pt-[150px]">{children}</main>
       <Footer />
     </>
   );

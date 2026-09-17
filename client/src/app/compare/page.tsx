@@ -48,7 +48,7 @@ export default function ComparePage() {
                 Thêm sản phẩm vào danh sách so sánh để xem chi tiết và đưa ra quyết định mua hàng tốt nhất
               </p>
               <Link href="/products">
-                <Button className="bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700">
+                <Button className="bg-[#ff4d00] text-white hover:bg-[#d94100]">
                   <ShoppingCart className="w-4 h-4 mr-2" />
                   Khám phá sản phẩm
                 </Button>
@@ -86,9 +86,15 @@ export default function ComparePage() {
                                 <X className="w-4 h-4" />
                               </button>
                               <div className="aspect-square bg-slate-100 dark:bg-gray-800 rounded-lg overflow-hidden mb-3">
-                                {product.imageUrl || product.images?.[0] ? (
+                                {(product.imageUrl ||
+                                  product.images?.find((img: any) => img.isPrimary)?.url ||
+                                  product.images?.[0]?.url) ? (
                                   <img
-                                    src={product.imageUrl || product.images?.[0]}
+                                    src={
+                                      product.imageUrl ||
+                                      product.images?.find((img: any) => img.isPrimary)?.url ||
+                                      product.images?.[0]?.url
+                                    }
                                     alt={product.name}
                                     className="w-full h-full object-cover"
                                   />
@@ -196,7 +202,7 @@ export default function ComparePage() {
                           <td key={product.id} className="p-6">
                             <div className="flex flex-col gap-2">
                               <Link href={`/product/${product.id}`}>
-                                <Button className="w-full bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700">
+                                <Button className="w-full bg-[#ff4d00] text-white hover:bg-[#d94100]">
                                   Xem chi tiết
                                 </Button>
                               </Link>

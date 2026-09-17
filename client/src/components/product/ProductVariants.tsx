@@ -7,6 +7,9 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ShoppingCart, Package, ChevronLeft, ChevronRight } from "lucide-react";
 import Image from "next/image";
+import { visibleAttributes, formatAttributeValue } from '@/lib/productAttributes';
+import { getAvailableStock } from '@/lib/stock';
+import { PLACEHOLDER_IMAGE } from '@/lib/imageUtils';
 
 interface ProductVariantsProps {
   product: Product;
@@ -20,11 +23,15 @@ export const ProductVariants = ({ product, onAddToCart }: ProductVariantsProps) 
   const [quantity, setQuantity] = useState(1);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
 
+  // URL nào tải hỏng thì nhớ lại để lần render sau dùng thẳng ảnh thay thế.
+  // Ảnh gallery phần lớn vẫn hotlink sang CDN của hai sàn nguồn.
+  const [brokenUrls, setBrokenUrls] = useState<string[]>([]);
+
   const productImages = product.images || [];
   const hasImages = productImages.length > 0;
-  const mainImage = hasImages 
-    ? productImages[currentImageIndex]?.url || "/placeholder-product.png"
-    : "/placeholder-product.png";
+  const currentUrl = hasImages ? productImages[currentImageIndex]?.url : undefined;
+  const mainImage =
+    currentUrl && !brokenUrls.includes(currentUrl) ? currentUrl : PLACEHOLDER_IMAGE;
 
   const formatPrice = (price: number): string => {
     return new Intl.NumberFormat("vi-VN", {
@@ -131,13 +138,21 @@ export const ProductVariants = ({ product, onAddToCart }: ProductVariantsProps) 
         <CardContent className="p-6">
           <div className="mb-8">
             <div className="relative aspect-square w-full max-w-2xl mx-auto bg-gray-50 dark:bg-gray-800 rounded-xl overflow-hidden border border-gray-200 dark:border-gray-700 shadow-md">
-              <Image
-                src={mainImage}
-                alt={productImages[currentImageIndex]?.alt || product.name}
-                fill
-                className="object-contain p-4"
-                priority
-              />
+              {/* Không có ảnh nào thì để empty-state bên dưới lo, đừng vẽ chồng
+                  ảnh thay thế lên nó. PLACEHOLDER_IMAGE chỉ dùng khi URL chết. */}
+              {hasImages && (
+                <Image
+                  src={mainImage}
+                  alt={productImages[currentImageIndex]?.alt || product.name}
+                  fill
+                  sizes="(min-width: 1024px) 500px, 100vw"
+                  onError={() =>
+                    currentUrl && setBrokenUrls((prev) => [...prev, currentUrl])
+                  }
+                  className="object-contain p-4"
+                  priority
+                />
+              )}
               {hasImages && productImages.length > 1 && (
                 <>
                   <button
@@ -177,36 +192,36 @@ export const ProductVariants = ({ product, onAddToCart }: ProductVariantsProps) 
               )}
             </div>
             {selectedVariant && (
-              <div className="bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 p-6 rounded-xl border border-blue-100 dark:border-blue-800">
+              <div className="bg-[#fc4c00]/5 dark:bg-[#fc4c00]/10 p-6 rounded-xl border border-[#fc4c00]/20">
                 <div className="flex items-center justify-between gap-4 mb-4">
                   <div className="flex-1">
                     <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">Phiên bản đã chọn</p>
                     <p className="font-semibold text-base dark:text-white">SKU: {selectedVariant.sku}</p>
                   </div>
-                  <Badge variant={getStockStatus(selectedVariant.stock).color as any} className="flex-shrink-0">
-                    {getStockStatus(selectedVariant.stock).text}
+                  <Badge variant={getStockStatus(getAvailableStock(selectedVariant)).color as any} className="flex-shrink-0">
+                    {getStockStatus(getAvailableStock(selectedVariant)).text}
                   </Badge>
                 </div>
                 
                 {/* Specs Grid */}
-                {selectedVariant.attributes && (
-                  <div className="grid grid-cols-2 gap-3 mb-4 pb-4 border-b border-blue-200 dark:border-blue-800">
-                    {Object.entries(selectedVariant.attributes).map(([key, value]) => (
+                {visibleAttributes(selectedVariant.attributes).length > 0 && (
+                  <div className="grid grid-cols-2 gap-3 mb-4 pb-4 border-b border-[#fc4c00]/20">
+                    {visibleAttributes(selectedVariant.attributes).map(([key, value]) => (
                       <div key={key} className="text-sm">
                         <span className="text-gray-600 dark:text-gray-400">{translateAttributeKey(key)}: </span>
-                        <span className="font-semibold text-gray-900 dark:text-white">{String(value)}</span>
+                        <span className="font-semibold text-gray-900 dark:text-white">{formatAttributeValue(value)}</span>
                       </div>
                     ))}
                   </div>
                 )}
                 
                 {/* Price */}
-                <div className="text-3xl font-bold text-red-600 dark:text-red-400">
+                <div className="text-3xl font-bold text-[#af3200] dark:text-[#ff571a]">
                   {formatPrice(selectedVariant.price)}
                 </div>
               </div>
             )}
-            {selectedVariant && selectedVariant.stock > 0 && (
+            {selectedVariant && getAvailableStock(selectedVariant) > 0 && (
               <div className="space-y-4 bg-white dark:bg-gray-900 p-6 rounded-xl border border-gray-200 dark:border-gray-700">
                 <div className="flex items-center gap-4">
                   <label htmlFor="quantity" className="text-sm font-medium whitespace-nowrap dark:text-gray-300">
@@ -225,16 +240,16 @@ export const ProductVariants = ({ product, onAddToCart }: ProductVariantsProps) 
                       id="quantity"
                       type="number"
                       min="1"
-                      max={selectedVariant.stock}
+                      max={getAvailableStock(selectedVariant)}
                       value={quantity}
-                      onChange={(e) => setQuantity(Math.min(selectedVariant.stock, Math.max(1, parseInt(e.target.value) || 1)))}
+                      onChange={(e) => setQuantity(Math.min(getAvailableStock(selectedVariant), Math.max(1, parseInt(e.target.value) || 1)))}
                       className="w-20 px-2 py-2 text-center border-0 focus:ring-0 focus:outline-none font-medium dark:bg-gray-900 dark:text-white"
                     />
                     <button
                       type="button"
                       className="px-4 py-2 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors disabled:opacity-30"
-                      onClick={() => setQuantity(Math.min(selectedVariant.stock, quantity + 1))}
-                      disabled={quantity >= selectedVariant.stock}
+                      onClick={() => setQuantity(Math.min(getAvailableStock(selectedVariant), quantity + 1))}
+                      disabled={quantity >= getAvailableStock(selectedVariant)}
                     >
                       +
                     </button>
@@ -243,14 +258,14 @@ export const ProductVariants = ({ product, onAddToCart }: ProductVariantsProps) 
                 <div className="pt-4 border-t space-y-3">
                   <div className="flex items-center justify-between">
                     <div className="text-sm text-gray-600 dark:text-gray-400">Tổng cộng</div>
-                    <div className="text-xl sm:text-2xl font-bold text-red-600 dark:text-red-400">
+                    <div className="text-xl sm:text-2xl font-bold text-[#af3200] dark:text-[#ff571a]">
                       {formatPrice(selectedVariant.price * quantity)}
                     </div>
                   </div>
                   <Button
                     onClick={handleAddToCart}
-                    className="w-full flex items-center justify-center gap-2 py-6 text-base"
-                    disabled={!selectedVariant || selectedVariant.stock < quantity}
+                    className="w-full flex items-center justify-center gap-2 py-6 text-base bg-[#fc4c00] hover:bg-[#af3200] text-white rounded-full shadow-md"
+                    disabled={!selectedVariant || getAvailableStock(selectedVariant) < quantity}
                   >
                     <ShoppingCart className="h-5 w-5" />
                     <span>Thêm vào giỏ hàng</span>
@@ -270,23 +285,23 @@ export const ProductVariants = ({ product, onAddToCart }: ProductVariantsProps) 
             {product.variants.map((variant) => (
               <div
                 key={variant.id}
-                className={`border rounded-lg p-4 cursor-pointer transition-all ${selectedVariant?.id === variant.id ? "border-blue-500 bg-blue-50 dark:bg-blue-900/20 ring-2 ring-blue-200 dark:ring-blue-800" : "border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600 hover:shadow-md"} ${variant.stock === 0 ? "opacity-50 cursor-not-allowed" : ""}`}
-                onClick={() => variant.stock > 0 && handleVariantSelect(variant)}
+                className={`border rounded-xl p-4 cursor-pointer transition-all ${selectedVariant?.id === variant.id ? "border-[#fc4c00] bg-[#fc4c00]/5 dark:bg-[#fc4c00]/10 ring-2 ring-[#fc4c00]/20" : "border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600 hover:shadow-md"} ${getAvailableStock(variant) === 0 ? "opacity-50 cursor-not-allowed" : ""}`}
+                onClick={() => getAvailableStock(variant) > 0 && handleVariantSelect(variant)}
               >
                 {/* Row 1: SKU + Badge + Price */}
                 <div className="flex items-center justify-between gap-4 mb-3">
                   <div className="flex items-center gap-2 flex-shrink min-w-0">
                     <span className="font-semibold text-gray-900 dark:text-white text-sm">SKU: {variant.sku}</span>
-                    <Badge variant={getStockStatus(variant.stock).color as any} className="text-xs flex-shrink-0">
-                      {getStockStatus(variant.stock).text}
+                    <Badge variant={getStockStatus(getAvailableStock(variant)).color as any} className="text-xs flex-shrink-0">
+                      {getStockStatus(getAvailableStock(variant)).text}
                     </Badge>
                   </div>
                   <div className="text-right flex-shrink-0">
-                    <div className="text-lg sm:text-xl font-bold text-red-600 dark:text-red-400">
+                    <div className="text-lg sm:text-xl font-bold text-[#af3200] dark:text-[#ff571a]">
                       {formatPrice(variant.price)}
                     </div>
                     {selectedVariant?.id === variant.id && (
-                      <div className="text-xs text-blue-600 dark:text-blue-400 font-medium">
+                      <div className="text-xs text-[#af3200] dark:text-[#ff571a] font-medium">
                         ✓ Đã chọn
                       </div>
                     )}
@@ -294,12 +309,12 @@ export const ProductVariants = ({ product, onAddToCart }: ProductVariantsProps) 
                 </div>
 
                 {/* Row 2: Specs Grid */}
-                {variant.attributes && (
+                {visibleAttributes(variant.attributes).length > 0 && (
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm">
-                    {Object.entries(variant.attributes).map(([key, value]) => (
+                    {visibleAttributes(variant.attributes).map(([key, value]) => (
                       <div key={key}>
                         <span className="text-gray-600 dark:text-gray-400">{translateAttributeKey(key)}: </span>
-                        <span className="font-semibold text-gray-900 dark:text-white">{String(value)}</span>
+                        <span className="font-semibold text-gray-900 dark:text-white">{formatAttributeValue(value)}</span>
                       </div>
                     ))}
                   </div>

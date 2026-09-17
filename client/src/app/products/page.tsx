@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { ProductCard } from '@/components/product/ProductCard';
-import { fetchAllProducts, fetchCategoriesList } from '@/lib/productApi';
+import { fetchProductsPaged, fetchCategoriesList } from '@/lib/productApi';
 import { useRouter } from 'next/navigation';
 import { Product, Category } from '@/interfaces/product';
 import { addToCart } from '@/lib/cartApi';
@@ -46,7 +46,6 @@ export default function ProductsPage() {
     const cartStore = useCartStore();
 
     const [products, setProducts] = useState<Product[]>([]);
-    const [filteredProducts, setFilteredProducts] = useState<Product[]>([]);
     const [categories, setCategories] = useState<Category[]>([]);
     const [loading, setLoading] = useState(true);
 
@@ -57,138 +56,65 @@ export default function ProductsPage() {
     const [sortBy, setSortBy] = useState('newest');
     const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
 
-    // Pagination
+    // Pagination (do server quyết định, client chỉ giữ trang hiện tại)
     const [currentPage, setCurrentPage] = useState(1);
+    const [totalItems, setTotalItems] = useState(0);
+    const [totalPages, setTotalPages] = useState(0);
     const itemsPerPage = 12;
 
-    // Fetch data
+    // Gõ tới đâu gọi API tới đó sẽ đụng rate limit (3 req/giây), nên hoãn lại.
+    const [debouncedSearch, setDebouncedSearch] = useState('');
+    const [debouncedPrice, setDebouncedPrice] = useState<[number, number]>([0, 50000000]);
+
+    // Danh mục chỉ cần tải một lần
     useEffect(() => {
-        const fetchData = async () => {
-            setLoading(true);
-            try {
-                const [productsData, categoriesData] = await Promise.all([
-                    fetchAllProducts(),
-                    fetchCategoriesList(),
-                ]);
-                console.log('✅ Products loaded:', productsData);
-                console.log('✅ Products count:', productsData?.length);
-                console.log('✅ Categories loaded:', categoriesData);
-                console.log('✅ Categories count:', categoriesData?.length);
-                
-                // Debug: Log category structure with parent info
-                if (categoriesData?.length > 0) {
-                    console.log('🏷️ Category structure:', categoriesData.map(c => ({
-                        id: c.id,
-                        name: c.name,
-                        parentId: c.parentId,
-                        slug: c.slug
-                    })));
-                }
-                
-                setProducts(productsData || []);
-                setCategories(categoriesData || []);
-            } catch (error) {
-                console.error('❌ Error fetching data:', error);
-                toast.error('Không thể tải sản phẩm');
-            } finally {
-                setLoading(false);
-            }
-        };
-        fetchData();
+        fetchCategoriesList()
+            .then((data) => setCategories(data || []))
+            .catch(() => toast.error('Không thể tải danh mục'));
     }, []);
 
-    // Apply filters
+    // Hoãn ô tìm kiếm và thanh giá 400ms trước khi gọi API
     useEffect(() => {
-        console.log('🔍 Starting filter with:', {
-            totalProducts: products.length,
-            selectedCategory,
-            priceRange,
-            searchQuery
-        });
-        
-        let result = [...products];
+        const t = setTimeout(() => setDebouncedSearch(searchQuery), 400);
+        return () => clearTimeout(t);
+    }, [searchQuery]);
 
-        // Debug: Log first product structure (only once when products change)
-        if (products.length > 0 && selectedCategory === 'all') {
-            console.log('📦 Sample product structure:', {
-                id: products[0].id,
-                name: products[0].name,
-                category: products[0].category,
-                categoryId: products[0].categoryId,
-                price: products[0].price
-            });
-        }
+    useEffect(() => {
+        const t = setTimeout(() => setDebouncedPrice(priceRange), 400);
+        return () => clearTimeout(t);
+    }, [priceRange]);
 
-        // Category filter
-        if (selectedCategory !== 'all') {
-            console.log('🏷️ Filtering by category:', selectedCategory);
-            console.log('🏷️ Available categories:', categories.length);
-            const beforeCount = result.length;
-            
-            // Get child category IDs from the category object
-            const selectedCategoryObj = categories.find(c => c.id === selectedCategory);
-            
-            // Backend returns children array instead of parentId
-            const childCategoryIds = (selectedCategoryObj as any)?.children?.map((child: any) => child.id) || [];
-            
-            console.log('🏷️ Selected category:', selectedCategoryObj);
-            console.log('🏷️ Child categories found:', childCategoryIds.length);
-            console.log('🏷️ Child category IDs:', childCategoryIds);
-            
-            result = result.filter((p) => {
-                const productCategoryId = p.categoryId || p.category?.id;
-                const matchDirectly = productCategoryId === selectedCategory;
-                const matchViaChild = childCategoryIds.length > 0 && childCategoryIds.includes(productCategoryId || '');
-                
-                const matches = matchDirectly || matchViaChild;
-                if (!matches) {
-                    console.log(`❌ Product: ${p.name} | categoryId: ${productCategoryId} | Direct: ${matchDirectly} | Child: ${matchViaChild}`);
-                }
-                
-                return matches;
-            });
-            console.log(`✅ Category filter: ${beforeCount} → ${result.length} products`);
-        }
-
-        // Price filter
-        result = result.filter((p) => {
-            const price = p.price || 0;
-            return price >= priceRange[0] && price <= priceRange[1];
-        });
-
-        // Search filter
-        if (searchQuery.trim()) {
-            const query = searchQuery.toLowerCase();
-            result = result.filter(
-                (p) =>
-                    p.name.toLowerCase().includes(query) ||
-                    p.description?.toLowerCase().includes(query)
-            );
-        }
-
-        // Sort
-        switch (sortBy) {
-            case 'price-asc':
-                result.sort((a, b) => (a.price || 0) - (b.price || 0));
-                break;
-            case 'price-desc':
-                result.sort((a, b) => (b.price || 0) - (a.price || 0));
-                break;
-            case 'name-asc':
-                result.sort((a, b) => a.name.localeCompare(b.name));
-                break;
-            case 'newest':
-            default:
-                result.sort((a, b) => {
-                    const dateA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
-                    const dateB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
-                    return dateB - dateA;
-                });
-        }
-
-        setFilteredProducts(result);
+    // Đổi điều kiện lọc thì quay về trang 1, nếu không sẽ rơi vào trang trống
+    useEffect(() => {
+        // Việc đồng bộ trang hiện tại với bộ lọc là chủ ý; dữ liệu trang được tải ở effect kế tiếp.
+        // eslint-disable-next-line react-hooks/set-state-in-effect
         setCurrentPage(1);
-    }, [products, selectedCategory, priceRange, searchQuery, sortBy]);
+    }, [selectedCategory, debouncedSearch, debouncedPrice, sortBy]);
+
+    // Lấy đúng một trang từ server, kèm toàn bộ điều kiện lọc
+    useEffect(() => {
+        let cancelled = false;
+        const load = async () => {
+            setLoading(true);
+            const page = await fetchProductsPaged({
+                page: currentPage,
+                limit: itemsPerPage,
+                search: debouncedSearch.trim() || undefined,
+                categoryId: selectedCategory !== 'all' ? selectedCategory : undefined,
+                minPrice: debouncedPrice[0] > 0 ? debouncedPrice[0] : undefined,
+                maxPrice: debouncedPrice[1] < 50000000 ? debouncedPrice[1] : undefined,
+                sort: sortBy,
+            });
+            // Bỏ qua kết quả của request đã cũ để không ghi đè lên request mới hơn
+            if (cancelled) return;
+            setProducts(page.products);
+            setTotalItems(page.total);
+            setTotalPages(page.totalPages);
+            setLoading(false);
+        };
+        load();
+        return () => { cancelled = true; };
+    }, [currentPage, debouncedSearch, debouncedPrice, selectedCategory, sortBy]);
 
     const handleAddToCart = async (variantId: string, quantity: number) => {
         if (!user?.id) {
@@ -235,13 +161,14 @@ export default function ProductsPage() {
         setSortBy('newest');
     };
 
-    // Pagination
-    const totalPages = Math.ceil(filteredProducts.length / itemsPerPage);
-    const startIndex = (currentPage - 1) * itemsPerPage;
-    const endIndex = startIndex + itemsPerPage;
-    const currentProducts = filteredProducts.slice(startIndex, endIndex);
+    // totalPages/totalItems do server trả về; products đã đúng là trang hiện tại.
+    const currentProducts = products;
 
-    const FilterPanel = () => (
+    // KHÔNG đổi lại thành component (`const FilterPanel = () => ...`): hàm đó được
+    // tạo mới ở mỗi lần render, React coi là component khác nên huỷ rồi dựng lại cả
+    // cây con -> ô <Input> mất focus sau đúng 1 ký tự, không gõ nổi từ khoá nào.
+    // Để là một biến JSX thì nó chỉ là element, React giữ nguyên DOM.
+    const filterPanel = (
         <div className="space-y-6">
             {/* Search */}
             <div>
@@ -266,8 +193,8 @@ export default function ProductsPage() {
                             console.log('🔘 Selected: All categories');
                             setSelectedCategory('all');
                         }}
-                        className={`w-full text-left px-4 py-2 rounded-lg transition-colors ${selectedCategory === 'all'
-                                ? 'bg-indigo-50 text-indigo-600 font-medium'
+                        className={`w-full text-left px-4 py-2 rounded-xl transition-colors ${selectedCategory === 'all'
+                                ? 'bg-[#fc4c00]/10 text-[#af3200] font-medium'
                                 : 'hover:bg-slate-50 text-slate-600'
                             }`}
                     >
@@ -280,8 +207,8 @@ export default function ProductsPage() {
                                 console.log('🔘 Selected category:', category.name, '| ID:', category.id);
                                 setSelectedCategory(category.id);
                             }}
-                            className={`w-full text-left px-4 py-2 rounded-lg transition-colors ${selectedCategory === category.id
-                                    ? 'bg-indigo-50 text-indigo-600 font-medium'
+                            className={`w-full text-left px-4 py-2 rounded-xl transition-colors ${selectedCategory === category.id
+                                    ? 'bg-[#fc4c00]/10 text-[#af3200] font-medium'
                                     : 'hover:bg-slate-50 text-slate-600'
                                 }`}
                         >
@@ -324,13 +251,15 @@ export default function ProductsPage() {
                 {/* Header */}
                 <div className="mb-8">
                     <h1 className="text-4xl font-bold text-slate-900 dark:text-white mb-3">Tất cả sản phẩm</h1>
-                    <p className="text-slate-600 dark:text-gray-400">
+                    {/* <div> (Skeleton) không được nằm trong <p> - HTML không cho phép,
+                        trình duyệt tự đóng thẻ <p> lại và gây hydration error. */}
+                    <div className="text-slate-600 dark:text-gray-400">
                         {loading ? (
                             <Skeleton className="h-5 w-64 inline-block" />
                         ) : (
-                            `Khám phá ${filteredProducts.length} sản phẩm chất lượng cao`
+                            `Khám phá ${totalItems.toLocaleString('vi-VN')} sản phẩm chất lượng cao`
                         )}
-                    </p>
+                    </div>
                 </div>
 
                 <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
@@ -338,10 +267,10 @@ export default function ProductsPage() {
                     <aside className="hidden lg:block">
                         <div className="sticky top-24 bg-white dark:bg-gray-900 rounded-2xl border border-slate-200 dark:border-gray-800 p-6">
                             <div className="flex items-center gap-2 mb-6">
-                                <SlidersHorizontal className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
+                                <SlidersHorizontal className="w-5 h-5 text-[#af3200] dark:text-[#ff571a]" />
                                 <h2 className="text-lg font-bold text-slate-900 dark:text-white">Bộ lọc</h2>
                             </div>
-                            <FilterPanel />
+                            {filterPanel}
                         </div>
                     </aside>
 
@@ -363,7 +292,7 @@ export default function ProductsPage() {
                                             <SheetTitle>Bộ lọc</SheetTitle>
                                         </SheetHeader>
                                         <div className="mt-6">
-                                            <FilterPanel />
+                                            {filterPanel}
                                         </div>
                                     </SheetContent>
                                 </Sheet>
@@ -372,8 +301,8 @@ export default function ProductsPage() {
                                 <div className="hidden sm:flex gap-1 border border-slate-200 rounded-lg p-1">
                                     <button
                                         onClick={() => setViewMode('grid')}
-                                        className={`p-2 rounded ${viewMode === 'grid'
-                                                ? 'bg-indigo-50 text-indigo-600'
+                                        className={`p-2 rounded-xl ${viewMode === 'grid'
+                                                ? 'bg-[#fc4c00]/10 text-[#af3200]'
                                                 : 'text-slate-400 hover:text-slate-600'
                                             }`}
                                     >
@@ -381,8 +310,8 @@ export default function ProductsPage() {
                                     </button>
                                     <button
                                         onClick={() => setViewMode('list')}
-                                        className={`p-2 rounded ${viewMode === 'list'
-                                                ? 'bg-indigo-50 text-indigo-600'
+                                        className={`p-2 rounded-xl ${viewMode === 'list'
+                                                ? 'bg-[#fc4c00]/10 text-[#af3200]'
                                                 : 'text-slate-400 hover:text-slate-600'
                                             }`}
                                     >
@@ -421,7 +350,7 @@ export default function ProductsPage() {
                                 )}
                                 {searchQuery && (
                                     <Badge variant="secondary" className="px-3 py-1.5">
-                                        Tìm kiếm: "{searchQuery}"
+                                        Tìm kiếm: &ldquo;{searchQuery}&rdquo;
                                         <button
                                             onClick={() => setSearchQuery('')}
                                             className="ml-2 hover:text-red-600"
@@ -436,12 +365,12 @@ export default function ProductsPage() {
                         {/* Loading */}
                         {loading && (
                             <div className="flex items-center justify-center py-20">
-                                <Loader2 className="w-8 h-8 animate-spin text-indigo-600" />
+                                <Loader2 className="w-8 h-8 animate-spin text-[#af3200]" />
                             </div>
                         )}
 
                         {/* No Results */}
-                        {!loading && filteredProducts.length === 0 && (
+                        {!loading && products.length === 0 && (
                             <div className="text-center py-20">
                                 <div className="w-24 h-24 bg-slate-100 dark:bg-gray-800 rounded-full flex items-center justify-center mx-auto mb-6">
                                     <Package className="w-12 h-12 text-slate-400 dark:text-gray-500" />
@@ -459,7 +388,7 @@ export default function ProductsPage() {
                         )}
 
                         {/* Products Grid */}
-                        {!loading && filteredProducts.length > 0 && (
+                        {!loading && products.length > 0 && (
                             <>
                                 <div
                                     className={
@@ -495,7 +424,7 @@ export default function ProductsPage() {
                                                 onClick={() => setCurrentPage(page)}
                                                 className={
                                                     currentPage === page
-                                                        ? 'bg-gradient-to-r from-indigo-600 to-purple-600'
+                                                        ? 'bg-[#fc4c00] hover:bg-[#af3200] text-white rounded-full shadow-md'
                                                         : ''
                                                 }
                                             >

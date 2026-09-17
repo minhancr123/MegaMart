@@ -1,5 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsString, IsBoolean, IsOptional, MinLength } from 'class-validator';
+import { IsString, IsBoolean, IsOptional, MinLength, IsInt } from 'class-validator';
 
 export class CreateAddressDto {
   @ApiProperty({ description: 'User ID' })
@@ -34,6 +34,21 @@ export class CreateAddressDto {
   @IsOptional()
   @IsString()
   ward?: string;
+
+  @ApiProperty({ description: 'Mã tỉnh GHN (ProvinceID)', required: false })
+  @IsOptional()
+  @IsInt()
+  provinceId?: number;
+
+  @ApiProperty({ description: 'Mã quận/huyện GHN (DistrictID)', required: false })
+  @IsOptional()
+  @IsInt()
+  districtId?: number;
+
+  @ApiProperty({ description: 'Mã phường/xã GHN (WardCode)', required: false })
+  @IsOptional()
+  @IsString()
+  wardCode?: string;
 
   @ApiProperty({ description: 'Nhãn địa chỉ (Nhà, Văn phòng, ...)', required: false })
   @IsOptional()

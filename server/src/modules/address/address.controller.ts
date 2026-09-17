@@ -64,7 +64,7 @@ export class AddressController {
   @ApiOperation({ summary: 'Get address by ID' })
   async getAddressById(@Param('id') id: string, @Request() req: any) {
     try {
-      const userId = req.user?.id;
+      const userId = req.user?.userId;
       const address = await this.addressService.getAddressById(id, userId);
       return {
         success: true,
@@ -87,7 +87,7 @@ export class AddressController {
   async createAddress(@Body() createAddressDto: CreateAddressDto, @Request() req: any) {
     try {
       // Use authenticated user's ID if not provided
-      if (!createAddressDto.userId && req.user?.id) {
+      if (!createAddressDto.userId && req.user?.userId) {
         createAddressDto.userId = req.user.id;
       }
 
@@ -113,7 +113,7 @@ export class AddressController {
     @Request() req: any
   ) {
     try {
-      const userId = req.user?.id;
+      const userId = req.user?.userId;
       const address = await this.addressService.updateAddress(id, updateAddressDto, userId);
       return {
         success: true,
@@ -135,7 +135,7 @@ export class AddressController {
   @ApiOperation({ summary: 'Set address as default' })
   async setDefaultAddress(@Param('id') id: string, @Request() req: any) {
     try {
-      const userId = req.user?.id;
+      const userId = req.user?.userId;
       if (!userId) {
         throw new HttpException(
           { success: false, message: 'Unauthorized' },
@@ -164,7 +164,7 @@ export class AddressController {
   @ApiOperation({ summary: 'Delete address' })
   async deleteAddress(@Param('id') id: string, @Request() req: any) {
     try {
-      const userId = req.user?.id;
+      const userId = req.user?.userId;
       const result = await this.addressService.deleteAddress(id, userId);
       return result;
     } catch (error) {

@@ -12,6 +12,14 @@ import {
   CreateAddressDto
 } from "@/lib/addressApi";
 import {
+  getGhnProvinces,
+  getGhnDistricts,
+  getGhnWards,
+  type GhnProvince,
+  type GhnDistrict,
+  type GhnWard,
+} from "@/lib/shippingApi";
+import {
   Dialog,
   DialogContent,
   DialogHeader,
@@ -50,9 +58,16 @@ export default function AddressManager({ onSelect, selectedId, mode = "manage" }
     province: "",
     district: "",
     ward: "",
+    provinceId: null,
+    districtId: null,
+    wardCode: null,
     label: "Nhà",
     isDefault: false,
   });
+  const [provinces, setProvinces] = useState<GhnProvince[]>([]);
+  const [districts, setDistricts] = useState<GhnDistrict[]>([]);
+  const [wards, setWards] = useState<GhnWard[]>([]);
+  const [loadingGeo, setLoadingGeo] = useState(false);
 
   useEffect(() => {
     if (user?.id) {
@@ -65,10 +80,101 @@ export default function AddressManager({ onSelect, selectedId, mode = "manage" }
       setLoading(true);
       const data = await fetchAddressesByUser(user!.id);
       setAddresses(data);
+      if (mode === "select" && onSelect && data.length > 0) {
+        const defaultAddress = data.find((addr) => addr.isDefault) || data[0];
+        if (!selectedId || !data.some((addr) => addr.id === selectedId)) {
+          onSelect(defaultAddress);
+        }
+      }
     } catch (error) {
       toast.error("Không thể tải danh sách địa chỉ");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const loadProvinces = async () => {
+    try {
+      const list = await getGhnProvinces();
+      setProvinces(list);
+    } catch {
+      setProvinces([]);
+    }
+  };
+
+  const loadDistricts = async (provinceId: number) => {
+    setDistricts([]);
+    setWards([]);
+    if (!provinceId) return;
+    setLoadingGeo(true);
+    try {
+      setDistricts(await getGhnDistricts(provinceId));
+    } catch {
+      setDistricts([]);
+    } finally {
+      setLoadingGeo(false);
+    }
+  };
+
+  const loadWards = async (districtId: number) => {
+    setWards([]);
+    if (!districtId) return;
+    setLoadingGeo(true);
+    try {
+      setWards(await getGhnWards(districtId));
+    } catch {
+      setWards([]);
+    } finally {
+      setLoadingGeo(false);
+    }
+  };
+
+  // Chuẩn hóa tên để đối chiếu địa chỉ text cũ với master-data GHN
+  const normGeo = (s?: string | null) =>
+    (s || "")
+      .toLowerCase()
+      .replace(/^(tỉnh|thành phố|tp\.?|quận|huyện|thị xã|phường|xã|thị trấn)\s+/g, "")
+      .replace(/[^a-z0-9à-ỹđ ]/g, "")
+      .replace(/\s+/g, " ")
+      .trim();
+
+  // Địa chỉ cũ chỉ có text: tự đối chiếu sang mã GHN để khỏi bắt user chọn lại
+  const autoMatchGeo = async (provinceText: string, districtText: string, wardText: string) => {
+    try {
+      const matchName = (name: string, text: string) => {
+        const n = normGeo(name);
+        const t = normGeo(text);
+        return !!t && (n === t || n.includes(t) || t.includes(n));
+      };
+      const provs = await getGhnProvinces();
+      setProvinces(provs);
+      const pv = provs.find((p) => matchName(p.ProvinceName, provinceText));
+      if (!pv) return;
+      const dists = await getGhnDistricts(pv.ProvinceID);
+      setDistricts(dists);
+      const dt = dists.find((d) => matchName(d.DistrictName, districtText));
+      let wardCode: string | null = null;
+      let wardName: string | undefined;
+      if (dt) {
+        const wds = await getGhnWards(dt.DistrictID);
+        setWards(wds);
+        const wd = wds.find((w) => matchName(w.WardName, wardText));
+        if (wd) {
+          wardCode = wd.WardCode;
+          wardName = wd.WardName;
+        }
+      }
+      setFormData((prev) => ({
+        ...prev,
+        provinceId: pv.ProvinceID,
+        province: pv.ProvinceName,
+        districtId: dt?.DistrictID ?? prev.districtId ?? null,
+        district: dt?.DistrictName ?? prev.district,
+        wardCode: wardCode ?? prev.wardCode ?? null,
+        ward: wardName ?? prev.ward,
+      }));
+    } catch {
+      // Không match được thì user chọn tay, không chặn form
     }
   };
 
@@ -83,11 +189,25 @@ export default function AddressManager({ onSelect, selectedId, mode = "manage" }
         province: address.province || "",
         district: address.district || "",
         ward: address.ward || "",
+        provinceId: address.provinceId ?? null,
+        districtId: address.districtId ?? null,
+        wardCode: address.wardCode ?? null,
         label: address.label || "Nhà",
         isDefault: address.isDefault,
       });
+      // Nạp sẵn chuỗi địa giới cho địa chỉ đang sửa; địa chỉ cũ thiếu
+      // mã GHN thì tự đối chiếu theo tên để chuẩn hóa dần
+      if (address.provinceId) {
+        loadDistricts(address.provinceId).then(() => {
+          if (address.districtId) loadWards(address.districtId);
+        });
+      } else if (address.province || address.district || address.ward) {
+        autoMatchGeo(address.province || "", address.district || "", address.ward || "");
+      }
     } else {
       setEditingAddress(null);
+      setDistricts([]);
+      setWards([]);
       setFormData({
         userId : "",
         fullName: "",
@@ -96,10 +216,14 @@ export default function AddressManager({ onSelect, selectedId, mode = "manage" }
         province: "",
         district: "",
         ward: "",
+        provinceId: null,
+        districtId: null,
+        wardCode: null,
         label: "Nhà",
         isDefault: addresses.length === 0,
       });
     }
+    loadProvinces();
     setShowDialog(true);
   };
 
@@ -113,6 +237,10 @@ export default function AddressManager({ onSelect, selectedId, mode = "manage" }
     
     if (!formData.fullName || !formData.phone || !formData.address) {
       toast.error("Vui lòng điền đầy đủ thông tin");
+      return;
+    }
+    if (!formData.districtId || !formData.wardCode) {
+      toast.error("Vui lòng chọn Quận/Huyện và Phường/Xã từ danh sách để tính phí ship chính xác");
       return;
     }
     if(!formData.userId){
@@ -164,7 +292,16 @@ export default function AddressManager({ onSelect, selectedId, mode = "manage" }
   };
 
   if (loading) {
-    return <div className="text-center py-8">Đang tải...</div>;
+    return (
+      <div className="space-y-3">
+        {[0,1].map(i=>(
+          <div key={i} className="animate-pulse rounded-xl border bg-card p-4 space-y-3">
+            <div className="h-4 w-1/3 rounded bg-muted" />
+            <div className="h-4 w-1/2 rounded bg-muted" />
+          </div>
+        ))}
+      </div>
+    );
   }
 
   return (
@@ -181,8 +318,8 @@ export default function AddressManager({ onSelect, selectedId, mode = "manage" }
 
       {addresses.length === 0 ? (
         <Card className="p-8 text-center">
-          <MapPin className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-          <p className="text-gray-600 mb-4">Chưa có địa chỉ nào</p>
+          <MapPin className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+          <p className="mb-4 text-muted-foreground">Chưa có địa chỉ nào</p>
           <Button onClick={() => handleOpenDialog()}>
             Thêm địa chỉ đầu tiên
           </Button>
@@ -198,7 +335,7 @@ export default function AddressManager({ onSelect, selectedId, mode = "manage" }
                 <label key={address.id} htmlFor={`address-${address.id}`} className="cursor-pointer">
                   <Card
                     className={`p-4 transition-all hover:shadow-md ${
-                      selectedId === address.id ? "ring-2 ring-blue-500 bg-blue-50/50" : ""
+                      selectedId === address.id ? "ring-2 ring-primary bg-primary/5" : ""
                     }`}
                   >
                     <div className="flex items-start gap-3">
@@ -240,7 +377,7 @@ export default function AddressManager({ onSelect, selectedId, mode = "manage" }
             </DialogTitle>
           </DialogHeader>
           <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div>
                 <Label htmlFor="fullName">Họ và tên *</Label>
                 <Input
@@ -263,33 +400,89 @@ export default function AddressManager({ onSelect, selectedId, mode = "manage" }
               </div>
             </div>
 
-            <div className="grid grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
               <div>
                 <Label htmlFor="province">Tỉnh/Thành phố</Label>
-                <Input
+                <select
                   id="province"
-                  value={formData.province}
-                  onChange={(e) => setFormData({ ...formData, province: e.target.value })}
-                  placeholder="Hồ Chí Minh"
-                />
+                  value={formData.provinceId ?? ""}
+                  onChange={(e) => {
+                    const id = e.target.value ? Number(e.target.value) : null;
+                    const found = provinces.find((p) => p.ProvinceID === id);
+                    setFormData({
+                      ...formData,
+                      provinceId: id,
+                      province: found?.ProvinceName || "",
+                      districtId: null,
+                      district: "",
+                      wardCode: null,
+                      ward: "",
+                    });
+                    if (id) loadDistricts(id);
+                    else {
+                      setDistricts([]);
+                      setWards([]);
+                    }
+                  }}
+                  className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                >
+                  <option value="">Chọn tỉnh/thành</option>
+                  {provinces.map((p) => (
+                    <option key={p.ProvinceID} value={p.ProvinceID}>
+                      {p.ProvinceName}
+                    </option>
+                  ))}
+                </select>
               </div>
               <div>
                 <Label htmlFor="district">Quận/Huyện</Label>
-                <Input
+                <select
                   id="district"
-                  value={formData.district}
-                  onChange={(e) => setFormData({ ...formData, district: e.target.value })}
-                  placeholder="Quận 1"
-                />
+                  value={formData.districtId ?? ""}
+                  disabled={!formData.provinceId || loadingGeo}
+                  onChange={(e) => {
+                    const id = e.target.value ? Number(e.target.value) : null;
+                    const found = districts.find((d) => d.DistrictID === id);
+                    setFormData({
+                      ...formData,
+                      districtId: id,
+                      district: found?.DistrictName || "",
+                      wardCode: null,
+                      ward: "",
+                    });
+                    if (id) loadWards(id);
+                    else setWards([]);
+                  }}
+                  className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:opacity-50"
+                >
+                  <option value="">Chọn quận/huyện</option>
+                  {districts.map((d) => (
+                    <option key={d.DistrictID} value={d.DistrictID}>
+                      {d.DistrictName}
+                    </option>
+                  ))}
+                </select>
               </div>
               <div>
                 <Label htmlFor="ward">Phường/Xã</Label>
-                <Input
+                <select
                   id="ward"
-                  value={formData.ward}
-                  onChange={(e) => setFormData({ ...formData, ward: e.target.value })}
-                  placeholder="Phường Bến Nghé"
-                />
+                  value={formData.wardCode ?? ""}
+                  disabled={!formData.districtId || loadingGeo}
+                  onChange={(e) => {
+                    const code = e.target.value || null;
+                    const found = wards.find((w) => w.WardCode === code);
+                    setFormData({ ...formData, wardCode: code, ward: found?.WardName || "" });
+                  }}
+                  className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:opacity-50"
+                >
+                  <option value="">Chọn phường/xã</option>
+                  {wards.map((w) => (
+                    <option key={w.WardCode} value={w.WardCode}>
+                      {w.WardName}
+                    </option>
+                  ))}
+                </select>
               </div>
             </div>
 
@@ -310,7 +503,7 @@ export default function AddressManager({ onSelect, selectedId, mode = "manage" }
                 id="label"
                 value={formData.label}
                 onChange={(e) => setFormData({ ...formData, label: e.target.value })}
-                className="w-full border rounded-md p-2"
+                className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
               >
                 <option value="Nhà">Nhà</option>
                 <option value="Văn phòng">Văn phòng</option>
@@ -381,7 +574,7 @@ function AddressCard({
             </Badge>
           )}
           {address.isDefault && (
-            <Badge className="text-xs bg-blue-500">
+            <Badge className="text-xs">
               <Check className="h-3 w-3 mr-1" />
               Mặc định
             </Badge>
@@ -394,16 +587,16 @@ function AddressCard({
             </Button>
             {!address.isDefault && (
               <Button variant="ghost" size="sm" onClick={onDelete}>
-                <Trash2 className="h-4 w-4 text-red-500" />
+                <Trash2 className="h-4 w-4 text-destructive" />
               </Button>
             )}
           </div>
         )}
       </div>
-      <p className="text-sm text-gray-600 mb-1">
+      <p className="mb-1 text-sm text-muted-foreground">
         Số điện thoại: {address.phone}
       </p>
-      <p className="text-sm text-gray-700">
+      <p className="text-sm text-foreground">
         {address.address}
         {address.ward && `, ${address.ward}`}
         {address.district && `, ${address.district}`}
@@ -414,7 +607,7 @@ function AddressCard({
           variant="link"
           size="sm"
           onClick={onSetDefault}
-          className="p-0 h-auto mt-2 text-blue-600"
+          className="p-0 h-auto mt-2 text-primary"
         >
           Đặt làm mặc định
         </Button>

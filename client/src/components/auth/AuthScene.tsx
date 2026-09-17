@@ -28,7 +28,7 @@ function Smartphone(props: any) {
             {/* Screen Content Glow */}
             <mesh position={[0, 0.5, 0.081]}>
                 <planeGeometry args={[1.0, 1.2]} />
-                <meshBasicMaterial color="#4f46e5" transparent opacity={0.1} />
+                <meshBasicMaterial color="#fc4c00" transparent opacity={0.1} />
             </mesh>
 
             {/* Camera Island */}
@@ -124,7 +124,7 @@ function SneakerBox(props: any) {
     return (
         <group {...props}>
             <RoundedBox args={[2.2, 1.2, 1.4]} radius={0.05} smoothness={2}>
-                <meshStandardMaterial color="#ea580c" />
+                <meshStandardMaterial color="#fc4c00" />
             </RoundedBox>
             {/* Lid line */}
             <mesh position={[0, 0.2, 0.71]}>
@@ -179,7 +179,7 @@ function SceneContent() {
             <Float speed={1.2} rotationIntensity={1.5} floatIntensity={1.5}>
                 <mesh position={[-2.5, 0.5, -1]}>
                     <octahedronGeometry args={[0.5]} />
-                    <meshStandardMaterial color="#6366f1" metalness={0.5} roughness={0.2} />
+                    <meshStandardMaterial color="#fc4c00" metalness={0.5} roughness={0.2} />
                 </mesh>
             </Float>
 
@@ -198,7 +198,7 @@ export default function AuthScene() {
                     <Environment preset="studio" />
                     <ambientLight intensity={0.5} />
                     <spotLight position={[10, 10, 10]} angle={0.15} penumbra={1} intensity={1} castShadow />
-                    <pointLight position={[-10, -5, -10]} intensity={0.5} color="#4f46e5" />
+                    <pointLight position={[-10, -5, -10]} intensity={0.5} color="#ff571a" />
                     <SceneContent />
                 </Suspense>
             </Canvas>

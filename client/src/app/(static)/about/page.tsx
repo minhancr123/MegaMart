@@ -8,7 +8,8 @@ export const metadata: Metadata = {
 export default function AboutPage() {
     return (
         <div className="max-w-4xl mx-auto px-4 py-12">
-            <h1 className="text-4xl font-bold text-gray-900 mb-8 text-center">Về MegaMart</h1>
+            <div className="mb-3 text-center text-xs font-bold uppercase tracking-[0.18em] text-[#c53b00]">Câu chuyện MegaMart</div>
+            <h1 className="text-4xl font-black text-gray-900 mb-8 text-center">Điện máy chính hãng cho mọi gia đình Việt</h1>
 
             <div className="prose prose-lg mx-auto text-gray-600 space-y-6">
                 <p>
@@ -34,7 +35,7 @@ export default function AboutPage() {
                 <h2 className="text-2xl font-bold text-gray-900 mt-8">Liên hệ</h2>
                 <p>
                     Chúng tôi luôn lắng nghe ý kiến đóng góp của khách hàng để không ngừng hoàn thiện.
-                    Nếu bạn có bất kỳ thắc mắc nào, đừng ngần ngại liên hệ với chúng tôi qua trang <a href="/contact" className="text-blue-600 hover:underline">Liên hệ</a>.
+                    Nếu bạn có bất kỳ thắc mắc nào, đừng ngần ngại liên hệ với chúng tôi qua trang <a href="/contact" className="font-semibold text-[#c53b00] hover:underline">Liên hệ</a>.
                 </p>
             </div>
         </div>

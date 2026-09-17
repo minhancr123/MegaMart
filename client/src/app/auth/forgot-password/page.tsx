@@ -9,6 +9,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { toast } from "sonner";
+import Image from "next/image";
 
 const forgotPasswordSchema = z.object({
     email: z.string().min(1, { message: 'Email không được để trống' }).email({ message: 'Email không hợp lệ' }),
@@ -40,8 +41,19 @@ export default function ForgotPasswordPage() {
     };
 
     return (
-        <div className="min-h-screen w-full flex items-center justify-center bg-gray-50 dark:bg-gray-950 p-4">
-            <div className="w-full max-w-md bg-white dark:bg-gray-900 rounded-xl shadow-lg p-8 space-y-6">
+        <div className="flex min-h-screen w-full items-center justify-center bg-[#f7f8fa] p-4 sm:p-6">
+            <div className="grid w-full max-w-5xl overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-[0_24px_70px_rgba(28,25,23,0.12)] lg:grid-cols-[1.15fr_.85fr]">
+                <div className="relative hidden min-h-[560px] overflow-hidden bg-orange-50 lg:block">
+                    <Image src="/images/stitch/forgot-shopping.jpg" alt="Minh họa thiết bị điện máy" fill priority sizes="55vw" className="object-cover" />
+                    <div className="absolute inset-0 bg-gradient-to-t from-[#9f2d00]/45 via-transparent to-transparent" />
+                    <div className="absolute inset-x-0 bottom-0 p-10 text-white">
+                        <p className="text-sm font-bold uppercase tracking-[0.14em] text-orange-100">MegaMart VN</p>
+                        <h2 className="mt-2 text-3xl font-black">Khôi phục tài khoản an toàn</h2>
+                        <p className="mt-2 max-w-md text-sm text-orange-50">Chúng tôi sẽ gửi hướng dẫn đến đúng địa chỉ email đã đăng ký.</p>
+                    </div>
+                </div>
+
+                <div className="flex flex-col justify-center space-y-6 p-8 sm:p-10">
                 <div className="text-center space-y-2">
                     <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Quên mật khẩu?</h1>
                     <p className="text-gray-500 dark:text-gray-400 text-sm">
@@ -72,7 +84,7 @@ export default function ForgotPasswordPage() {
 
                         <Button
                             type="submit"
-                            className="w-full bg-blue-600 hover:bg-blue-700"
+                            className="w-full rounded-full bg-[#fc4c00] hover:bg-[#af3200] text-white"
                             disabled={loading}
                         >
                             {loading ? <Loader2 className="animate-spin mr-2" /> : null}
@@ -95,10 +107,11 @@ export default function ForgotPasswordPage() {
                 )}
 
                 <div className="text-center">
-                    <Link href="/auth" className="inline-flex items-center text-sm font-medium text-gray-600 hover:text-gray-900">
+                    <Link href="/auth" className="inline-flex items-center text-sm font-medium text-[#af3200] hover:text-[#9a2b00]">
                         <ArrowLeft className="mr-2 h-4 w-4" />
                         Quay lại đăng nhập
                     </Link>
+                </div>
                 </div>
             </div>
         </div>

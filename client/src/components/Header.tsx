@@ -3,13 +3,28 @@
 import { useState, type FormEvent } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { motion, AnimatePresence } from "framer-motion";
-import { User, ShoppingCart, Menu, Search, LogInIcon, Handbag, ChevronDown, Heart, Scale, Store, Percent, Gift } from "lucide-react";
+import {
+  ChevronDown,
+  CircleUserRound,
+  Gift,
+  Heart,
+  LogIn,
+  LogOut,
+  Menu,
+  PackageSearch,
+  Search,
+  ShoppingCart,
+  SlidersHorizontal,
+  Store,
+  Truck,
+  UserRound,
+} from "lucide-react";
 
-import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
+import NotificationBell from "@/components/NotificationBell";
+import { LogoMark } from "@/components/Logo";
+import { useStoreSettings } from "@/hooks/useStoreSettings";
 import { Badge } from "@/components/ui/badge";
-import { ThemeToggle } from "@/components/theme-toggle";
+import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -18,525 +33,150 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import {
-  HoverCard,
-  HoverCardContent,
-  HoverCardTrigger,
-} from "@/components/ui/hover-card";
+import { Input } from "@/components/ui/input";
 import {
   Sheet,
+  SheetClose,
   SheetContent,
   SheetHeader,
   SheetTitle,
   SheetTrigger,
-  SheetClose,
 } from "@/components/ui/sheet";
-
-import CategoryMenu from "@/components/CategoryMenu";
-import NotificationBell from "@/components/NotificationBell";
 import { useAuthStore } from "@/store/authStore";
 import { useCartStore } from "@/store/cartStore";
-import { useWishlistStore } from "@/store/wishlistStore";
 import { useCompareStore } from "@/store/compareStore";
+import { useWishlistStore } from "@/store/wishlistStore";
+import { useMounted } from "@/hooks/useMounted";
+
+const mobileLinks = [
+  { href: "/products", label: "Tất cả sản phẩm", icon: PackageSearch },
+  { href: "/wishlist", label: "Sản phẩm yêu thích", icon: Heart },
+  { href: "/compare", label: "So sánh sản phẩm", icon: SlidersHorizontal },
+  { href: "/news", label: "Tin công nghệ", icon: Gift },
+];
+
+function CountBadge({ count, mounted }: { count: number; mounted: boolean }) {
+  if (!mounted || !count) return null;
+  return (
+    <span className="absolute -right-1.5 -top-1.5 grid min-h-5 min-w-5 place-items-center rounded-full border-2 border-white bg-[#ff4d00] px-1 text-[10px] font-extrabold leading-none text-white">
+      {count > 99 ? "99+" : count}
+    </span>
+  );
+}
 
 export default function Header() {
   const router = useRouter();
+  const mounted = useMounted();
   const { user, logout } = useAuthStore();
   const cartStore = useCartStore();
   const wishlist = useWishlistStore();
   const compare = useCompareStore();
-
   const [searchQuery, setSearchQuery] = useState("");
-  const [searchOpenMobile, setSearchOpenMobile] = useState(false);
-  const [showCategories, setShowCategories] = useState(false);
-  const [open, setOpen] = useState(false);
+  const [mobileSearchOpen, setMobileSearchOpen] = useState(false);
+  const [mobileOpen, setMobileOpen] = useState(false);
+  // Hotline lấy từ Admin → Cài đặt để khớp với cấu hình cửa hàng
+  const storeContact = useStoreSettings();
+  const cartCount = cartStore.items.reduce((total, item) => total + item.quantity, 0);
 
-  const handleSearch = (e: FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    if (!searchQuery.trim()) return;
-    router.push(`/search?query=${encodeURIComponent(searchQuery.trim())}`);
-    setOpen(false);
+  const handleSearch = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const query = searchQuery.trim();
+    if (!query) return;
+    router.push(`/search?query=${encodeURIComponent(query)}`);
+    setMobileSearchOpen(false);
+    setMobileOpen(false);
   };
 
   const handleCartClick = () => {
-    if (user) {
-      router.push("/cart");
-    } else {
-      router.push("/auth");
-    }
-    setOpen(false);
+    router.push(user ? "/cart" : "/auth");
+    setMobileOpen(false);
   };
 
   const handleLogout = () => {
     logout();
     cartStore.clearCart();
     router.push("/");
-    setOpen(false);
+    setMobileOpen(false);
   };
 
   return (
-    <div className="fixed top-0 z-50 w-full">
-      {/* Top Banner - Simple Gradient */}
-      <div className="relative overflow-hidden bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 dark:from-blue-700 dark:via-purple-700 dark:to-pink-700">
-        <div className="hidden lg:flex relative z-10 w-full text-white px-6 py-2.5 items-center justify-between">
-          <div className="flex items-center gap-2">
-            <Percent className="w-4 h-4" />
-            <span className="text-sm font-semibold tracking-wide">MegaMart · Ưu đãi và tiện ích mỗi ngày</span>
-          </div>
-          
-          <div className="flex items-center gap-3">
-            <Link 
-              href="/compare" 
-              className="relative inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-white/20 backdrop-blur-sm text-white hover:bg-white/30 transition-all duration-200"
-            >
-              <Scale className="h-4 w-4" />
-              <span className="text-sm font-semibold">So sánh</span>
-              {compare.items.length > 0 && (
-                <Badge className="bg-white text-purple-600 font-bold">{compare.items.length}</Badge>
-              )}
-            </Link>
-
-            <Link 
-              href="/wishlist" 
-              className="relative inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-white/20 backdrop-blur-sm text-white hover:bg-white/30 transition-all duration-200"
-            >
-              <Heart className="h-4 w-4" />
-              <span className="text-sm font-semibold">Yêu thích</span>
-              {wishlist.items.length > 0 && (
-                <Badge className="bg-white text-red-600 font-bold">{wishlist.items.length}</Badge>
-              )}
-            </Link>
-          </div>
-        </div>
-
-        {/* Mobile Top Banner */}
-        <div className="lg:hidden relative z-10 text-white py-2 px-4">
-          <div className="flex items-center justify-between text-sm">
-            <div className="flex items-center gap-2">
-              <Gift className="w-3 h-3" />
-              <span className="font-semibold">MegaMart</span>
-            </div>
-            {user && (
-              <span className="truncate max-w-[120px] text-sm">👋 {user.name}</span>
-            )}
-          </div>
+    <div className="fixed inset-x-0 top-0 z-50 border-b border-zinc-200 bg-white shadow-[0_6px_24px_rgba(24,24,27,0.06)]">
+      <div className="bg-[#a83200] text-white">
+        <div className="mm-container flex h-7 items-center justify-between gap-4 text-[11px] sm:text-xs">
+          <p className="flex min-w-0 items-center gap-2 font-semibold"><Gift className="h-3.5 w-3.5 shrink-0" /><span className="truncate">Freeship toàn quốc cho đơn từ 500.000₫</span></p>
+          <div className="hidden items-center gap-5 sm:flex"><Link href="/news" className="hover:text-orange-100">Tin khuyến mãi</Link><Link href="/contact" className="hover:text-orange-100">Hỗ trợ khách hàng</Link><span className="font-bold">{storeContact.phone}</span></div>
         </div>
       </div>
 
-      {/* Main Header */}
-      <header className="relative w-full bg-white dark:bg-gray-900 shadow-md border-b border-gray-200 dark:border-gray-800">
-        <div className="max-w-7xl mx-auto px-3 sm:px-4 py-3 relative z-10">
-          <div className="flex items-center justify-between gap-2 sm:gap-4">
-            {/* Logo */}
-            <Link href="/" className="flex-shrink-0 flex items-center gap-2">
-              <div className="w-10 h-10 bg-gradient-to-br from-blue-600 to-purple-600 rounded-lg flex items-center justify-center shadow-md">
-                <Store className="w-6 h-6 text-white" />
-              </div>
-              <h1 className="text-xl sm:text-2xl md:text-3xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-                MegaMart
-              </h1>
-            </Link>
+      <header>
+        <div className="mm-container flex h-16 items-center gap-4 lg:gap-8">
+          <Link href="/" className="flex shrink-0 items-center gap-2" aria-label="MegaMart - Trang chủ">
+            <LogoMark className="h-9 w-9" />
+            <span className="text-2xl font-black tracking-tight text-[#ff4d00]">MegaMart</span>
+          </Link>
 
-            {/* Desktop: Category Menu & Products */}
-            <div className="hidden lg:flex items-center gap-3">
-              <HoverCard openDelay={50} closeDelay={100}>
-                <HoverCardTrigger asChild>
-                  <Button 
-                    variant="outline" 
-                    className="flex items-center gap-2 border-2 border-blue-600 text-blue-600 hover:bg-blue-600 hover:text-white transition-all"
-                    onMouseEnter={() => setShowCategories(true)}
-                    onMouseLeave={() => setShowCategories(false)}
-                  >
-                    <Menu className="h-4 w-4" />
-                    <span className="font-semibold">Danh mục</span>
-                    <ChevronDown className="h-4 w-4" />
-                  </Button>
-                </HoverCardTrigger>
-                <HoverCardContent 
-                  side="bottom" 
-                  align="start" 
-                  className="w-72 p-0 mt-2 border-2 border-blue-100 dark:border-blue-900"
-                  onMouseEnter={() => setShowCategories(true)}
-                  onMouseLeave={() => setShowCategories(false)}
-                >
-                  <motion.div
-                    initial={{ opacity: 0, y: -10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.2 }}
-                  >
-                    <CategoryMenu />
-                  </motion.div>
-                </HoverCardContent>
-              </HoverCard>
+          <form onSubmit={handleSearch} className="relative mx-auto hidden w-full max-w-xl flex-1 md:flex">
+            <Input value={searchQuery} onChange={(event) => setSearchQuery(event.target.value)} placeholder="Tìm kiếm sản phẩm..." className="h-11 rounded-full border-zinc-300 bg-zinc-50 pl-5 pr-12 focus-visible:border-[#ff4d00] focus-visible:ring-[#ff4d00]/20" />
+            <Button type="submit" size="icon" aria-label="Tìm kiếm" className="absolute right-1 top-1/2 h-9 w-9 -translate-y-1/2 rounded-full bg-transparent text-zinc-500 shadow-none hover:bg-orange-50 hover:text-[#ff4d00]"><Search className="h-4.5 w-4.5" /></Button>
+          </form>
 
-              <Link href="/products">
-                <Button className="bg-blue-600 hover:bg-blue-700 text-white font-semibold">
-                  <Handbag className="w-4 h-4 mr-2" />
-                  Sản phẩm
-                </Button>
-              </Link>
-            </div>
+          <div className="ml-auto flex items-center gap-1 sm:gap-2">
+            <Button variant="ghost" size="icon" className="relative rounded-full text-zinc-700 hover:bg-orange-50 hover:text-[#c53b00] md:hidden" onClick={() => setMobileSearchOpen((open) => !open)} aria-label="Tìm kiếm"><Search className="h-5 w-5" /></Button>
+            <Link href="/wishlist" className="relative grid h-10 w-10 place-items-center rounded-full text-zinc-700 hover:bg-orange-50 hover:text-[#c53b00]" aria-label="Sản phẩm yêu thích"><Heart className="h-5 w-5" /><CountBadge count={wishlist.items.length} mounted={mounted} /></Link>
+            <NotificationBell />
+            <button type="button" onClick={handleCartClick} className="relative flex h-10 items-center gap-2 rounded-lg px-2 text-zinc-800 hover:bg-orange-50 hover:text-[#c53b00] sm:px-3" aria-label="Giỏ hàng"><ShoppingCart className="h-5 w-5" /><span className="hidden text-xs font-bold xl:block">Giỏ hàng</span><CountBadge count={cartCount} mounted={mounted} /></button>
 
-            {/* Desktop: Search Bar */}
-            <div className="hidden md:flex flex-1 max-w-2xl">
-              <form onSubmit={handleSearch} className="relative w-full flex">
-                <div className="relative flex-1">
-                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4 pointer-events-none" />
-                  <Input
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    placeholder="Tìm kiếm sản phẩm..."
-                    className="pl-10 pr-2 rounded-r-none border-r-0 focus:border-blue-600"
-                  />
+            <div className="hidden lg:block">
+              {!mounted ? (
+                <div className="flex h-10 items-center gap-2 rounded-lg px-3 bg-zinc-100 animate-pulse">
+                  <div className="h-7 w-7 rounded-full bg-zinc-200" />
+                  <div className="h-3 w-16 rounded bg-zinc-200" />
                 </div>
-                <Button
-                  className="rounded-l-none px-6 bg-blue-600 hover:bg-blue-700 text-white font-semibold"
-                  type="submit"
-                >
-                  Tìm kiếm
-                </Button>
-              </form>
+              ) : user ? (
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild><Button variant="ghost" className="h-10 gap-2 rounded-lg px-2 hover:bg-orange-50"><span className="grid h-8 w-8 place-items-center rounded-full bg-orange-100 text-sm font-black text-[#c53b00]">{user.name?.charAt(0)?.toUpperCase() || "U"}</span><span className="max-w-24 truncate text-xs font-bold text-zinc-800">{user.name}</span><ChevronDown className="h-3.5 w-3.5 text-zinc-500" /></Button></DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="w-56 border-zinc-200 p-2">
+                    <DropdownMenuLabel><span className="block text-sm font-bold">{user.name}</span><span className="block truncate text-xs font-normal text-zinc-500">{user.email}</span></DropdownMenuLabel>
+                    <DropdownMenuSeparator />
+                    {user.role === "ADMIN" && <DropdownMenuItem onClick={() => router.push("/admin")}><SlidersHorizontal className="mr-2 h-4 w-4" />Trang quản trị</DropdownMenuItem>}
+                    {(user.role === "SHIPPER" || user.role === "ADMIN") && <DropdownMenuItem onClick={() => router.push("/shipper")}><Truck className="mr-2 h-4 w-4" />Cổng giao hàng</DropdownMenuItem>}
+                    <DropdownMenuItem onClick={() => router.push("/profile")}><CircleUserRound className="mr-2 h-4 w-4" />Hồ sơ cá nhân</DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => router.push("/profile/orders")}><PackageSearch className="mr-2 h-4 w-4" />Đơn hàng của tôi</DropdownMenuItem>
+                    {user.role === "SUPPLIER" && <DropdownMenuItem onClick={() => router.push("/supplier")}><Store className="mr-2 h-4 w-4" />Cổng nhà cung cấp</DropdownMenuItem>}
+                    <DropdownMenuItem onClick={() => router.push("/compare")}><SlidersHorizontal className="mr-2 h-4 w-4" />So sánh sản phẩm</DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem onClick={handleLogout} className="text-red-600 focus:text-red-600"><LogOut className="mr-2 h-4 w-4" />Đăng xuất</DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              ) : <Button onClick={() => router.push("/auth")} className="h-10 bg-[#ff4d00] px-4 font-bold text-white hover:bg-[#d94100]"><LogIn className="mr-2 h-4 w-4" />Đăng nhập</Button>}
             </div>
 
-            {/* Mobile & Tablet: Action Icons */}
-            <div className="flex items-center gap-2 sm:gap-3">
-              {/* Mobile Search Icon */}
-              <motion.div whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }}>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="md:hidden bg-gradient-to-br from-blue-50 to-purple-50 dark:from-blue-900/30 dark:to-purple-900/30 hover:from-blue-100 hover:to-purple-100 dark:hover:from-blue-900/50 dark:hover:to-purple-900/50 rounded-xl"
-                  onClick={() => setSearchOpenMobile((v) => !v)}
-                >
-                  <Search className="h-5 w-5 text-blue-600 dark:text-blue-400" />
-                </Button>
-              </motion.div>
-
-              {/* Cart Icon - Mobile & Tablet only */}
-              <motion.div 
-                whileHover={{ scale: 1.1 }} 
-                whileTap={{ scale: 0.9 }} 
-                className="lg:hidden relative"
-              >
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="relative bg-gradient-to-br from-pink-50 to-red-50 dark:from-pink-900/30 dark:to-red-900/30 hover:from-pink-100 hover:to-red-100 dark:hover:from-pink-900/50 dark:hover:to-red-900/50 rounded-xl"
-                  onClick={handleCartClick}
-                >
-                  <ShoppingCart className="h-5 w-5 text-pink-600 dark:text-pink-400" />
-                  {cartStore.items && cartStore.items.length > 0 && (
-                    <motion.div
-                      initial={{ scale: 0 }}
-                      animate={{ scale: 1 }}
-                      transition={{ type: "spring", stiffness: 500, damping: 15 }}
-                    >
-                      <Badge className="absolute -top-2 -right-2 h-5 w-5 flex items-center justify-center p-0 bg-gradient-to-r from-red-600 to-pink-600 text-white text-xs font-bold shadow-lg border-2 border-white dark:border-gray-900">
-                        {cartStore.items.reduce((sum: number, item: any) => sum + item.quantity, 0)}
-                      </Badge>
-                    </motion.div>
-                  )}
-                </Button>
-              </motion.div>
-
-              {/* Mobile Menu Button */}
-              <Sheet open={open} onOpenChange={setOpen}>
-                <SheetTrigger asChild>
-                  <motion.div whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }}>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="lg:hidden bg-gradient-to-br from-purple-50 to-pink-50 dark:from-purple-900/30 dark:to-pink-900/30 hover:from-purple-100 hover:to-pink-100 dark:hover:from-purple-900/50 dark:hover:to-pink-900/50 rounded-xl"
-                    >
-                      <Menu className="h-5 w-5 text-purple-600 dark:text-purple-400" />
-                    </Button>
-                  </motion.div>
-                </SheetTrigger>
-                <SheetContent side="right" className="w-[300px] sm:w-[400px] bg-white/95 dark:bg-gray-950/95 backdrop-blur-xl border-gray-200/50 dark:border-gray-800/50">
-                  <SheetHeader>
-                    <SheetTitle className="text-left dark:text-white flex items-center gap-2">
-                      <div className="w-8 h-8 bg-gradient-to-br from-blue-600 to-purple-600 rounded-lg flex items-center justify-center">
-                        <Menu className="w-5 h-5 text-white" />
+            <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
+              <SheetTrigger asChild><Button variant="outline" size="icon" className="rounded-lg border-zinc-300 lg:hidden" aria-label="Mở menu"><Menu className="h-5 w-5" /></Button></SheetTrigger>
+              <SheetContent side="right" className="w-[320px] border-zinc-200 bg-white p-0">
+                <SheetHeader className="border-b border-zinc-200 p-5 text-left"><SheetTitle className="flex items-center gap-2.5 text-zinc-900"><LogoMark className="h-9 w-9" />MegaMart VN</SheetTitle></SheetHeader>
+                <div className="space-y-5 p-5">
+                  {!mounted ? (
+                    <div className="flex items-center gap-3 rounded-xl bg-zinc-100 p-4 animate-pulse">
+                      <div className="h-11 w-11 rounded-full bg-zinc-200" />
+                      <div className="space-y-2 flex-1">
+                        <div className="h-3.5 w-24 rounded bg-zinc-200" />
+                        <div className="h-2.5 w-36 rounded bg-zinc-200" />
                       </div>
-                      Menu
-                    </SheetTitle>
-                  </SheetHeader>
-                  
-                  <div className="flex flex-col gap-4 mt-6">
-                    {/* User Info */}
-                    {user ? (
-                      <motion.div 
-                        className="relative overflow-hidden rounded-2xl"
-                        initial={{ opacity: 0, y: -10 }}
-                        animate={{ opacity: 1, y: 0 }}
-                      >
-                        <div className="absolute inset-0 bg-gradient-to-r from-blue-600 to-purple-600 dark:from-blue-700 dark:to-purple-700"></div>
-                        <div className="relative flex items-center gap-3 p-4 bg-white/10 backdrop-blur-md">
-                          <div className="w-12 h-12 bg-white/20 backdrop-blur-sm rounded-full flex items-center justify-center text-white font-bold text-lg shadow-lg">
-                            {user.name?.charAt(0).toUpperCase()}
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <p className="font-bold text-white truncate">{user.name}</p>
-                            <p className="text-xs text-white/80 truncate">{user.email}</p>
-                          </div>
-                        </div>
-                      </motion.div>
-                    ) : (
-                      <SheetClose asChild>
-                        <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
-                          <Button 
-                            className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-bold shadow-lg py-6 rounded-xl"
-                            onClick={() => router.push('/auth')}
-                          >
-                            <LogInIcon className="h-5 w-5 mr-2" />
-                            Đăng nhập
-                          </Button>
-                        </motion.div>
-                      </SheetClose>
-                    )}
-
-                    {/* Navigation Links */}
-                    <div className="flex flex-col gap-2">
-                      {[
-                        { href: '/products', icon: Handbag, label: 'Sản phẩm', gradient: 'from-blue-500 to-purple-500' },
-                        { href: '/wishlist', icon: Heart, label: 'Yêu thích', gradient: 'from-pink-500 to-red-500', badge: wishlist.items.length },
-                        { href: '/compare', icon: Scale, label: 'So sánh', gradient: 'from-purple-500 to-pink-500', badge: compare.items.length },
-                      ].map((item, idx) => (
-                        <SheetClose asChild key={item.href}>
-                          <motion.div
-                            initial={{ opacity: 0, x: -20 }}
-                            animate={{ opacity: 1, x: 0 }}
-                            transition={{ delay: idx * 0.1 }}
-                            whileHover={{ x: 4 }}
-                          >
-                            <Button 
-                              variant="ghost" 
-                              className="w-full justify-start dark:text-white dark:hover:bg-gray-800 hover:bg-gradient-to-r hover:from-gray-50 hover:to-gray-100 dark:hover:from-gray-800 dark:hover:to-gray-700 rounded-xl py-6 group"
-                              onClick={() => router.push(item.href)}
-                            >
-                              <div className={`w-8 h-8 bg-gradient-to-r ${item.gradient} rounded-lg flex items-center justify-center mr-3 group-hover:scale-110 transition-transform`}>
-                                <item.icon className="h-4 w-4 text-white" />
-                              </div>
-                              <span className="font-semibold">{item.label}</span>
-                              {item.badge && item.badge > 0 && (
-                                <Badge className="ml-auto">{item.badge}</Badge>
-                              )}
-                            </Button>
-                          </motion.div>
-                        </SheetClose>
-                      ))}
                     </div>
-
-                    {/* Theme Toggle - Mobile */}
-                    <div className="flex items-center justify-between p-4 bg-gradient-to-r from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800 rounded-xl border border-gray-200 dark:border-gray-700">
-                      <span className="text-sm font-semibold dark:text-white">Chế độ hiển thị</span>
-                      <ThemeToggle />
-                    </div>
-
-                    {/* User Actions */}
-                    {user && (
-                      <>
-                        {/* Admin section */}
-                        {user.role === 'ADMIN' && (
-                          <SheetClose asChild>
-                            <motion.div whileHover={{ x: 4 }}>
-                              <Button 
-                                variant="ghost" 
-                                className="w-full justify-start dark:text-white dark:hover:bg-gray-800 hover:bg-gradient-to-r hover:from-purple-50 hover:to-pink-50 dark:hover:from-purple-900/20 dark:hover:to-pink-900/20 rounded-xl py-6"
-                                onClick={() => router.push('/admin')}
-                              >
-                                <div className="w-8 h-8 bg-gradient-to-r from-purple-600 to-pink-600 rounded-lg flex items-center justify-center mr-3">
-                                  <User className="h-4 w-4 text-white" />
-                                </div>
-                                <span className="font-semibold">Quản trị viên</span>
-                              </Button>
-                            </motion.div>
-                          </SheetClose>
-                        )}
-
-                        <div className="border-t dark:border-gray-800 pt-4 mt-2">
-                          <div className="flex flex-col gap-2">
-                            <SheetClose asChild>
-                              <motion.div whileHover={{ x: 4 }}>
-                                <Button 
-                                  variant="ghost" 
-                                  className="w-full justify-start dark:text-white dark:hover:bg-gray-800 rounded-xl py-6"
-                                  onClick={() => router.push('/profile')}
-                                >
-                                  <User className="h-5 w-5 mr-3 text-blue-600 dark:text-blue-400" />
-                                  <span className="font-semibold">Tài khoản của tôi</span>
-                                </Button>
-                              </motion.div>
-                            </SheetClose>
-                            
-                            <SheetClose asChild>
-                              <motion.div whileHover={{ x: 4 }}>
-                                <Button 
-                                  variant="ghost" 
-                                  className="w-full justify-start dark:text-white dark:hover:bg-gray-800 rounded-xl py-6"
-                                  onClick={() => router.push('/orders')}
-                                >
-                                  <Handbag className="h-5 w-5 mr-3 text-green-600 dark:text-green-400" />
-                                  <span className="font-semibold">Đơn hàng</span>
-                                </Button>
-                              </motion.div>
-                            </SheetClose>
-                          </div>
-                        </div>
-
-                        <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
-                          <Button 
-                            variant="outline" 
-                            className="w-full bg-gradient-to-r from-red-500 to-pink-500 hover:from-red-600 hover:to-pink-600 text-white border-0 font-bold py-6 rounded-xl shadow-lg"
-                            onClick={() => {
-                              handleLogout();
-                              setOpen(false);
-                            }}
-                          >
-                            Đăng xuất
-                          </Button>
-                        </motion.div>
-                      </>
-                    )}
+                  ) : user ? <div className="flex items-center gap-3 rounded-xl bg-orange-50 p-4"><span className="grid h-11 w-11 place-items-center rounded-full bg-[#ff4d00] font-black text-white">{user.name?.charAt(0)?.toUpperCase() || "U"}</span><div className="min-w-0"><p className="truncate text-sm font-bold text-zinc-900">{user.name}</p><p className="truncate text-xs text-zinc-500">{user.email}</p></div></div> : <Button className="w-full bg-[#ff4d00] font-bold text-white hover:bg-[#d94100]" onClick={() => router.push("/auth")}><LogIn className="mr-2 h-4 w-4" />Đăng nhập / Đăng ký</Button>}
+                  <div className="space-y-1">
+                    {mobileLinks.map((item) => <SheetClose asChild key={item.href}><Link href={item.href} className="flex items-center gap-3 rounded-lg px-3 py-3 text-sm font-semibold text-zinc-700 hover:bg-orange-50 hover:text-[#c53b00]"><item.icon className="h-5 w-5" />{item.label}{item.href === "/wishlist" && wishlist.items.length > 0 && <Badge className="ml-auto bg-orange-100 text-[#c53b00]">{wishlist.items.length}</Badge>}{item.href === "/compare" && compare.items.length > 0 && <Badge className="ml-auto bg-orange-100 text-[#c53b00]">{compare.items.length}</Badge>}</Link></SheetClose>)}
+                    {user && <>{user.role === "ADMIN" && <SheetClose asChild><Link href="/admin" className="flex items-center gap-3 rounded-lg px-3 py-3 text-sm font-semibold text-zinc-700 hover:bg-orange-50 hover:text-[#c53b00]"><SlidersHorizontal className="h-5 w-5" />Trang quản trị</Link></SheetClose>}{(user.role === "SHIPPER" || user.role === "ADMIN") && <SheetClose asChild><Link href="/shipper" className="flex items-center gap-3 rounded-lg px-3 py-3 text-sm font-semibold text-zinc-700 hover:bg-orange-50 hover:text-[#c53b00]"><Truck className="h-5 w-5" />Cổng giao hàng</Link></SheetClose>}<SheetClose asChild><Link href="/profile" className="flex items-center gap-3 rounded-lg px-3 py-3 text-sm font-semibold text-zinc-700 hover:bg-orange-50 hover:text-[#c53b00]"><UserRound className="h-5 w-5" />Tài khoản của tôi</Link></SheetClose></>}
                   </div>
-                </SheetContent>
-              </Sheet>
-
-              {/* Desktop User Menu */}
-              <div className="hidden lg:flex items-center gap-2">
-                {user ? (
-                  <>
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button
-                          variant="ghost"
-                          className="flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-all"
-                        >
-                          <div className="w-8 h-8 bg-gradient-to-br from-blue-600 to-purple-600 rounded-full flex items-center justify-center text-white font-bold text-sm">
-                            {user.name?.charAt(0).toUpperCase()}
-                          </div>
-                          <span className="font-medium text-sm max-w-[100px] truncate">{user.name}</span>
-                          <ChevronDown className="h-4 w-4" />
-                        </Button>
-                      </DropdownMenuTrigger>
-
-                      <DropdownMenuContent 
-                        className="w-56 p-2 mt-2 border shadow-xl bg-white dark:bg-gray-900"
-                        align="end"
-                      >
-                        <DropdownMenuLabel className="text-sm font-bold text-gray-700 dark:text-gray-200 px-3 py-2">
-                          Tài khoản của tôi
-                        </DropdownMenuLabel>
-                        <DropdownMenuSeparator className="my-1 dark:bg-gray-800" />
-                        
-                        {/* Admin menu */}
-                        {user?.role === 'ADMIN' && (
-                          <>
-                            <DropdownMenuItem 
-                              onClick={() => router.push('/admin')}
-                              className="cursor-pointer px-3 py-2.5 rounded-lg hover:bg-purple-50 dark:hover:bg-purple-900/20 transition-all"
-                            >
-                              <User className="h-4 w-4 mr-3 text-purple-600 dark:text-purple-400" />
-                              <span className="font-semibold">Quản trị viên</span>
-                            </DropdownMenuItem>
-                            <DropdownMenuSeparator className="my-1 dark:bg-gray-800" />
-                          </>
-                        )}
-
-                        <DropdownMenuItem 
-                          onClick={() => router.push('/profile/orders')}
-                          className="cursor-pointer px-3 py-2.5 rounded-lg hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-all"
-                        >
-                          <Handbag className="h-4 w-4 mr-3 text-blue-600 dark:text-blue-400" />
-                          <span className="font-medium">Đơn hàng</span>
-                        </DropdownMenuItem>
-
-                        <DropdownMenuItem 
-                          onClick={() => router.push('/profile/addresses')}
-                          className="cursor-pointer px-3 py-2.5 rounded-lg hover:bg-green-50 dark:hover:bg-green-900/20 transition-all"
-                        >
-                          <Handbag className="h-4 w-4 mr-3 text-green-600 dark:text-green-400" />
-                          <span className="font-medium">Địa chỉ</span>
-                        </DropdownMenuItem>
-
-                        <DropdownMenuItem 
-                          onClick={() => router.push('/profile')}
-                          className="cursor-pointer px-3 py-2.5 rounded-lg hover:bg-purple-50 dark:hover:bg-purple-900/20 transition-all"
-                        >
-                          <User className="h-4 w-4 mr-3 text-purple-600 dark:text-purple-400" />
-                          <span className="font-medium">Hồ sơ</span>
-                        </DropdownMenuItem>
-
-                        <DropdownMenuSeparator className="my-1 dark:bg-gray-800" />
-                        
-                        <DropdownMenuItem 
-                          onClick={handleLogout}
-                          className="cursor-pointer px-3 py-2.5 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 transition-all text-red-600 dark:text-red-400"
-                        >
-                          <span className="font-semibold">Đăng xuất</span>
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </>
-                ) : (
-                  <Button
-                    className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white font-semibold px-4"
-                    onClick={() => router.push('/auth')}
-                  >
-                    <LogInIcon className="h-4 w-4" />
-                    <span>Đăng nhập</span>
-                  </Button>
-                )}
-              
-                {/* Cart Button */}
-                <div className="relative">
-                  <Button 
-                    className="flex items-center gap-2 bg-pink-600 hover:bg-pink-700 text-white font-semibold px-4" 
-                    onClick={handleCartClick}
-                  >
-                    <ShoppingCart className="h-5 w-5" />
-                    <span>Giỏ hàng</span>
-                  </Button>
-                  {cartStore.items?.length > 0 && (
-                    <Badge className="absolute -top-2 -right-2 h-6 w-6 flex items-center justify-center text-xs font-bold bg-red-600 text-white">
-                      {cartStore.items.length}
-                    </Badge>
-                  )}
+                  <div className="border-t border-zinc-200 pt-5"><button type="button" onClick={handleCartClick} className="flex w-full items-center justify-between rounded-xl bg-zinc-900 px-4 py-3 text-sm font-bold text-white"><span className="flex items-center gap-2"><ShoppingCart className="h-5 w-5" />Xem giỏ hàng</span><span>{cartCount}</span></button>{user && <Button variant="ghost" className="mt-2 w-full justify-start text-red-600 hover:bg-red-50 hover:text-red-700" onClick={handleLogout}><LogOut className="mr-2 h-4 w-4" />Đăng xuất</Button>}</div>
                 </div>
-                
-                {/* Notification & Theme */}
-                <NotificationBell />
-                <ThemeToggle />
-              </div>
-            </div>
+              </SheetContent>
+            </Sheet>
           </div>
-
-          {/* Mobile Search (collapsible) */}
-          <AnimatePresence>
-            {searchOpenMobile && (
-              <motion.div
-                initial={{ opacity: 0, height: 0, y: -10 }}
-                animate={{ opacity: 1, height: 'auto', y: 0 }}
-                exit={{ opacity: 0, height: 0, y: -10 }}
-                transition={{ duration: 0.3 }}
-                className="md:hidden mt-4 w-full"
-              >
-                <form onSubmit={handleSearch}>
-                  <div className="relative">
-                    <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5 z-10" />
-                    <Input
-                      value={searchQuery}
-                      onChange={(e) => setSearchQuery(e.target.value)}
-                      placeholder="Tìm kiếm sản phẩm..."
-                      className="pl-12 pr-4 py-6 bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm border-2 border-gray-200 dark:border-gray-700 rounded-2xl focus:border-blue-600 dark:focus:border-blue-400 focus:ring-4 focus:ring-blue-100 dark:focus:ring-blue-900/30"
-                      autoFocus
-                    />
-                  </div>
-                </form>
-              </motion.div>
-            )}
-          </AnimatePresence>
         </div>
+
+        {mobileSearchOpen && <div className="border-t border-zinc-200 px-4 py-3 md:hidden"><form onSubmit={handleSearch} className="mx-auto flex max-w-2xl"><Input autoFocus value={searchQuery} onChange={(event) => setSearchQuery(event.target.value)} placeholder="Tìm kiếm sản phẩm..." className="h-10 rounded-l-full border-zinc-300 pl-5" /><Button type="submit" className="h-10 rounded-r-full bg-[#ff4d00] text-white hover:bg-[#d94100]"><Search className="h-4 w-4" /></Button></form></div>}
       </header>
     </div>
   );

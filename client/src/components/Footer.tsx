@@ -1,132 +1,154 @@
-import { Facebook, Twitter, Instagram, Youtube, Mail, MapPin, Phone, Send } from 'lucide-react';
+import { Facebook, Instagram, Mail, MapPin, Phone, Send, Youtube } from "lucide-react";
 import Link from "next/link";
+
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { LogoDark } from "@/components/ui/Logo";
+import { Logo } from "@/components/ui/Logo";
 
-export default function Footer() {
+const customerLinks = [
+  { href: "/contact", label: "Trung tâm trợ giúp" },
+  { href: "/policy", label: "Chính sách mua hàng" },
+  { href: "/privacy", label: "Chính sách bảo mật" },
+  { href: "/profile/orders", label: "Theo dõi đơn hàng" },
+];
+
+const shoppingLinks = [
+  { href: "/products", label: "Tất cả sản phẩm" },
+  { href: "/products?sort=newest", label: "Sản phẩm mới" },
+  { href: "/wishlist", label: "Sản phẩm yêu thích" },
+  { href: "/news", label: "Tin tức công nghệ" },
+];
+
+interface StoreContact {
+  storeName: string;
+  phone: string;
+  email: string;
+  address: string;
+}
+
+const FALLBACK_CONTACT: StoreContact = {
+  storeName: "MegaMart",
+  phone: "1900 6789",
+  email: "hotro@megamart.vn",
+  address: "128 Nguyễn Gia Trí, Bình Thạnh, TP.HCM",
+};
+
+/** Lấy thông tin cửa hàng từ Admin → Cài đặt (cache 5 phút), rớt mạng thì dùng mặc định. */
+let contactCache: { at: number; data: StoreContact } | null = null;
+let contactInflight: Promise<StoreContact> | null = null;
+const CONTACT_TTL_MS = 5 * 60 * 1000;
+
+async function getStoreContact(): Promise<StoreContact> {
+  // Cache module-level: trang search là Client Component nên Footer render ở
+  // browser mỗi lần re-render — không cache là mỗi render 1 request → dính
+  // ThrottlerGuard (3 req/s) rồi spam 429 đầy console.
+  if (contactCache && Date.now() - contactCache.at < CONTACT_TTL_MS) {
+    return contactCache.data;
+  }
+  // Nhiều render cùng 1 tick thì gộp chung 1 request đang bay.
+  if (!contactInflight) {
+    contactInflight = fetchStoreContact().finally(() => {
+      contactInflight = null;
+    });
+  }
+  return contactInflight;
+}
+
+async function fetchStoreContact(): Promise<StoreContact> {
+  const stale = contactCache?.data ?? FALLBACK_CONTACT;
+  try {
+    const base = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
+    const res = await fetch(`${base}/api/settings`, { next: { revalidate: 300 } });
+    if (!res.ok) throw new Error(`settings ${res.status}`);
+    const data = await res.json();
+    const s = data?.data ?? data;
+    if (!s) throw new Error("settings rỗng");
+    contactCache = {
+      at: Date.now(),
+      data: {
+        storeName: s.storeName || FALLBACK_CONTACT.storeName,
+        phone: s.phone || FALLBACK_CONTACT.phone,
+        email: s.email || FALLBACK_CONTACT.email,
+        address: s.address || FALLBACK_CONTACT.address,
+      },
+    };
+    return contactCache.data;
+  } catch {
+    // Thất bại cũng stamp giờ để render sau khỏi fetch dồn (dùng data cũ).
+    contactCache = { at: Date.now(), data: stale };
+    return stale;
+  }
+}
+
+export default async function Footer() {
+  const contact = await getStoreContact();
   return (
-    <footer className="bg-slate-950 dark:bg-black text-white pt-12 sm:pt-16 md:pt-20 pb-6 sm:pb-8 mt-12 sm:mt-16 md:mt-24 border-t border-slate-800 dark:border-gray-900 overflow-x-hidden">
-      <div className="max-w-7xl mx-auto px-3 sm:px-4 md:px-6 lg:px-8">
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8 sm:gap-10 md:gap-12 mb-12 sm:mb-16">
-          {/* Company Info */}
-          <div className="space-y-6">
-            <LogoDark iconSize={32} textSize="text-2xl" />
-            <p className="text-slate-400 leading-relaxed">
-              Nền tảng mua sắm trực tuyến hàng đầu với hàng ngàn sản phẩm chất lượng, chính hãng và dịch vụ tận tâm.
+    <footer className="mt-14 overflow-hidden border-t border-zinc-200 bg-white text-zinc-700 sm:mt-16">
+      <div className="border-b border-orange-100 bg-orange-50/70">
+        <div className="mm-container flex flex-col gap-4 py-6 md:flex-row md:items-center md:justify-between">
+          <div>
+            <h2 className="text-lg font-black text-zinc-900">Nhận ưu đãi điện máy mới nhất</h2>
+            <p className="mt-1 text-sm text-zinc-500">Đăng ký email để không bỏ lỡ chương trình giảm giá.</p>
+          </div>
+          <div className="flex w-full max-w-md">
+            <Input aria-label="Email nhận khuyến mãi" placeholder="Email của bạn" className="h-11 rounded-r-none border-orange-200 bg-white focus-visible:ring-orange-500/20" />
+            <Button type="button" className="h-11 rounded-l-none bg-[#ff4d00] px-5 font-bold text-white hover:bg-[#d94100]">
+              <Send className="mr-2 h-4 w-4" /> Đăng ký
+            </Button>
+          </div>
+        </div>
+      </div>
+
+      <div className="mm-container py-10">
+        <div className="grid gap-9 sm:grid-cols-2 lg:grid-cols-[1.25fr_.8fr_.8fr_1.15fr]">
+          <div>
+            <Logo iconSize={22} textSize="text-xl" />
+            <p className="mt-5 max-w-sm text-sm leading-6 text-zinc-500">
+              Hệ thống bán lẻ điện máy chính hãng với dịch vụ giao lắp tận nơi, bảo hành minh bạch và nhiều lựa chọn thanh toán.
             </p>
-            <div className="flex gap-3 pt-2">
-              <a href="#" className="w-11 h-11 rounded-xl bg-slate-800 flex items-center justify-center hover:bg-blue-600 transition-all duration-300 hover:scale-110 hover:shadow-lg hover:shadow-blue-500/50">
-                <Facebook className="w-5 h-5" />
-              </a>
-              <a href="#" className="w-11 h-11 rounded-xl bg-slate-800 flex items-center justify-center hover:bg-sky-500 transition-all duration-300 hover:scale-110 hover:shadow-lg hover:shadow-sky-500/50">
-                <Twitter className="w-5 h-5" />
-              </a>
-              <a href="#" className="w-11 h-11 rounded-xl bg-slate-800 flex items-center justify-center hover:bg-gradient-to-br hover:from-pink-500 hover:to-purple-600 transition-all duration-300 hover:scale-110 hover:shadow-lg hover:shadow-pink-500/50">
-                <Instagram className="w-5 h-5" />
-              </a>
-              <a href="#" className="w-11 h-11 rounded-xl bg-slate-800 flex items-center justify-center hover:bg-red-600 transition-all duration-300 hover:scale-110 hover:shadow-lg hover:shadow-red-500/50">
-                <Youtube className="w-5 h-5" />
-              </a>
+            <div className="mt-5 flex gap-2">
+              {[Facebook, Instagram, Youtube].map((Icon, index) => (
+                <a key={index} href="#" aria-label="Mạng xã hội MegaMart" className="grid h-9 w-9 place-items-center rounded-full border border-zinc-200 text-zinc-500 hover:border-orange-200 hover:bg-orange-50 hover:text-[#c53b00]">
+                  <Icon className="h-4 w-4" />
+                </a>
+              ))}
             </div>
           </div>
 
-          {/* Quick Links */}
           <div>
-            <h4 className="text-lg font-bold mb-6 text-white">Liên kết nhanh</h4>
-            <ul className="space-y-3 text-slate-400">
-              <li><Link href="/about" className="hover:text-white hover:translate-x-1 transition-all inline-flex items-center gap-2 cursor-pointer"><span className="text-indigo-400">›</span> Về chúng tôi</Link></li>
-              <li><Link href="/products?sort=newest" className="hover:text-white hover:translate-x-1 transition-all inline-flex items-center gap-2 cursor-pointer"><span className="text-indigo-400">›</span> Sản phẩm mới</Link></li>
-              <li><Link href="/flash-sale" className="hover:text-white hover:translate-x-1 transition-all inline-flex items-center gap-2 cursor-pointer"><span className="text-indigo-400">›</span> Khuyến mãi hot</Link></li>
-              <li><Link href="/news" className="hover:text-white hover:translate-x-1 transition-all inline-flex items-center gap-2 cursor-pointer"><span className="text-indigo-400">›</span> Tin tức công nghệ</Link></li>
+            <h3 className="text-sm font-black text-zinc-900">Mua sắm</h3>
+            <ul className="mt-4 space-y-3 text-sm text-zinc-500">
+              {shoppingLinks.map((item) => <li key={item.href}><Link href={item.href} className="hover:text-[#c53b00]">{item.label}</Link></li>)}
             </ul>
           </div>
 
-          {/* Support */}
           <div>
-            <h4 className="text-lg font-bold mb-6 text-white">Hỗ trợ khách hàng</h4>
-            <ul className="space-y-3 text-slate-400">
-              <li><Link href="/contact" className="hover:text-white hover:translate-x-1 transition-all inline-flex items-center gap-2 cursor-pointer"><span className="text-indigo-400">›</span> Trung tâm trợ giúp</Link></li>
-              <li><Link href="/policy" className="hover:text-white hover:translate-x-1 transition-all inline-flex items-center gap-2 cursor-pointer"><span className="text-indigo-400">›</span> Chính sách đổi trả</Link></li>
-              <li><Link href="/policy" className="hover:text-white hover:translate-x-1 transition-all inline-flex items-center gap-2 cursor-pointer"><span className="text-indigo-400">›</span> Chính sách bảo mật</Link></li>
-              <li><Link href="/profile/orders" className="hover:text-white hover:translate-x-1 transition-all inline-flex items-center gap-2 cursor-pointer"><span className="text-indigo-400">›</span> Theo dõi đơn hàng</Link></li>
+            <h3 className="text-sm font-black text-zinc-900">Hỗ trợ</h3>
+            <ul className="mt-4 space-y-3 text-sm text-zinc-500">
+              {customerLinks.map((item) => <li key={item.href}><Link href={item.href} className="hover:text-[#c53b00]">{item.label}</Link></li>)}
             </ul>
           </div>
 
-          {/* Contact & Newsletter */}
           <div>
-            <h4 className="text-lg font-bold mb-6 text-white">Liên hệ & Đăng ký</h4>
-            <div className="text-slate-400 space-y-4 mb-6">
-              <p className="flex items-center gap-3 hover:text-white transition-colors">
-                <div className="w-10 h-10 rounded-lg bg-slate-800 flex items-center justify-center flex-shrink-0">
-                  <Phone className="w-4 h-4 text-indigo-400" />
-                </div>
-                <span>1900 1234</span>
-              </p>
-              <p className="flex items-center gap-3 hover:text-white transition-colors">
-                <div className="w-10 h-10 rounded-lg bg-slate-800 flex items-center justify-center flex-shrink-0">
-                  <Mail className="w-4 h-4 text-indigo-400" />
-                </div>
-                <span>support@megamart.vn</span>
-              </p>
-              <p className="flex items-center gap-3 hover:text-white transition-colors">
-                <div className="w-10 h-10 rounded-lg bg-slate-800 flex items-center justify-center flex-shrink-0">
-                  <MapPin className="w-4 h-4 text-indigo-400" />
-                </div>
-                <span>123 Đường ABC, Quận 1, TP.HCM</span>
-              </p>
-            </div>
-
-            <div className="space-y-2">
-              <div className="relative">
-                <Input
-                  placeholder="Nhập email của bạn..."
-                  className="bg-slate-800/50 border-slate-700 text-white pr-12 focus:ring-indigo-500 focus:border-indigo-500 rounded-xl h-12"
-                />
-                <Button
-                  size="icon"
-                  className="absolute right-1 top-1/2 -translate-y-1/2 h-10 w-10 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 rounded-lg shadow-lg"
-                >
-                  <Send className="w-4 h-4" />
-                </Button>
-              </div>
-              <p className="text-xs text-slate-500">Đăng ký để nhận thông tin khuyến mãi mới nhất.</p>
+            <h3 className="text-sm font-black text-zinc-900">Liên hệ {contact.storeName}</h3>
+            <div className="mt-4 space-y-3 text-sm text-zinc-500">
+              <p className="flex items-center gap-3"><Phone className="h-4 w-4 shrink-0 text-[#d94300]" /><span><strong className="text-zinc-800">{contact.phone}</strong> · 8:00–22:00</span></p>
+              <p className="flex items-center gap-3"><Mail className="h-4 w-4 shrink-0 text-[#d94300]" /><span>{contact.email}</span></p>
+              <p className="flex items-start gap-3"><MapPin className="mt-0.5 h-4 w-4 shrink-0 text-[#d94300]" /><span>{contact.address}</span></p>
             </div>
           </div>
         </div>
 
-        {/* Payment Methods */}
-        <div className="border-t border-slate-800 pt-8 pb-8">
-          <div className="flex flex-col md:flex-row justify-between items-center gap-6">
-            <div className="text-center md:text-left">
-              <h5 className="text-sm font-semibold text-slate-400 mb-3">Phương thức thanh toán</h5>
-              <div className="flex gap-3 flex-wrap justify-center md:justify-start">
-                {['VISA', 'MasterCard', 'JCB', 'MOMO', 'ZaloPay'].map((payment) => (
-                  <div key={payment} className="bg-slate-800 px-4 py-2 rounded-lg text-xs font-bold text-slate-300 hover:bg-slate-700 transition-colors">
-                    {payment}
-                  </div>
-                ))}
-              </div>
-            </div>
-            <div className="text-center md:text-right">
-              <h5 className="text-sm font-semibold text-slate-400 mb-3">Vận chuyển</h5>
-              <div className="flex gap-3 flex-wrap justify-center md:justify-end">
-                {['Giao hàng nhanh', 'Giao hàng tiết kiệm', 'Ninja Van'].map((ship) => (
-                  <div key={ship} className="bg-slate-800 px-4 py-2 rounded-lg text-xs font-bold text-slate-300 hover:bg-slate-700 transition-colors">
-                    {ship}
-                  </div>
-                ))}
-              </div>
-            </div>
+        <div className="mt-9 flex flex-col gap-5 border-t border-zinc-200 pt-6 md:flex-row md:items-center md:justify-between">
+          <div className="flex flex-wrap gap-2">
+            {["VISA", "Mastercard", "JCB", "MoMo", "ZaloPay"].map((payment) => (
+              <span key={payment} className="rounded-md border border-zinc-200 bg-zinc-50 px-3 py-1.5 text-[10px] font-black text-zinc-500">{payment}</span>
+            ))}
           </div>
-        </div>
-
-        {/* Copyright */}
-        <div className="border-t border-slate-800 pt-8 flex flex-col md:flex-row justify-between items-center gap-4 text-slate-500 text-sm">
-          <p>© 2025 <span className="font-semibold text-indigo-400">MegaMart</span>. Tất cả quyền được bảo lưu.</p>
-          <div className="flex gap-6">
-            <Link href="/terms" className="hover:text-white transition-colors cursor-pointer">Điều khoản sử dụng</Link>
-            <Link href="/privacy" className="hover:text-white transition-colors cursor-pointer">Chính sách quyền riêng tư</Link>
+          <p className="text-xs text-zinc-400">© 2026 {contact.storeName} VN · Điện máy chính hãng</p>
+          <div className="flex gap-4 text-xs text-zinc-500">
+            <Link href="/terms" className="hover:text-[#c53b00]">Điều khoản</Link>
+            <Link href="/privacy" className="hover:text-[#c53b00]">Quyền riêng tư</Link>
           </div>
         </div>
       </div>

@@ -36,7 +36,7 @@ export function ConfirmDeleteDialog({
                 <AlertDialogHeader>
                     <AlertDialogTitle>{title}</AlertDialogTitle>
                     <AlertDialogDescription>
-                        {description} {itemName ? <strong>"{itemName}"</strong> : ""}?
+                        {description} {itemName ? <strong>&ldquo;{itemName}&rdquo;</strong> : ""}?
                         <br />
                         Hành động này không thể hoàn tác.
                     </AlertDialogDescription>
@@ -49,7 +49,7 @@ export function ConfirmDeleteDialog({
                             onConfirm();
                         }}
                         disabled={isDeleting}
-                        className="bg-red-600 hover:bg-red-700"
+                        className="bg-destructive text-white hover:bg-destructive/90 focus-visible:ring-destructive/30"
                     >
                         {isDeleting ? "Đang xóa..." : "Xóa"}
                     </AlertDialogAction>

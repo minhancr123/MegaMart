@@ -4,9 +4,9 @@ import Footer from "../components/Footer";
 import Home from "./home/page";
 export default function HomePage() {
   return (
-    <div className="min-h-screen bg-white dark:bg-gray-950 overflow-x-hidden">
+    <div className="min-h-screen overflow-x-hidden bg-[#f7f8fa]">
       <Header />
-      <main className="pt-[100px] md:pt-[120px] py-4 sm:py-8">
+      <main className="pt-[110px] sm:pt-[115px] md:pt-[120px]">
         <Home></Home>
       </main>
       <Footer />

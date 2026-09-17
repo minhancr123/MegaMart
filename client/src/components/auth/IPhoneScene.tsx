@@ -21,16 +21,24 @@ function Model(props: any) {
         // Logo nằm ở material 'Wallpaper' chứ không phải 'Screen_Glass'
         const targetMaterial = materials['Wallpaper'];
         if (targetMaterial?.map) {
+            // GLTF caches its texture; these mutations are required by Three.js to correct UV orientation.
+            // eslint-disable-next-line react-hooks/immutability
             targetMaterial.map.flipY = false;
 
             // Sửa lỗi ngược chiều ngang (mirrored text)
+            // eslint-disable-next-line react-hooks/immutability
             targetMaterial.map.wrapT = THREE.RepeatWrapping;
+            // eslint-disable-next-line react-hooks/immutability
             targetMaterial.map.repeat.y = -1;
+            // eslint-disable-next-line react-hooks/immutability
             targetMaterial.map.offset.y = 0.1;
+            // eslint-disable-next-line react-hooks/immutability
             targetMaterial.map.colorSpace = THREE.SRGBColorSpace;
+            // eslint-disable-next-line react-hooks/immutability
             targetMaterial.map.needsUpdate = true;
         }
 
+        // eslint-disable-next-line react-hooks/immutability
         targetMaterial.color.setRGB(1.3, 1.3, 1.3);
     }, [materials]);
 
@@ -235,7 +243,7 @@ function Loader() {
     return (
         <div className="absolute inset-0 flex items-center justify-center bg-transparent">
             <div className="flex flex-col items-center gap-4">
-                <div className="w-12 h-12 border-4 border-indigo-500/30 border-t-indigo-500 rounded-full animate-spin" />
+                <div className="w-12 h-12 border-4 border-[#fc4c00]/30 border-t-[#fc4c00] rounded-full animate-spin" />
                 <span className="text-white/60 text-sm font-medium">Loading 3D Scene...</span>
             </div>
         </div>

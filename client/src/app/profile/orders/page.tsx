@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { fetchOrdersByUser } from "@/lib/orderApi";
 import { useAuthStore } from "@/store/authStore";
 import { useRouter } from "next/navigation";
@@ -8,21 +8,42 @@ import Link from "next/link";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Loader2, Package, Clock, CheckCircle, XCircle, Eye, ShoppingBag, TrendingUp } from "lucide-react";
-import { motion } from "framer-motion";
+import { Input } from "@/components/ui/input";
+import {
+  Loader2,
+  Package,
+  Clock,
+  CheckCircle2,
+  XCircle,
+  Truck,
+  RotateCcw,
+  Search,
+  ChevronRight,
+  Eye,
+  ShoppingBag,
+  Star,
+  RefreshCw,
+} from "lucide-react";
 import Image from "next/image";
+import { visibleAttributes, formatAttributeValue } from "@/lib/productAttributes";
+import { Pagination } from "@/components/ui/pagination";
+import { toast } from "sonner";
 
-const statusConfig: Record<string, { label: string; color: string; icon: any }> = {
-  PENDING: { label: "Chờ xử lý", color: "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400 border border-yellow-200 dark:border-yellow-800", icon: Clock },
-  CONFIRMED: { label: "Đã xác nhận", color: "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400 border border-blue-200 dark:border-blue-800", icon: CheckCircle },
-  PROCESSING: { label: "Đang xử lý", color: "bg-indigo-100 text-indigo-800 dark:bg-indigo-900/30 dark:text-indigo-400 border border-indigo-200 dark:border-indigo-800", icon: Package },
-  SHIPPING: { label: "Đang giao hàng", color: "bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-400 border border-orange-200 dark:border-orange-800", icon: TrendingUp },
-  DELIVERED: { label: "Đã giao", color: "bg-teal-100 text-teal-800 dark:bg-teal-900/30 dark:text-teal-400 border border-teal-200 dark:border-teal-800", icon: CheckCircle },
-  COMPLETED: { label: "Hoàn thành", color: "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400 border border-green-200 dark:border-green-800", icon: CheckCircle },
-  PAID: { label: "Đã thanh toán", color: "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800", icon: CheckCircle },
-  CANCELED: { label: "Đã hủy", color: "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400 border border-red-200 dark:border-red-800", icon: XCircle },
-  FAILED: { label: "Thất bại", color: "bg-rose-100 text-rose-800 dark:bg-rose-900/30 dark:text-rose-400 border border-rose-200 dark:border-rose-800", icon: XCircle },
-  REFUNDED: { label: "Đã hoàn tiền", color: "bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-400 border border-purple-200 dark:border-purple-800", icon: Package },
+// Mapping cấu hình trạng thái chuẩn Stitch với Icon
+const statusConfig: Record<
+  string,
+  { label: string; tone: "default" | "secondary" | "destructive" | "outline" | "success" | "warning" | "info"; icon: any }
+> = {
+  PENDING: { label: "Chờ xác nhận", tone: "warning", icon: Clock },
+  CONFIRMED: { label: "Đã xác nhận", tone: "info", icon: CheckCircle2 },
+  PROCESSING: { label: "Đang xử lý", tone: "info", icon: RefreshCw },
+  SHIPPING: { label: "Đang giao", tone: "info", icon: Truck },
+  DELIVERED: { label: "Hoàn thành", tone: "success", icon: CheckCircle2 },
+  COMPLETED: { label: "Hoàn thành", tone: "success", icon: CheckCircle2 },
+  PAID: { label: "Đã thanh toán", tone: "success", icon: CheckCircle2 },
+  CANCELED: { label: "Đã huỷ", tone: "destructive", icon: XCircle },
+  FAILED: { label: "Thất bại", tone: "destructive", icon: XCircle },
+  REFUNDED: { label: "Đã hoàn tiền", tone: "secondary", icon: RotateCcw },
 };
 
 export default function OrdersPage() {
@@ -33,33 +54,37 @@ export default function OrdersPage() {
   const [error, setError] = useState<string | null>(null);
   const [authChecked, setAuthChecked] = useState(false);
 
+  // Bộ lọc Tab & Tìm kiếm
+  const [activeTab, setActiveTab] = useState<string>("ALL");
+  const [searchQuery, setSearchQuery] = useState<string>("");
+  const [currentPage, setCurrentPage] = useState<number>(1);
+  const itemsPerPage = 8;
+
   useEffect(() => {
-    // Wait for auth to hydrate from localStorage
     const timer = setTimeout(() => {
       setAuthChecked(true);
     }, 100);
-    
     return () => clearTimeout(timer);
   }, []);
 
   useEffect(() => {
-    if (!authChecked) return; // Wait for auth check
-    
+    if (!authChecked) return;
     if (!user?.id) {
-      router.push("/auth");
+      router.push("/auth?callbackUrl=/profile/orders");
+      return;
+    }
+    if (user.role === "SHIPPER") {
+      router.replace("/shipper");
       return;
     }
     loadOrders();
-  }, [user?.id, authChecked]);
+  }, [user?.id, user?.role, authChecked]);
 
   const loadOrders = async () => {
     try {
       setLoading(true);
       const data = await fetchOrdersByUser(user!.id);
-      console.log("Orders loaded:", data);
-      console.log("Is array?", Array.isArray(data));
       setOrders(Array.isArray(data) ? data : []);
-      console.log("Orders state after set:", data.length, "items");
     } catch (err: any) {
       console.error("Load orders error:", err);
       setError(err?.message || "Không thể tải danh sách đơn hàng");
@@ -68,228 +93,348 @@ export default function OrdersPage() {
     }
   };
 
-  console.log("Current orders state:", orders.length, "Loading:", loading, "Error:", error);
+  // Đếm số lượng theo nhóm tab
+  const tabCounts = useMemo(() => {
+    return {
+      ALL: orders.length,
+      PENDING: orders.filter((o) => ["PENDING", "CONFIRMED"].includes(o.status)).length,
+      PROCESSING: orders.filter((o) => o.status === "PROCESSING").length,
+      SHIPPING: orders.filter((o) => o.status === "SHIPPING").length,
+      COMPLETED: orders.filter((o) => ["COMPLETED", "DELIVERED", "PAID"].includes(o.status)).length,
+      CANCELED: orders.filter((o) => ["CANCELED", "FAILED"].includes(o.status)).length,
+    };
+  }, [orders]);
+
+  // Lọc danh sách theo Tab & Search Query
+  const filteredOrders = useMemo(() => {
+    return orders.filter((order) => {
+      // 1. Lọc theo tab
+      if (activeTab === "PENDING" && !["PENDING", "CONFIRMED"].includes(order.status)) return false;
+      if (activeTab === "PROCESSING" && order.status !== "PROCESSING") return false;
+      if (activeTab === "SHIPPING" && order.status !== "SHIPPING") return false;
+      if (activeTab === "COMPLETED" && !["COMPLETED", "DELIVERED", "PAID"].includes(order.status)) return false;
+      if (activeTab === "CANCELED" && !["CANCELED", "FAILED"].includes(order.status)) return false;
+
+      // 2. Lọc theo từ khóa tìm kiếm (Mã đơn hoặc tên sản phẩm)
+      if (searchQuery.trim()) {
+        const query = searchQuery.toLowerCase().trim();
+        const codeMatch = order.code?.toLowerCase().includes(query);
+        const itemMatch = order.items?.some((i: any) =>
+          i.variant?.product?.name?.toLowerCase().includes(query)
+        );
+        if (!codeMatch && !itemMatch) return false;
+      }
+
+      return true;
+    });
+  }, [orders, activeTab, searchQuery]);
+
+  // Reset trang khi thay đổi Tab hoặc Search
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [activeTab, searchQuery]);
+
+  // Phân trang
+  const totalPages = Math.ceil(filteredOrders.length / itemsPerPage);
+  const paginatedOrders = useMemo(() => {
+    const start = (currentPage - 1) * itemsPerPage;
+    return filteredOrders.slice(start, start + itemsPerPage);
+  }, [filteredOrders, currentPage, itemsPerPage]);
+
+  const formatPrice = (price: number): string => {
+    return new Intl.NumberFormat("vi-VN", {
+      style: "currency",
+      currency: "VND",
+      maximumFractionDigits: 0,
+    }).format(price);
+  };
+
+  const formatDate = (dateString: string) => {
+    return new Date(dateString).toLocaleDateString("vi-VN", {
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric",
+    });
+  };
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 dark:bg-gray-950 flex justify-center items-center pt-[100px] md:pt-[120px]">
-        <div className="text-center">
-          <Loader2 className="h-10 w-10 animate-spin text-blue-600 dark:text-blue-400 mx-auto mb-3" />
-          <p className="text-gray-600 dark:text-gray-400">Đang tải đơn hàng...</p>
-        </div>
+      <div className="min-h-[50vh] flex flex-col justify-center items-center py-16 gap-3">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        <p className="text-sm font-medium text-muted-foreground">Đang tải đơn hàng của bạn...</p>
       </div>
     );
   }
 
   if (error) {
     return (
-      <div className="min-h-screen bg-gray-50 dark:bg-gray-950 pt-[100px] md:pt-[120px] py-12">
-        <div className="max-w-md mx-auto px-4">
-          <Card className="p-8 text-center">
-            <XCircle className="h-12 w-12 text-red-500 dark:text-red-400 mx-auto mb-4" />
-            <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-2">Có lỗi xảy ra</h2>
-            <p className="text-gray-600 dark:text-gray-400 mb-6">{error}</p>
-            <Button onClick={loadOrders} className="w-full">
-              Thử lại
-            </Button>
-          </Card>
-        </div>
-      </div>
-    );
-  }
-
-  if (orders.length === 0) {
-    return (
-      <div className="min-h-screen bg-gray-50 dark:bg-gray-950 pt-[100px] md:pt-[120px] py-12">
-        <div className="max-w-md mx-auto px-4">
-          <Card className="p-12 text-center">
-            <div className="w-20 h-20 bg-blue-50 dark:bg-blue-900/30 rounded-full flex items-center justify-center mx-auto mb-6">
-              <ShoppingBag className="h-10 w-10 text-blue-600 dark:text-blue-400" />
-            </div>
-            <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-3">Chưa có đơn hàng</h2>
-            <p className="text-gray-600 dark:text-gray-400 mb-6">
-              Bạn chưa có đơn hàng nào. Khám phá sản phẩm ngay!
-            </p>
-            <Link href="/products">
-              <Button size="lg" className="w-full">
-                <TrendingUp className="h-5 w-5 mr-2" />
-                Mua sắm ngay
-              </Button>
-            </Link>
-          </Card>
-        </div>
+      <div className="max-w-md mx-auto py-12 px-4">
+        <Card className="p-8 text-center border-border bg-card">
+          <XCircle className="h-10 w-10 text-destructive mx-auto mb-3" />
+          <h2 className="text-lg font-bold text-foreground mb-1">Không thể tải đơn hàng</h2>
+          <p className="text-sm text-muted-foreground mb-6">{error}</p>
+          <Button onClick={loadOrders} className="w-full rounded-xl">
+            Thử lại
+          </Button>
+        </Card>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-blue-50/30 to-gray-50 dark:from-gray-950 dark:via-blue-950/10 dark:to-gray-950 pt-[100px] md:pt-[120px] py-8">
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
-        {/* Page Header */}
-        <motion.div 
-          initial={{ opacity: 0, y: -20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="mb-8"
-        >
-          <div className="flex items-center gap-3 mb-3">
-            <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-purple-600 rounded-xl flex items-center justify-center shadow-lg">
-              <ShoppingBag className="h-6 w-6 text-white" />
-            </div>
-            <div>
-              <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 dark:from-blue-400 dark:to-purple-400 bg-clip-text text-transparent">
-                Đơn hàng của tôi
-              </h1>
-              <p className="text-gray-600 dark:text-gray-400 text-sm">Quản lý và theo dõi đơn hàng của bạn</p>
-            </div>
-          </div>
-          
-          <div className="flex items-center gap-4 px-4 py-3 bg-white/80 dark:bg-gray-900/80 backdrop-blur-sm rounded-xl border border-gray-200 dark:border-gray-800 shadow-sm">
-            <div className="flex items-center gap-2">
-              <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse"></div>
-              <span className="text-sm text-gray-600 dark:text-gray-400">
-                <span className="font-semibold text-gray-900 dark:text-white">{orders.length}</span> đơn hàng
-              </span>
-            </div>
-            <span className="text-gray-300 dark:text-gray-700">|</span>
-            <div className="flex items-center gap-2">
-              <CheckCircle className="w-4 h-4 text-green-500" />
-              <span className="text-sm text-gray-600 dark:text-gray-400">
-                <span className="font-semibold text-green-600 dark:text-green-400">{orders.filter(o => ['COMPLETED', 'DELIVERED'].includes(o.status)).length}</span> hoàn thành
-              </span>
-            </div>
-            <span className="text-gray-300 dark:text-gray-700">|</span>
-            <div className="flex items-center gap-2">
-              <Clock className="w-4 h-4 text-yellow-500" />
-              <span className="text-sm text-gray-600 dark:text-gray-400">
-                <span className="font-semibold text-yellow-600 dark:text-yellow-400">{orders.filter(o => ['PENDING', 'CONFIRMED', 'PROCESSING', 'SHIPPING'].includes(o.status)).length}</span> đang xử lý
-              </span>
-            </div>
-          </div>
-        </motion.div>
-        
-        <div className="space-y-4">
-          {orders.map((order, index) => {
-            const status = statusConfig[order.status] || statusConfig.PENDING;
-            const StatusIcon = status.icon;
-            
+    <div className="space-y-6 pb-12">
+      {/* 1. Header & Tiêu đề trang chuẩn Stitch */}
+      <div className="space-y-1">
+        <h1 className="text-2xl sm:text-3xl font-bold text-foreground tracking-tight">
+          Đơn hàng của tôi
+        </h1>
+        <p className="text-sm text-muted-foreground">
+          Theo dõi và quản lý các đơn đã mua
+        </p>
+      </div>
+
+      {/* 2. Hệ thống Tabs lọc trạng thái kèm số lượng đếm */}
+      <div className="border-b border-border overflow-x-auto pb-0 -mx-4 px-4 sm:mx-0 sm:px-0 scrollbar-none">
+        <div className="flex items-center gap-1 sm:gap-2 min-w-max">
+          {[
+            { id: "ALL", label: "Tất cả", count: tabCounts.ALL },
+            { id: "PENDING", label: "Chờ xác nhận", count: tabCounts.PENDING },
+            { id: "PROCESSING", label: "Đang xử lý", count: tabCounts.PROCESSING },
+            { id: "SHIPPING", label: "Đang giao", count: tabCounts.SHIPPING },
+            { id: "COMPLETED", label: "Hoàn thành", count: tabCounts.COMPLETED },
+            { id: "CANCELED", label: "Đã huỷ", count: tabCounts.CANCELED },
+          ].map((tab) => {
+            const isActive = activeTab === tab.id;
             return (
-              <motion.div
-                key={order.id}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: index * 0.05 }}
+              <button
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id)}
+                className={`py-3 px-3.5 sm:px-4 text-xs sm:text-sm font-semibold border-b-2 transition-all flex items-center gap-1.5 cursor-pointer ${
+                  isActive
+                    ? "border-primary text-primary font-bold"
+                    : "border-transparent text-muted-foreground hover:text-foreground"
+                }`}
               >
-                <Card className="hover:shadow-xl transition-all duration-300 hover:scale-[1.01] dark:bg-gray-900/80 dark:border-gray-800 bg-white/80 backdrop-blur-sm border-gray-200 overflow-hidden">
-                  <div className="p-6">
-                    {/* Header */}
-                    <div className="flex items-start justify-between mb-5 pb-5 border-b dark:border-gray-800 border-gray-200">
-                      <div className="flex-1">
-                        <div className="flex items-center gap-3 mb-3">
-                          <StatusIcon className="h-5 w-5 text-gray-600 dark:text-gray-400" />
-                          <h3 className="text-lg font-bold text-gray-900 dark:text-white">Đơn hàng #{order.code}</h3>
-                          <Badge className={`${status.color} text-xs font-semibold px-3 py-1`}>
-                            {status.label}
-                          </Badge>
-                        </div>
-                        <div className="flex items-center gap-4 text-sm text-gray-600 dark:text-gray-400">
-                          <div className="flex items-center gap-2">
-                            <Clock className="h-4 w-4" />
-                            <span>{new Date(order.createdAt).toLocaleDateString('vi-VN', {
-                              day: '2-digit',
-                              month: '2-digit',
-                              year: 'numeric',
-                              hour: '2-digit',
-                              minute: '2-digit'
-                            })}</span>
-                          </div>
-                          <span className="text-gray-300 dark:text-gray-700">•</span>
-                          <div className="flex items-center gap-1">
-                            <Package className="h-4 w-4" />
-                            <span>{order.items?.length || 0} sản phẩm</span>
-                          </div>
-                        </div>
-                      </div>
-                      
-                      <div className="text-right">
-                        <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">Tổng tiền</p>
-                        <p className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 dark:from-blue-400 dark:to-purple-400 bg-clip-text text-transparent">
-                          {new Intl.NumberFormat('vi-VN', {
-                            style: 'currency',
-                            currency: 'VND',
-                            maximumFractionDigits: 0
-                          }).format(Number(order.total))}
-                        </p>
-                      </div>
-                    </div>
-
-                    {/* Products Preview */}
-                    <div className="space-y-3 mb-5">
-                      {order.items?.slice(0, 2).map((item: any, idx: number) => (
-                        <div 
-                          key={idx} 
-                          className="flex items-center gap-4 p-3 bg-gradient-to-r from-gray-50 to-gray-50/50 dark:from-gray-800/50 dark:to-gray-800/30 rounded-xl border border-gray-100 dark:border-gray-800 hover:shadow-md transition-all"
-                        >
-                          {item.variant?.product?.images?.[0]?.url && (
-                            <div className="relative w-16 h-16 flex-shrink-0 bg-white dark:bg-gray-800 rounded-lg overflow-hidden shadow-sm ring-1 ring-gray-200 dark:ring-gray-700">
-                              <Image 
-                                src={item.variant.product.images[0].url} 
-                                alt={item.variant?.product?.name}
-                                fill
-                                className="object-cover"
-                              />
-                            </div>
-                          )}
-                          <div className="flex-1 min-w-0">
-                            <p className="font-semibold text-gray-900 dark:text-white line-clamp-1 text-sm mb-1">
-                              {item.variant?.product?.name || "Sản phẩm"}
-                            </p>
-                            <p className="text-xs text-gray-600 dark:text-gray-400">
-                              Số lượng: <span className="font-medium">{item.quantity}</span> × {new Intl.NumberFormat('vi-VN', {
-                                style: 'currency',
-                                currency: 'VND',
-                                maximumFractionDigits: 0
-                              }).format(Number(item.price))}
-                            </p>
-                          </div>
-                          <div className="text-sm font-bold text-blue-600 dark:text-blue-400">
-                            {new Intl.NumberFormat('vi-VN', {
-                              style: 'currency',
-                              currency: 'VND',
-                              maximumFractionDigits: 0
-                            }).format(Number(item.price) * item.quantity)}
-                          </div>
-                        </div>
-                      ))}
-                      {order.items?.length > 2 && (
-                        <p className="text-sm text-gray-500 dark:text-gray-400 text-center py-2 px-4 bg-gray-100/50 dark:bg-gray-800/30 rounded-lg">
-                          và <span className="font-semibold">{order.items.length - 2}</span> sản phẩm khác
-                        </p>
-                      )}
-                    </div>
-
-                    {/* Actions */}
-                    <div className="flex gap-3">
-                      <Link href={`/profile/orders/${order.id}`}>
-                        <Button variant="default" className="shadow-md hover:shadow-lg transition-all">
-                          <Eye className="h-4 w-4 mr-2" />
-                          Xem chi tiết
-                        </Button>
-                      </Link>
-                      
-                      {['PENDING', 'CONFIRMED'].includes(order.status) && (
-                        <Button variant="outline" className="border-red-300 dark:border-red-800 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/30 shadow-sm">
-                          <XCircle className="h-4 w-4 mr-2" />
-                          Hủy đơn
-                        </Button>
-                      )}
-                    </div>
-                  </div>
-                </Card>
-              </motion.div>
+                <span>{tab.label}</span>
+                <span
+                  className={`text-[11px] px-1.5 py-0.2 rounded-full font-medium ${
+                    isActive ? "bg-primary/15 text-primary" : "bg-muted text-muted-foreground"
+                  }`}
+                >
+                  {tab.count}
+                </span>
+              </button>
             );
           })}
         </div>
       </div>
+
+      {/* 3. Thanh tìm kiếm đơn hàng */}
+      <div className="relative max-w-md">
+        <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+        <Input
+          placeholder="Tìm theo mã đơn hàng hoặc tên sản phẩm..."
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          className="pl-9 h-10 rounded-xl bg-card border-border text-sm shadow-sm"
+        />
+      </div>
+
+      {/* 4. Danh sách các thẻ đơn hàng (Order Cards) */}
+      {paginatedOrders.length === 0 ? (
+        <Card className="p-12 text-center border-border bg-card">
+          <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center mx-auto mb-4">
+            <Package className="h-8 w-8 text-muted-foreground" />
+          </div>
+          <h2 className="text-lg font-bold text-foreground mb-1">
+            {searchQuery ? "Không tìm thấy đơn hàng phù hợp" : "Chưa có đơn hàng nào trong mục này"}
+          </h2>
+          <p className="text-sm text-muted-foreground mb-6 max-w-sm mx-auto">
+            {searchQuery
+              ? "Hãy thử tìm bằng từ khóa hoặc mã đơn khác."
+              : "Khám phá các sản phẩm công nghệ tuyệt vời và đặt hàng ngay hôm nay!"}
+          </p>
+          <Link href="/products">
+            <Button className="rounded-xl px-6 shadow-sm">
+              Khám phá sản phẩm
+            </Button>
+          </Link>
+        </Card>
+      ) : (
+        <div className="space-y-4">
+          {paginatedOrders.map((order) => {
+            const status = statusConfig[order.status] || {
+              label: order.status,
+              tone: "secondary" as const,
+              icon: Clock,
+            };
+            const StatusIcon = status.icon;
+
+            return (
+              <Card
+                key={order.id}
+                className="border border-border bg-card rounded-2xl shadow-sm overflow-hidden gap-0 py-0 hover:shadow-md transition-shadow"
+              >
+                {/* Header Thẻ: Mã đơn + Ngày tạo + Badge trạng thái */}
+                <div className="p-4 sm:p-5 border-b border-border bg-muted/15 flex flex-wrap items-center justify-between gap-3">
+                  <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
+                    <span className="font-bold text-sm sm:text-base text-foreground">
+                      #{order.code || order.id.slice(-8)}
+                    </span>
+                    <span className="text-muted-foreground text-xs">•</span>
+                    <span className="text-xs sm:text-sm text-muted-foreground">
+                      {formatDate(order.createdAt)}
+                    </span>
+                  </div>
+
+                  <Badge
+                    variant={status.tone}
+                    className="flex items-center gap-1.5 px-3 py-1 text-xs font-semibold rounded-lg"
+                  >
+                    <StatusIcon className="w-3.5 h-3.5 shrink-0" />
+                    <span>{status.label}</span>
+                  </Badge>
+                </div>
+
+                {/* Danh sách các sản phẩm trong đơn */}
+                <div className="p-4 sm:p-5 divide-y divide-border">
+                  {order.items?.map((item: any) => {
+                    const product = item.variant?.product;
+                    const primaryImage =
+                      product?.images?.find((img: any) => img.isPrimary)?.url ||
+                      product?.images?.[0]?.url ||
+                      "/images/placeholder-product.svg";
+
+                    return (
+                      <div
+                        key={item.id}
+                        className="flex items-start sm:items-center gap-4 py-3.5 first:pt-0 last:pb-0"
+                      >
+                        {/* Ảnh sản phẩm */}
+                        <div className="relative w-16 h-16 sm:w-20 sm:h-20 shrink-0 bg-muted/40 rounded-xl overflow-hidden border border-border">
+                          <Image
+                            src={primaryImage}
+                            alt={product?.name || "Product"}
+                            fill
+                            sizes="80px"
+                            className="object-cover"
+                          />
+                        </div>
+
+                        {/* Thông tin sản phẩm */}
+                        <div className="flex-1 min-w-0">
+                          <h4 className="font-semibold text-foreground text-sm sm:text-base line-clamp-2 leading-snug">
+                            {product?.name || "Sản phẩm"}
+                          </h4>
+
+                          {/* Phân loại thuộc tính */}
+                          {item.variant?.attributes &&
+                            visibleAttributes(item.variant.attributes).length > 0 && (
+                              <p className="text-xs text-muted-foreground mt-1">
+                                Phân loại:{" "}
+                                {visibleAttributes(item.variant.attributes)
+                                  .map(([k, v]) => formatAttributeValue(v))
+                                  .join(", ")}
+                              </p>
+                            )}
+
+                          <div className="flex items-center gap-2 mt-1.5 text-xs text-muted-foreground">
+                            <span>x{item.quantity}</span>
+                          </div>
+                        </div>
+
+                        {/* Đơn giá */}
+                        <div className="text-right shrink-0">
+                          <span className="font-bold text-foreground text-sm sm:text-base">
+                            {formatPrice(Number(item.price))}
+                          </span>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                {/* Footer Thẻ: Tổng tiền + Nút hành động */}
+                <div className="p-4 sm:p-5 border-t border-border bg-muted/10 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4">
+                  <div className="flex items-baseline gap-2">
+                    <span className="text-xs sm:text-sm text-muted-foreground">Tổng tiền:</span>
+                    <span className="text-lg sm:text-xl font-bold text-primary">
+                      {formatPrice(Number(order.total))}
+                    </span>
+                  </div>
+
+                  {/* Nút hành động theo ngữ cảnh trạng thái Stitch */}
+                  <div className="flex items-center justify-end gap-2.5">
+                    {/* Hành động xem chi tiết luôn sẵn sàng */}
+                    <Link href={`/profile/orders/${order.id}`}>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="rounded-xl h-9 px-4 text-xs font-semibold border-border hover:bg-muted"
+                      >
+                        Xem chi tiết
+                      </Button>
+                    </Link>
+
+                    {/* Nút theo ngữ cảnh */}
+                    {order.status === "SHIPPING" && (
+                      <Button
+                        size="sm"
+                        onClick={() => router.push(`/profile/orders/${order.id}`)}
+                        className="rounded-xl h-9 px-4 text-xs font-bold shadow-sm"
+                      >
+                        Theo dõi đơn
+                      </Button>
+                    )}
+
+                    {["COMPLETED", "DELIVERED", "PAID"].includes(order.status) && (
+                      <Button
+                        size="sm"
+                        onClick={() => {
+                          if (order.items?.[0]?.variant?.product?.id) {
+                            router.push(`/product/${order.items[0].variant.product.id}`);
+                          } else {
+                            router.push("/products");
+                          }
+                        }}
+                        className="rounded-xl h-9 px-4 text-xs font-bold shadow-sm"
+                      >
+                        Mua lại
+                      </Button>
+                    )}
+
+                    {["PENDING", "CONFIRMED"].includes(order.status) && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          toast.info("Yêu cầu hủy đơn hàng của bạn đang được chuyển đến nhân viên hỗ trợ.");
+                        }}
+                        className="rounded-xl h-9 px-4 text-xs font-semibold text-destructive border-destructive/30 hover:bg-destructive/10"
+                      >
+                        Huỷ đơn
+                      </Button>
+                    )}
+                  </div>
+                </div>
+              </Card>
+            );
+          })}
+        </div>
+      )}
+
+      {/* 5. Phân trang nếu danh sách có nhiều trang */}
+      {totalPages > 1 && (
+        <div className="pt-2">
+          <Pagination
+            currentPage={currentPage}
+            totalPages={totalPages}
+            onPageChange={setCurrentPage}
+            totalItems={filteredOrders.length}
+            itemsPerPage={itemsPerPage}
+          />
+        </div>
+      )}
     </div>
   );
 }

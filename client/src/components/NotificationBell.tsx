@@ -17,6 +17,7 @@ import {
 } from "@/store/notificationStore";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
+import { useMounted } from "@/hooks/useMounted";
 
 const typeIcons: Record<NotificationType, React.ReactNode> = {
   order: <Package className="w-4 h-4 text-blue-500" />,
@@ -39,15 +40,15 @@ export default function NotificationBell() {
   const { notifications, unreadCount, markAsRead, markAllAsRead, clearAll } =
     useNotificationStore();
   const [open, setOpen] = useState(false);
-  const [mounted, setMounted] = useState(false);
+  const mounted = useMounted();
+  const [renderedAt] = useState(() => Date.now());
 
   useEffect(() => {
-    setMounted(true);
     generateWelcomeNotifications();
   }, []);
 
   const getTimeAgo = (timestamp: number) => {
-    const diff = Date.now() - timestamp;
+    const diff = renderedAt - timestamp;
     const minutes = Math.floor(diff / 60000);
     if (minutes < 1) return "Vừa xong";
     if (minutes < 60) return `${minutes}p trước`;

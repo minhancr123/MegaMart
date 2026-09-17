@@ -1,19 +1,15 @@
 "use client";
 
 import AddressManager from "@/components/AddressManager";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 export default function AddressesPage() {
   return (
-    <div className="max-w-4xl mx-auto p-6">
-      <Card>
-        <CardHeader>
-          <CardTitle>Quản lý địa chỉ</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <AddressManager mode="manage" />
-        </CardContent>
-      </Card>
+    <div className="space-y-6">
+      <div>
+        <h1 className="text-2xl font-bold text-foreground">Sổ địa chỉ</h1>
+        <p className="mt-1 text-sm text-muted-foreground">Quản lý địa chỉ giao hàng của bạn</p>
+      </div>
+      <AddressManager mode="manage" />
     </div>
   );
 }

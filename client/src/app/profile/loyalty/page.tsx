@@ -1,415 +1,308 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
-import Header from "@/components/Header";
-import Footer from "@/components/Footer";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { useEffect, useState } from "react";
+import { Award, CheckCircle2, Clock, Copy, Gift, Sparkles, Star, Ticket, TrendingUp } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
-import {
-  Star,
-  Gift,
-  ArrowLeft,
-  TrendingUp,
-  Award,
-  Ticket,
-  Clock,
-  CheckCircle2,
-  Copy,
-  Sparkles,
-} from "lucide-react";
-import {
-  useLoyaltyStore,
-  generateDemoPoints,
-  LOYALTY_TIERS,
-  REDEEMABLE_VOUCHERS,
-  PointTransactionType,
-} from "@/store/loyaltyStore";
+import { useMounted } from "@/hooks/useMounted";
 import { useAuthStore } from "@/store/authStore";
+import { LOYALTY_TIERS, REDEEMABLE_VOUCHERS, useLoyaltyStore } from "@/store/loyaltyStore";
+import { getMyLoyalty, redeemLoyaltyVoucher, type LoyaltySummary } from "@/lib/loyaltyApi";
 import { toast } from "sonner";
-import { motion } from "framer-motion";
 
-const transactionTypeConfig: Record<
-  PointTransactionType,
-  { label: string; color: string; icon: React.ReactNode }
-> = {
-  earn: { label: "Tích điểm", color: "text-green-600 dark:text-green-400", icon: <TrendingUp className="w-4 h-4" /> },
-  redeem: { label: "Đổi điểm", color: "text-red-600 dark:text-red-400", icon: <Ticket className="w-4 h-4" /> },
-  bonus: { label: "Thưởng", color: "text-purple-600 dark:text-purple-400", icon: <Gift className="w-4 h-4" /> },
-  expire: { label: "Hết hạn", color: "text-gray-500", icon: <Clock className="w-4 h-4" /> },
+const transactionTypeConfig: Record<string, { label: string; color: string; icon: React.ReactNode }> = {
+  earn: { label: "Tích điểm", color: "text-emerald-600", icon: <TrendingUp className="h-4 w-4" /> },
+  EARN: { label: "Tích điểm", color: "text-emerald-600", icon: <TrendingUp className="h-4 w-4" /> },
+  redeem: { label: "Đổi điểm", color: "text-red-600", icon: <Ticket className="h-4 w-4" /> },
+  REDEEM: { label: "Đổi điểm", color: "text-red-600", icon: <Ticket className="h-4 w-4" /> },
+  bonus: { label: "Thưởng", color: "text-[#ff4d00]", icon: <Gift className="h-4 w-4" /> },
+  BONUS: { label: "Thưởng", color: "text-[#ff4d00]", icon: <Gift className="h-4 w-4" /> },
+  expire: { label: "Hết hạn", color: "text-zinc-500", icon: <Clock className="h-4 w-4" /> },
 };
 
 export default function LoyaltyPage() {
-  const router = useRouter();
+  const mounted = useMounted();
   const { user } = useAuthStore();
-  const {
-    totalPoints,
-    lifetimePoints,
-    transactions,
-    getCurrentTier,
-    getNextTier,
-    getProgressToNextTier,
-    redeemVoucher,
-  } = useLoyaltyStore();
-  const [mounted, setMounted] = useState(false);
-  const [activeTab, setActiveTab] = useState<"overview" | "redeem" | "history">("overview");
+  const [activeTab, setActiveTab] = useState<"overview" | "redeem" | "history" | "my-vouchers">("overview");
+  const [renderedAt] = useState(() => Date.now());
+  const [summary, setSummary] = useState<LoyaltySummary | null>(null);
+  const [loading, setLoading] = useState(true);
+  const { totalPoints, lifetimePoints, transactions, getCurrentTier } = useLoyaltyStore();
+
+  const loadData = async () => {
+    if (!user?.id) return;
+    setLoading(true);
+    try {
+      const data = await getMyLoyalty();
+      setSummary(data);
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
-    setMounted(true);
-    generateDemoPoints();
-  }, []);
+    loadData();
+  }, [user?.id]);
 
   if (!mounted) return null;
 
-  const currentTier = getCurrentTier();
-  const nextTier = getNextTier();
-  const progress = getProgressToNextTier();
+  const currentTotalPoints = summary?.totalPoints ?? totalPoints;
+  const currentLifetimePoints = summary?.lifetimePoints ?? lifetimePoints;
+  const currentTransactions = summary?.transactions ?? [];
 
-  const handleRedeem = (voucherId: string) => {
-    const result = redeemVoucher(voucherId);
-    if (result.success) {
-      toast.success(result.message);
-    } else {
-      toast.error(result.message);
+  const currentTier = LOYALTY_TIERS.reduce((current, tier) => {
+    if (currentLifetimePoints >= tier.minPoints) return tier;
+    return current;
+  }, LOYALTY_TIERS[0]);
+
+  const nextTier = LOYALTY_TIERS.find((tier) => currentLifetimePoints < tier.minPoints) || null;
+  
+  let progress = 100;
+  let pointsToNext = 0;
+  if (nextTier) {
+    const range = nextTier.minPoints - currentTier.minPoints;
+    const progressVal = currentLifetimePoints - currentTier.minPoints;
+    progress = Math.min(100, Math.round((progressVal / range) * 100));
+    pointsToNext = nextTier.minPoints - currentLifetimePoints;
+  }
+
+  const handleRedeem = async (templateId: string) => {
+    try {
+      const result = await redeemLoyaltyVoucher(templateId);
+      if (result.success) {
+        toast.success(result.message);
+        loadData();
+      } else {
+        toast.error(result.message);
+      }
+    } catch (error: any) {
+      toast.error(error?.response?.data?.message || "Đổi quà thất bại");
     }
   };
 
   const copyCode = (code: string) => {
-    navigator.clipboard.writeText(code);
+    navigator.clipboard?.writeText(code);
     toast.success(`Đã copy mã: ${code}`);
   };
 
-  const getTimeAgo = (timestamp: number) => {
-    const diff = Date.now() - timestamp;
+  const getTimeAgo = (timestamp: any) => {
+    const ts = typeof timestamp === 'string' ? new Date(timestamp).getTime() : timestamp;
+    const diff = renderedAt - ts;
     const minutes = Math.floor(diff / 60000);
-    if (minutes < 60) return `${minutes} phút trước`;
+    if (minutes < 60) return `${Math.max(1, minutes)} phút trước`;
     const hours = Math.floor(minutes / 60);
     if (hours < 24) return `${hours} giờ trước`;
     const days = Math.floor(hours / 24);
-    if (days < 30) return `${days} ngày trước`;
-    return new Date(timestamp).toLocaleDateString("vi-VN");
+    return days < 30 ? `${days} ngày trước` : new Date(ts).toLocaleDateString("vi-VN");
   };
 
+  const tabs = [
+    { key: "overview", label: "Đặc quyền hạng", icon: <Award className="h-4 w-4" /> },
+    { key: "redeem", label: "Kho đổi voucher", icon: <Ticket className="h-4 w-4" /> },
+    { key: "my-vouchers", label: "Voucher của tôi", icon: <Gift className="h-4 w-4" /> },
+    { key: "history", label: "Lịch sử điểm", icon: <Clock className="h-4 w-4" /> },
+  ] as const;
+
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-950">
-      <Header />
-      <main className="pt-[100px] md:pt-[120px] pb-12">
-        <div className="max-w-5xl mx-auto px-4">
-          {/* Back */}
-          <Button
-            variant="ghost"
-            onClick={() => router.back()}
-            className="mb-4 hover:bg-white dark:hover:bg-gray-900"
-          >
-            <ArrowLeft className="w-4 h-4 mr-2" />
-            Quay lại
-          </Button>
+    <div className="space-y-6 pb-12">
+      <div>
+        <p className="text-xs font-bold uppercase tracking-[0.16em] text-[#ff4d00]">MegaMart Rewards</p>
+        <h1 className="mt-1 text-2xl font-black tracking-tight text-zinc-900 sm:text-3xl">Chương trình Hội viên & Điểm thưởng</h1>
+        <p className="mt-1 text-sm text-zinc-500">Tích điểm thật từ đơn hàng, thăng hạng hội viên và đổi voucher ưu đãi trong hệ thống.</p>
+      </div>
 
-          {/* Hero Card */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5 }}
-          >
-            <Card className={`overflow-hidden border-0 shadow-xl bg-gradient-to-r ${currentTier.color} text-white mb-8`}>
-              <CardContent className="p-6 sm:p-8">
-                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-                  <div>
-                    <div className="flex items-center gap-3 mb-2">
-                      <span className="text-3xl">{currentTier.icon}</span>
-                      <div>
-                        <p className="text-white/80 text-sm">Hạng thành viên</p>
-                        <h1 className="text-2xl sm:text-3xl font-bold">{currentTier.name}</h1>
-                      </div>
-                    </div>
-                    <p className="text-white/80 text-sm mt-1">
-                      {user?.name || "Thành viên MegaMart"}
-                    </p>
-                  </div>
-                  <div className="text-left sm:text-right">
-                    <p className="text-white/80 text-sm">Điểm hiện có</p>
-                    <p className="text-4xl font-bold">{totalPoints.toLocaleString()}</p>
-                    <p className="text-white/70 text-xs mt-1">
-                      Tích lũy: {lifetimePoints.toLocaleString()} điểm
-                    </p>
-                  </div>
+      <Card className="relative overflow-hidden rounded-3xl border-0 bg-zinc-950 text-white shadow-xl">
+        <div className="absolute -right-16 -top-16 h-48 w-48 rounded-full bg-[#ff4d00]/30 blur-3xl" />
+        <div className="absolute -bottom-24 left-10 h-56 w-56 rounded-full bg-amber-400/20 blur-3xl" />
+        <CardContent className="relative p-6 sm:p-8">
+          <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
+            <div className="space-y-4">
+              <div className="flex items-center gap-3">
+                <div className="grid h-12 w-12 place-items-center rounded-2xl bg-white/10 text-2xl">{currentTier.icon}</div>
+                <div>
+                  <p className="text-xs font-bold uppercase tracking-widest text-orange-200">MegaMart Rewards Card</p>
+                  <h2 className="text-2xl font-black">{currentTier.name}</h2>
                 </div>
+              </div>
+              <div>
+                <p className="text-sm text-zinc-300">Chủ thẻ</p>
+                <p className="text-xl font-bold">{user?.name || "Thành viên MegaMart"}</p>
+                <p className="mt-1 font-mono text-xs text-zinc-400">{user?.id ? `MM-${user.id.slice(-8).toUpperCase()}` : "MM-MEMBER"}</p>
+              </div>
+            </div>
 
-                {/* Progress to next tier */}
-                {nextTier && (
-                  <div className="mt-6 bg-white/10 backdrop-blur-sm rounded-lg p-4">
-                    <div className="flex justify-between text-sm mb-2">
-                      <span className="text-white/80">
-                        {currentTier.icon} {currentTier.name}
-                      </span>
-                      <span className="text-white/80">
-                        {nextTier.icon} {nextTier.name}
-                      </span>
-                    </div>
-                    <Progress value={progress} className="h-2 bg-white/20" />
-                    <p className="text-white/70 text-xs mt-2 text-center">
-                      Còn {(nextTier.minPoints - lifetimePoints).toLocaleString()} điểm nữa để lên hạng{" "}
-                      <strong className="text-white">{nextTier.name}</strong>
-                    </p>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          </motion.div>
-
-          {/* Tabs */}
-          <div className="flex gap-2 mb-6 border-b border-gray-200 dark:border-gray-800 pb-0">
-            {[
-              { key: "overview", label: "Tổng quan", icon: <Award className="w-4 h-4" /> },
-              { key: "redeem", label: "Đổi voucher", icon: <Gift className="w-4 h-4" /> },
-              { key: "history", label: "Lịch sử", icon: <Clock className="w-4 h-4" /> },
-            ].map((tab) => (
-              <button
-                key={tab.key}
-                onClick={() => setActiveTab(tab.key as any)}
-                className={`flex items-center gap-2 px-4 py-2.5 text-sm font-medium border-b-2 transition-colors -mb-[1px] ${
-                  activeTab === tab.key
-                    ? "border-blue-600 text-blue-600 dark:text-blue-400 dark:border-blue-400"
-                    : "border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300"
-                }`}
-              >
-                {tab.icon}
-                {tab.label}
-              </button>
-            ))}
+            <div className="rounded-3xl border border-white/10 bg-white/10 p-5 backdrop-blur-sm lg:min-w-[280px]">
+              <p className="text-sm text-orange-100">Điểm khả dụng</p>
+              <p className="mt-1 text-5xl font-black tracking-tight">{currentTotalPoints.toLocaleString()}</p>
+              <p className="mt-1 text-xs text-zinc-300">Tích lũy trọn đời: {currentLifetimePoints.toLocaleString()} điểm</p>
+            </div>
           </div>
 
-          {/* Tab Content */}
-          {activeTab === "overview" && (
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              className="space-y-6"
-            >
-              {/* Tier Benefits */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                {LOYALTY_TIERS.map((tier) => (
-                  <Card
-                    key={tier.name}
-                    className={`transition-all ${
-                      tier.name === currentTier.name
-                        ? "ring-2 ring-blue-500 shadow-lg"
-                        : "opacity-70"
-                    }`}
-                  >
-                    <CardHeader className="pb-2">
-                      <div className="flex items-center gap-2">
-                        <span className="text-2xl">{tier.icon}</span>
-                        <div>
-                          <CardTitle className="text-sm">{tier.name}</CardTitle>
-                          <p className="text-xs text-gray-500 dark:text-gray-400">
-                            {tier.minPoints.toLocaleString()}+ điểm
-                          </p>
-                        </div>
-                        {tier.name === currentTier.name && (
-                          <Badge className="ml-auto bg-blue-600 text-white text-[10px]">
-                            Hiện tại
-                          </Badge>
-                        )}
-                      </div>
-                    </CardHeader>
-                    <CardContent className="pt-0">
-                      <ul className="space-y-1.5">
-                        {tier.benefits.map((benefit, i) => (
-                          <li
-                            key={i}
-                            className="text-xs text-gray-600 dark:text-gray-400 flex items-center gap-1.5"
-                          >
-                            <CheckCircle2 className="w-3 h-3 text-green-500 flex-shrink-0" />
-                            {benefit}
-                          </li>
-                        ))}
-                      </ul>
-                    </CardContent>
-                  </Card>
-                ))}
+          {nextTier ? (
+            <div className="mt-7 rounded-2xl bg-white/10 p-4">
+              <div className="mb-2 flex justify-between text-xs font-semibold text-zinc-200">
+                <span>{currentTier.icon} {currentTier.name}</span>
+                <span>{nextTier.icon} {nextTier.name}</span>
               </div>
-
-              {/* Quick Stats */}
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                <Card>
-                  <CardContent className="p-4 flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center">
-                      <TrendingUp className="w-5 h-5 text-green-600 dark:text-green-400" />
-                    </div>
-                    <div>
-                      <p className="text-xs text-gray-500 dark:text-gray-400">Điểm kiếm được</p>
-                      <p className="text-lg font-bold text-gray-900 dark:text-white">
-                        +{transactions.filter((t) => t.amount > 0).reduce((s, t) => s + t.amount, 0).toLocaleString()}
-                      </p>
-                    </div>
-                  </CardContent>
-                </Card>
-                <Card>
-                  <CardContent className="p-4 flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-full bg-red-100 dark:bg-red-900/30 flex items-center justify-center">
-                      <Ticket className="w-5 h-5 text-red-600 dark:text-red-400" />
-                    </div>
-                    <div>
-                      <p className="text-xs text-gray-500 dark:text-gray-400">Điểm đã dùng</p>
-                      <p className="text-lg font-bold text-gray-900 dark:text-white">
-                        {transactions.filter((t) => t.amount < 0).reduce((s, t) => s + Math.abs(t.amount), 0).toLocaleString()}
-                      </p>
-                    </div>
-                  </CardContent>
-                </Card>
-                <Card>
-                  <CardContent className="p-4 flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-full bg-purple-100 dark:bg-purple-900/30 flex items-center justify-center">
-                      <Sparkles className="w-5 h-5 text-purple-600 dark:text-purple-400" />
-                    </div>
-                    <div>
-                      <p className="text-xs text-gray-500 dark:text-gray-400">Tổng giao dịch</p>
-                      <p className="text-lg font-bold text-gray-900 dark:text-white">
-                        {transactions.length}
-                      </p>
-                    </div>
-                  </CardContent>
-                </Card>
-              </div>
-            </motion.div>
+              <Progress value={progress} className="h-2 bg-white/20" />
+              <p className="mt-2 text-center text-xs text-zinc-300">Còn <b className="text-white">{pointsToNext.toLocaleString()}</b> điểm để lên hạng {nextTier.name}</p>
+            </div>
+          ) : (
+            <div className="mt-7 rounded-2xl bg-emerald-500/15 p-4 text-sm text-emerald-100">Bạn đã đạt hạng cao nhất. Cảm ơn bạn đã đồng hành cùng MegaMart!</div>
           )}
+        </CardContent>
+      </Card>
 
-          {activeTab === "redeem" && (
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              className="space-y-4"
-            >
-              <div className="bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 rounded-lg p-4 mb-6">
-                <p className="text-sm text-blue-700 dark:text-blue-300">
-                  💡 Bạn đang có <strong>{totalPoints.toLocaleString()} điểm</strong>. Đổi điểm lấy voucher giảm giá ngay!
-                </p>
+      <div className="flex flex-wrap gap-2 rounded-2xl bg-zinc-100 p-1.5">
+        {tabs.map((tab) => (
+          <button
+            key={tab.key}
+            onClick={() => setActiveTab(tab.key)}
+            className={`flex flex-1 items-center justify-center gap-2 rounded-xl px-3 py-2.5 text-xs font-bold transition sm:flex-none sm:text-sm ${activeTab === tab.key ? "bg-white text-[#ff4d00] shadow-sm" : "text-zinc-500 hover:text-zinc-900"}`}
+          >
+            {tab.icon} {tab.label}
+          </button>
+        ))}
+      </div>
+
+      {activeTab === "overview" && (
+        <div className="space-y-5">
+          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+            {LOYALTY_TIERS.map((tier) => {
+              const active = tier.name === currentTier.name;
+              return (
+                <Card key={tier.name} className={`rounded-3xl transition ${active ? "border-orange-300 shadow-md ring-4 ring-orange-100" : "border-zinc-200 opacity-80"}`}>
+                  <CardContent className="p-5">
+                    <div className="flex items-center gap-3">
+                      <span className="text-3xl">{tier.icon}</span>
+                      <div>
+                        <p className="font-black text-zinc-900">{tier.name}</p>
+                        <p className="text-xs text-zinc-500">{tier.minPoints.toLocaleString()}+ điểm</p>
+                      </div>
+                      {active && <Badge className="ml-auto bg-[#ff4d00] text-white">Hiện tại</Badge>}
+                    </div>
+                    <div className="mt-4 space-y-2">
+                      {tier.benefits.map((benefit) => (
+                        <p key={benefit} className="flex items-start gap-2 text-xs text-zinc-600">
+                          <CheckCircle2 className="mt-0.5 h-3.5 w-3.5 shrink-0 text-emerald-500" /> {benefit}
+                        </p>
+                      ))}
+                    </div>
+                  </CardContent>
+                </Card>
+              );
+            })}
+          </div>
+
+          <div className="grid gap-4 sm:grid-cols-3">
+            <Card className="rounded-3xl"><CardContent className="flex items-center gap-3 p-5"><TrendingUp className="h-8 w-8 rounded-2xl bg-emerald-50 p-2 text-emerald-600" /><div><p className="text-xs text-zinc-500">Điểm kiếm được</p><p className="text-xl font-black">+{currentTransactions.filter((t:any) => t.amount > 0).reduce((s:number, t:any) => s + t.amount, 0).toLocaleString()}</p></div></CardContent></Card>
+            <Card className="rounded-3xl"><CardContent className="flex items-center gap-3 p-5"><Ticket className="h-8 w-8 rounded-2xl bg-red-50 p-2 text-red-600" /><div><p className="text-xs text-zinc-500">Điểm đã dùng</p><p className="text-xl font-black">{currentTransactions.filter((t:any) => t.amount < 0).reduce((s:number, t:any) => s + Math.abs(t.amount), 0).toLocaleString()}</p></div></CardContent></Card>
+            <Card className="rounded-3xl"><CardContent className="flex items-center gap-3 p-5"><Sparkles className="h-8 w-8 rounded-2xl bg-orange-50 p-2 text-[#ff4d00]" /><div><p className="text-xs text-zinc-500">Giao dịch thực tế</p><p className="text-xl font-black">{currentTransactions.length}</p></div></CardContent></Card>
+          </div>
+        </div>
+      )}
+
+      {activeTab === "redeem" && (
+        <div className="space-y-4">
+          <div className="rounded-2xl border border-orange-100 bg-orange-50 p-4 text-sm text-[#af3200]">
+            Bạn đang có <b>{currentTotalPoints.toLocaleString()} điểm</b>. Chọn voucher phù hợp để đổi ngay vào hệ thống.
+          </div>
+          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+            {REDEEMABLE_VOUCHERS.map((voucher) => {
+              const canAfford = currentTotalPoints >= voucher.pointsCost;
+              return (
+                <div key={voucher.id} className={`relative overflow-hidden rounded-3xl border bg-white shadow-sm ${canAfford ? "border-orange-200" : "border-zinc-200 opacity-60"}`}>
+                  <div className="absolute -left-4 top-1/2 h-8 w-8 rounded-full bg-[#f7f8fa]" />
+                  <div className="absolute -right-4 top-1/2 h-8 w-8 rounded-full bg-[#f7f8fa]" />
+                  <div className="border-b border-dashed border-zinc-200 p-5">
+                    <p className="text-2xl font-black text-[#ff4d00]">{voucher.name}</p>
+                    <p className="mt-1 text-sm text-zinc-500">{voucher.description}</p>
+                  </div>
+                  <div className="space-y-3 p-5">
+                    <div className="flex items-center justify-between gap-3">
+                      <code className="rounded-xl bg-zinc-100 px-3 py-2 font-mono text-xs font-bold text-zinc-700">
+                        {voucher.code}
+                      </code>
+                      <Badge variant="outline"><Star className="mr-1 h-3 w-3 fill-amber-400 text-amber-400" /> {voucher.pointsCost}</Badge>
+                    </div>
+                    <Button onClick={() => handleRedeem(voucher.id)} disabled={!canAfford} className="w-full rounded-xl bg-[#ff4d00] font-bold hover:bg-[#d94100]">
+                      {canAfford ? "Đổi ngay" : `Cần thêm ${(voucher.pointsCost - currentTotalPoints).toLocaleString()} điểm`}
+                    </Button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {activeTab === "my-vouchers" && (
+        <div className="space-y-4">
+          {!summary?.redeemedVouchers?.length ? (
+            <div className="flex flex-col items-center justify-center py-14 text-zinc-400">
+              <Gift className="mb-3 h-10 w-10 opacity-30" />
+              <p className="text-sm">Bạn chưa đổi voucher nào</p>
+            </div>
+          ) : (
+            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+              {summary.redeemedVouchers.map((rv) => (
+                <div key={rv.id} className={`relative overflow-hidden rounded-3xl border bg-white shadow-sm ${rv.isUsed ? "opacity-50" : "border-emerald-200"}`}>
+                  <div className="absolute -left-4 top-1/2 h-8 w-8 rounded-full bg-[#f7f8fa]" />
+                  <div className="absolute -right-4 top-1/2 h-8 w-8 rounded-full bg-[#f7f8fa]" />
+                  <div className="border-b border-dashed border-zinc-200 p-5">
+                    <div className="flex items-center justify-between">
+                      <p className="text-lg font-black text-emerald-600">{rv.code}</p>
+                      <Badge variant={rv.isUsed ? "secondary" : "success"}>{rv.isUsed ? "Đã dùng" : "Sẵn sàng"}</Badge>
+                    </div>
+                    <p className="mt-1 text-xs text-zinc-500">Hạn dùng: {new Date(rv.voucher?.endDate).toLocaleDateString('vi-VN')}</p>
+                  </div>
+                  <div className="p-5">
+                    <Button variant="outline" size="sm" onClick={() => copyCode(rv.code)} className="w-full rounded-xl gap-2 font-bold">
+                      <Copy className="h-4 w-4" /> Sao chép mã
+                    </Button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {activeTab === "history" && (
+        <Card className="rounded-3xl border-zinc-200 bg-white shadow-sm">
+          <CardContent className="p-0">
+            {currentTransactions.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-14 text-zinc-400">
+                <Clock className="mb-3 h-10 w-10 opacity-30" />
+                <p className="text-sm">Chưa có giao dịch nào</p>
               </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                {REDEEMABLE_VOUCHERS.map((voucher) => {
-                  const canAfford = totalPoints >= voucher.pointsCost;
+            ) : (
+              <div className="divide-y divide-zinc-100">
+                {currentTransactions.map((tx: any) => {
+                  const config = transactionTypeConfig[tx.type];
                   return (
-                    <Card
-                      key={voucher.id}
-                      className={`overflow-hidden transition-all ${
-                        canAfford
-                          ? "hover:shadow-lg hover:-translate-y-0.5"
-                          : "opacity-60"
-                      }`}
-                    >
-                      <div className="h-1.5 bg-gradient-to-r from-blue-500 to-indigo-500" />
-                      <CardContent className="p-4">
-                        <div className="flex items-start justify-between mb-3">
-                          <div>
-                            <h3 className="font-bold text-gray-900 dark:text-white">
-                              {voucher.name}
-                            </h3>
-                            <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
-                              {voucher.description}
-                            </p>
-                          </div>
-                          <Badge
-                            variant="outline"
-                            className="flex-shrink-0 border-yellow-400 text-yellow-700 dark:text-yellow-400"
-                          >
-                            <Star className="w-3 h-3 mr-1 fill-yellow-400 text-yellow-400" />
-                            {voucher.pointsCost}
-                          </Badge>
+                    <div key={tx.id} className="flex items-center gap-3 px-5 py-4 transition hover:bg-zinc-50">
+                      <div className={`grid h-10 w-10 shrink-0 place-items-center rounded-2xl ${tx.amount > 0 ? "bg-emerald-50 text-emerald-600" : "bg-red-50 text-red-600"}`}>{config?.icon || <Sparkles className="h-4 w-4" />}</div>
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-sm font-bold text-zinc-900">{tx.description}</p>
+                        <div className="mt-1 flex items-center gap-2">
+                          <Badge variant="outline" className="text-[10px]">{config?.label || tx.type}</Badge>
+                          <span className="text-[10px] text-zinc-400">{getTimeAgo(tx.createdAt)}</span>
                         </div>
-
-                        <div className="flex items-center gap-2 mb-3">
-                          <code className="text-xs bg-gray-100 dark:bg-gray-800 px-2 py-1 rounded font-mono text-gray-600 dark:text-gray-300">
-                            {voucher.code}
-                          </code>
-                          <button
-                            onClick={() => copyCode(voucher.code)}
-                            className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
-                          >
-                            <Copy className="w-3.5 h-3.5" />
-                          </button>
-                        </div>
-
-                        <Button
-                          onClick={() => handleRedeem(voucher.id)}
-                          disabled={!canAfford}
-                          size="sm"
-                          className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 disabled:from-gray-400 disabled:to-gray-500"
-                        >
-                          {canAfford ? "Đổi ngay" : `Thiếu ${(voucher.pointsCost - totalPoints).toLocaleString()} điểm`}
-                        </Button>
-                      </CardContent>
-                    </Card>
+                      </div>
+                      <span className={`shrink-0 text-sm font-black ${config?.color || "text-zinc-900"}`}>{tx.amount > 0 ? "+" : ""}{tx.amount.toLocaleString()}</span>
+                    </div>
                   );
                 })}
               </div>
-            </motion.div>
-          )}
-
-          {activeTab === "history" && (
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-            >
-              <Card>
-                <CardContent className="p-0">
-                  {transactions.length === 0 ? (
-                    <div className="flex flex-col items-center justify-center py-12 text-gray-400 dark:text-gray-500">
-                      <Clock className="w-10 h-10 mb-3 opacity-30" />
-                      <p className="text-sm">Chưa có giao dịch nào</p>
-                    </div>
-                  ) : (
-                    <div className="divide-y divide-gray-100 dark:divide-gray-800">
-                      {transactions.map((tx) => {
-                        const config = transactionTypeConfig[tx.type];
-                        return (
-                          <div
-                            key={tx.id}
-                            className="flex items-center gap-3 px-4 py-3 hover:bg-gray-50 dark:hover:bg-gray-900/50 transition-colors"
-                          >
-                            <div
-                              className={`w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0 ${
-                                tx.amount > 0
-                                  ? "bg-green-50 dark:bg-green-900/30 text-green-600 dark:text-green-400"
-                                  : "bg-red-50 dark:bg-red-900/30 text-red-600 dark:text-red-400"
-                              }`}
-                            >
-                              {config.icon}
-                            </div>
-                            <div className="flex-1 min-w-0">
-                              <p className="text-sm font-medium text-gray-900 dark:text-white truncate">
-                                {tx.description}
-                              </p>
-                              <div className="flex items-center gap-2 mt-0.5">
-                                <Badge variant="outline" className="text-[10px] px-1.5 py-0">
-                                  {config.label}
-                                </Badge>
-                                <span className="text-[10px] text-gray-400 dark:text-gray-500">
-                                  {getTimeAgo(tx.createdAt)}
-                                </span>
-                              </div>
-                            </div>
-                            <span
-                              className={`text-sm font-bold flex-shrink-0 ${config.color}`}
-                            >
-                              {tx.amount > 0 ? "+" : ""}
-                              {tx.amount.toLocaleString()}
-                            </span>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-            </motion.div>
-          )}
-        </div>
-      </main>
-      <Footer />
+            )}
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }

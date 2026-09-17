@@ -51,7 +51,11 @@ export function ConfirmDialog({
                             onConfirm();
                         }}
                         disabled={isLoading}
-                        className={variant === "destructive" ? "bg-red-600 hover:bg-red-700" : ""}
+                        className={
+                            variant === "destructive"
+                                ? "bg-destructive text-white hover:bg-destructive/90 focus-visible:ring-destructive/30"
+                                : ""
+                        }
                     >
                         {isLoading ? "Đang xử lý..." : confirmText}
                     </AlertDialogAction>

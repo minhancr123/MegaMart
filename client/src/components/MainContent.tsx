@@ -1,14 +1,12 @@
 "use client";
-import { ShoppingCart, Heart, Search, ChevronLeft, ChevronRight, Truck, ShieldCheck, Clock, CreditCard, Zap, ArrowRight, Newspaper, Calendar, Star, TrendingUp, Award, Users, Package } from "lucide-react";
+import { ArrowRight, Calendar, CookingPot, Laptop, Newspaper, Package, Refrigerator, Smartphone, Tv, WashingMachine, Wind, Zap } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
-import { CartItem, MainContentProps, Product } from "@/interfaces/product";
+import { MainContentProps } from "@/interfaces/product";
 import { addToCart } from "@/lib/cartApi";
-import Image from "next/image";
 import { useAuthStore } from "@/store/authStore";
 import { useCartStore } from "@/store/cartStore";
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from 'next/link';
 import { toast } from "sonner";
@@ -16,13 +14,24 @@ import { ProductCard } from "./product/ProductCard";
 import { bannerApi, Banner, flashSaleApi, FlashSale } from "@/lib/marketingApi";
 import { getPrimaryImageUrl } from "@/lib/imageUtils";
 import { fetchPosts } from "@/lib/postsApi";
-import { motion, useScroll, useTransform } from "framer-motion";
 import HeroBanner from "./home/HeroBanner";
 import RecentlyViewed from "./home/RecentlyViewed";
+import ForYouSection from "./home/ForYouSection";
+
+const featuredCategoryLinks = [
+  { href: "/category/tivi", name: "Tivi", icon: Tv },
+  { href: "/category/may-lanh", name: "Máy lạnh", icon: Wind },
+  { href: "/category/tu-lanh", name: "Tủ lạnh", icon: Refrigerator },
+  { href: "/category/may-giat", name: "Máy giặt", icon: WashingMachine },
+  { href: "/category/dien-thoai", name: "Điện thoại", icon: Smartphone },
+  { href: "/category/laptop", name: "Laptop", icon: Laptop },
+  { href: "/category/noi-chien-noi-nuong", name: "Gia dụng", icon: CookingPot },
+];
+
+const featuredBrands = ["SAMSUNG", "LG", "DAIKIN", "PANASONIC", "SONY", "TOSHIBA"];
 
 export default function MainContent({
   featuredProducts,
-  fetchCategories,
 }: MainContentProps) {
   const { user } = useAuthStore();
   const { addItem } = useCartStore();
@@ -30,12 +39,7 @@ export default function MainContent({
   const [banners, setBanners] = useState<Banner[]>([]);
   const [flashSales, setFlashSales] = useState<FlashSale[]>([]);
   const [posts, setPosts] = useState<any[]>([]);
-  const [selectedCategorySlug, setSelectedCategorySlug] = useState<string>('all');
   const [countdown, setCountdown] = useState({ hours: 0, minutes: 0, seconds: 0 });
-
-  const { scrollYProgress } = useScroll();
-  const opacity = useTransform(scrollYProgress, [0, 0.2], [1, 0]);
-  const scale = useTransform(scrollYProgress, [0, 0.2], [1, 0.95]);
 
   // Helper function to strip HTML tags
   const stripHtml = (html: string | undefined | null): string => {
@@ -79,13 +83,6 @@ export default function MainContent({
   const handleViewDetails = (productId: string) => {
     router.push(`/product/${productId}`);
   };
-
-  const displayedProducts = useMemo(() => {
-    if (selectedCategorySlug === 'all') return featuredProducts;
-    return featuredProducts.filter((product: any) => 
-      product.category?.slug === selectedCategorySlug
-    );
-  }, [featuredProducts, selectedCategorySlug]);
 
   // Fetch active banners
   useEffect(() => {
@@ -168,66 +165,13 @@ export default function MainContent({
   }, [flashSales]);
 
   return (
-    <div className="w-full max-w-full overflow-x-hidden relative">
-      {/* Animated Background Gradients */}
-      <div className="fixed inset-0 -z-10 overflow-hidden pointer-events-none">
-        <div className="absolute top-0 -left-4 w-96 h-96 bg-gradient-to-br from-blue-400/20 via-purple-400/20 to-pink-400/20 dark:from-blue-600/10 dark:via-purple-600/10 dark:to-pink-600/10 rounded-full blur-3xl animate-blob"></div>
-        <div className="absolute top-0 -right-4 w-96 h-96 bg-gradient-to-br from-cyan-400/20 via-blue-400/20 to-indigo-400/20 dark:from-cyan-600/10 dark:via-blue-600/10 dark:to-indigo-600/10 rounded-full blur-3xl animate-blob animation-delay-2000"></div>
-        <div className="absolute -bottom-8 left-20 w-96 h-96 bg-gradient-to-br from-pink-400/20 via-rose-400/20 to-red-400/20 dark:from-pink-600/10 dark:via-rose-600/10 dark:to-red-600/10 rounded-full blur-3xl animate-blob animation-delay-4000"></div>
-      </div>
-
-      <div className="max-w-7xl mx-auto px-3 sm:px-4 md:px-6 lg:px-8 space-y-12 sm:space-y-16 pb-12 sm:pb-16">
+    <div className="relative w-full max-w-full overflow-x-hidden bg-[#f7f8fa]">
+      <div className="mm-container space-y-12 pb-12 pt-6 sm:space-y-16 sm:pb-16 sm:pt-8">
         
         {/* Hero Banner Section */}
-        <motion.div 
-          className="mt-4 sm:mt-6"
-          style={{ opacity, scale }}
-        >
+        <div>
           <HeroBanner banners={banners} />
-        </motion.div>
-
-        {/* Features Section - Glassmorphism Style */}
-        <motion.section
-          initial={{ opacity: 0, y: 20 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true }}
-          transition={{ duration: 0.6 }}
-          className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6"
-        >
-          {[
-            { icon: Truck, title: "Miễn phí vận chuyển", desc: "Cho đơn hàng từ 500k", gradient: "from-blue-500 to-cyan-500" },
-            { icon: ShieldCheck, title: "Bảo hành chính hãng", desc: "Cam kết 100% chính hãng", gradient: "from-purple-500 to-pink-500" },
-            { icon: Clock, title: "Hỗ trợ 24/7", desc: "Giải đáp mọi thắc mắc", gradient: "from-orange-500 to-red-500" },
-            { icon: CreditCard, title: "Thanh toán an toàn", desc: "Đa dạng phương thức", gradient: "from-green-500 to-emerald-500" },
-          ].map((feature, idx) => (
-            <motion.div
-              key={idx}
-              initial={{ opacity: 0, y: 20 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              transition={{ delay: idx * 0.1, duration: 0.5 }}
-              whileHover={{ y: -8, scale: 1.02 }}
-              className="group relative"
-            >
-              <div className="absolute inset-0 bg-gradient-to-r opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-2xl blur-xl -z-10"
-                style={{
-                  background: `linear-gradient(135deg, var(--tw-gradient-stops))`,
-                }}
-              />
-              <div className="relative flex items-center gap-4 p-6 bg-white/80 dark:bg-gray-900/80 backdrop-blur-xl rounded-2xl border border-gray-200/50 dark:border-gray-700/50 shadow-lg hover:shadow-2xl transition-all duration-300">
-                <div className={`w-14 h-14 bg-gradient-to-br ${feature.gradient} rounded-xl flex items-center justify-center text-white shadow-lg group-hover:scale-110 transition-transform duration-300`}>
-                  <feature.icon className="w-7 h-7" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <h3 className="font-bold text-gray-900 dark:text-white text-base mb-1 group-hover:text-transparent group-hover:bg-clip-text group-hover:bg-gradient-to-r group-hover:from-blue-600 group-hover:to-purple-600 transition-all duration-300">
-                    {feature.title}
-                  </h3>
-                  <p className="text-sm text-gray-600 dark:text-gray-400">{feature.desc}</p>
-                </div>
-              </div>
-            </motion.div>
-          ))}
-        </motion.section>
+        </div>
 
         {/* Flash Sale Section - Premium Style */}
         {(() => {
@@ -248,32 +192,21 @@ export default function MainContent({
           if (!displayFlashSale) return null;
 
           return (
-            <motion.section
-              initial={{ opacity: 0, scale: 0.95 }}
-              whileInView={{ opacity: 1, scale: 1 }}
-              viewport={{ once: true }}
-              transition={{ duration: 0.6 }}
-              className="relative rounded-3xl overflow-hidden shadow-2xl"
-            >
+            <section className="relative overflow-hidden rounded-3xl shadow-xl transition-shadow duration-300 hover:shadow-2xl">
               {/* Gradient Background */}
-              <div className="absolute inset-0 bg-gradient-to-r from-red-600 via-orange-600 to-pink-600 dark:from-red-700 dark:via-orange-700 dark:to-pink-700"></div>
+              <div className="absolute inset-0 bg-gradient-to-r from-[#8e2800] via-[#d83f00] to-[#ff6b00]"></div>
               
               {/* Animated Overlay */}
               <div className="absolute inset-0">
-                <div className="absolute top-0 right-0 w-96 h-96 bg-white/10 rounded-full -translate-y-1/2 translate-x-1/2 blur-3xl animate-pulse"></div>
-                <div className="absolute bottom-0 left-0 w-96 h-96 bg-yellow-400/10 rounded-full translate-y-1/2 -translate-x-1/2 blur-3xl animate-pulse animation-delay-2000"></div>
+                <div className="absolute top-0 right-0 w-96 h-96 bg-white/10 rounded-full -translate-y-1/2 translate-x-1/2 blur-3xl"></div>
+                <div className="absolute bottom-0 left-0 w-96 h-96 bg-yellow-400/10 rounded-full translate-y-1/2 -translate-x-1/2 blur-3xl"></div>
               </div>
 
               <div className="relative z-10 p-8">
                 <div className="flex flex-col md:flex-row justify-between items-center mb-8 gap-6">
-                  <motion.div 
-                    className="flex items-center gap-4"
-                    initial={{ x: -20, opacity: 0 }}
-                    whileInView={{ x: 0, opacity: 1 }}
-                    transition={{ delay: 0.2 }}
-                  >
+                  <div className="flex items-center gap-4">
                     <div className="p-3 bg-white/20 backdrop-blur-md rounded-2xl shadow-lg">
-                      <Zap className="w-8 h-8 text-yellow-300 animate-pulse" />
+                      <Zap className="w-8 h-8 text-yellow-300" />
                     </div>
                     <div>
                       <h2 className="text-3xl md:text-4xl font-black uppercase tracking-wider text-white">
@@ -288,15 +221,10 @@ export default function MainContent({
                         }
                       </p>
                     </div>
-                  </motion.div>
+                  </div>
 
                   {!isUpcoming && (
-                    <motion.div 
-                      className="flex gap-3"
-                      initial={{ x: 20, opacity: 0 }}
-                      whileInView={{ x: 0, opacity: 1 }}
-                      transition={{ delay: 0.3 }}
-                    >
+                    <div className="flex gap-3">
                       {[
                         { value: countdown.hours.toString().padStart(2, '0'), label: 'Giờ' },
                         { value: countdown.minutes.toString().padStart(2, '0'), label: 'Phút' },
@@ -307,12 +235,12 @@ export default function MainContent({
                           <div className="text-xs font-bold uppercase mt-2 text-gray-600">{time.label}</div>
                         </div>
                       ))}
-                    </motion.div>
+                    </div>
                   )}
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-                  {displayFlashSale.items?.slice(0, 4).map((item: any, idx: number) => {
+                  {displayFlashSale.items?.slice(0, 4).map((item: any) => {
                     const product = item.variant?.product;
                     const originalPrice = item.variant?.price || 0;
                     const salePrice = item.salePrice;
@@ -321,14 +249,9 @@ export default function MainContent({
                     const imageUrl = getPrimaryImageUrl(product?.images) || '';
 
                     return (
-                      <motion.div
+                      <div
                         key={item.id}
-                        initial={{ opacity: 0, y: 20 }}
-                        whileInView={{ opacity: 1, y: 0 }}
-                        viewport={{ once: true }}
-                        transition={{ delay: idx * 0.1, duration: 0.5 }}
-                        whileHover={{ y: -12, scale: 1.03 }}
-                        className={`group relative bg-white dark:bg-gray-900 rounded-2xl overflow-hidden shadow-xl hover:shadow-2xl transition-all duration-300 ${isUpcoming ? 'opacity-75' : 'cursor-pointer'}`}
+                        className={`group relative overflow-hidden rounded-2xl bg-white shadow-lg transition-shadow duration-300 hover:shadow-xl dark:bg-gray-900 ${isUpcoming ? 'opacity-75' : 'cursor-pointer'}`}
                         onClick={() => !isUpcoming && handleViewDetails(product?.id)}
                       >
                         {/* Image Container */}
@@ -337,7 +260,7 @@ export default function MainContent({
                             <img 
                               src={imageUrl} 
                               alt={product?.name} 
-                              className="object-cover w-full h-full group-hover:scale-110 transition-transform duration-500" 
+                              className="h-full w-full object-contain p-3 transition-transform duration-300 group-hover:scale-105"
                             />
                           ) : (
                             <div className="w-full h-full flex items-center justify-center text-gray-400">
@@ -363,7 +286,7 @@ export default function MainContent({
 
                         {/* Content */}
                         <div className="p-4">
-                          <h3 className="font-bold text-gray-900 dark:text-white text-sm mb-2 line-clamp-2 min-h-[2.5rem] group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
+                          <h3 className="font-bold text-gray-900 dark:text-white text-sm mb-2 line-clamp-2 min-h-[2.5rem] group-hover:text-[#c53b00] transition-colors">
                             {product?.name || 'Sản phẩm'}
                           </h3>
                           
@@ -405,97 +328,55 @@ export default function MainContent({
                             )}
                           </div>
                         </div>
-                      </motion.div>
+                      </div>
                     );
                   })}
                 </div>
 
                 {!isUpcoming && (
-                  <motion.div 
-                    className="mt-8 text-center"
-                    initial={{ opacity: 0 }}
-                    whileInView={{ opacity: 1 }}
-                    transition={{ delay: 0.5 }}
-                  >
+                  <div className="mt-8 text-center">
                     <Button 
                       size="lg"
-                      className="bg-white text-red-600 hover:bg-red-50 dark:bg-gray-900 dark:text-red-400 dark:hover:bg-gray-800 font-bold px-8 py-6 rounded-full shadow-2xl hover:shadow-3xl transition-all duration-300 hover:scale-105"
+                      className="bg-white text-red-600 hover:bg-red-50 dark:bg-gray-900 dark:text-red-400 dark:hover:bg-gray-800 font-bold px-8 py-6 rounded-full shadow-xl hover:shadow-2xl transition-shadow duration-300"
                       onClick={() => router.push('/products')}
                     >
                       Xem tất cả Flash Sale
                       <ArrowRight className="ml-2 w-5 h-5" />
                     </Button>
-                  </motion.div>
+                  </div>
                 )}
               </div>
-            </motion.section>
+            </section>
           );
         })()}
 
-        {/* Categories Quick Access - Modern Grid */}
-        <motion.section
-          initial={{ opacity: 0, y: 20 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true }}
-          transition={{ duration: 0.6 }}
-          className="space-y-6"
-        >
+        {/* Category shortcuts from the canonical Stitch storefront. */}
+        <section className="space-y-7">
           <div className="text-center space-y-2">
-            <motion.h2 
-              className="text-3xl md:text-4xl font-black text-gray-900 dark:text-white"
-              initial={{ opacity: 0, y: 20 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.2 }}
-            >
+            <h2 className="text-3xl md:text-4xl font-black text-gray-900 dark:text-white">
               Danh mục nổi bật
-            </motion.h2>
-            <motion.p 
-              className="text-gray-600 dark:text-gray-400 text-lg"
-              initial={{ opacity: 0 }}
-              whileInView={{ opacity: 1 }}
-              transition={{ delay: 0.3 }}
-            >
-              Khám phá bộ sưu tập đa dạng của chúng tôi
-            </motion.p>
+            </h2>
+            <p className="text-gray-600 dark:text-gray-400 text-lg">
+              Chọn nhanh ngành hàng bạn đang quan tâm
+            </p>
           </div>
 
-          <div className="flex flex-wrap justify-center gap-3 md:gap-4">
-            {[
-              { slug: 'all', name: 'Tất cả', icon: Star },
-              ...(fetchCategories?.slice(0, 6) || [])
-            ].map((category, idx) => (
-              <motion.button
-                key={category.slug}
-                initial={{ opacity: 0, scale: 0.8 }}
-                whileInView={{ opacity: 1, scale: 1 }}
-                viewport={{ once: true }}
-                transition={{ delay: idx * 0.05, duration: 0.3 }}
-                whileHover={{ scale: 1.05, y: -4 }}
-                whileTap={{ scale: 0.95 }}
-                onClick={() => setSelectedCategorySlug(category.slug)}
-                className={`
-                  px-6 py-3 rounded-full font-semibold text-sm md:text-base
-                  transition-all duration-300 shadow-lg hover:shadow-xl
-                  ${selectedCategorySlug === category.slug
-                    ? 'bg-gradient-to-r from-blue-600 to-purple-600 text-white scale-105'
-                    : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700'
-                  }
-                `}
-              >
-                {category.name}
-              </motion.button>
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-7">
+            {featuredCategoryLinks.map((category) => (
+              <div key={category.href}>
+                <Link href={category.href} className="group flex min-h-32 flex-col items-center justify-center rounded-2xl border border-zinc-200 bg-white px-3 py-5 text-center shadow-sm transition-[border-color,box-shadow] duration-300 hover:border-orange-200 hover:shadow-lg">
+                  <span className="grid h-12 w-12 place-items-center rounded-2xl bg-orange-50 text-[#d94300] transition-colors group-hover:bg-[#ff4d00] group-hover:text-white">
+                    <category.icon className="h-6 w-6" />
+                  </span>
+                  <span className="mt-3 text-sm font-extrabold text-zinc-800">{category.name}</span>
+                </Link>
+              </div>
             ))}
           </div>
-        </motion.section>
+        </section>
 
         {/* Featured Products - Premium Grid */}
-        <motion.section 
-          className="space-y-8"
-          initial={{ opacity: 0 }}
-          whileInView={{ opacity: 1 }}
-          viewport={{ once: true }}
-          transition={{ duration: 0.6 }}
-        >
+        <section className="space-y-8">
           <div className="flex items-center justify-between">
             <div>
               <h2 className="text-3xl md:text-4xl font-black text-gray-900 dark:text-white mb-2">
@@ -509,7 +390,7 @@ export default function MainContent({
               variant="outline" 
               size="lg"
               onClick={() => router.push('/products')}
-              className="hidden md:flex items-center gap-2 rounded-full border-2 hover:bg-gradient-to-r hover:from-blue-600 hover:to-purple-600 hover:text-white hover:border-transparent transition-all duration-300"
+              className="hidden md:flex items-center gap-2 rounded-full border-2 hover:bg-gradient-to-r hover:from-[#fc4c00] hover:to-[#af3200] hover:text-white hover:border-transparent transition-all duration-300"
             >
               Xem tất cả
               <ArrowRight className="w-5 h-5" />
@@ -517,20 +398,14 @@ export default function MainContent({
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-            {displayedProducts.slice(0, 8).map((product: any, idx: number) => (
-              <motion.div
-                key={product.id}
-                initial={{ opacity: 0, y: 20 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ delay: idx * 0.05, duration: 0.5 }}
-              >
+            {featuredProducts.slice(0, 8).map((product: any) => (
+              <div key={product.id}>
                 <ProductCard
                   product={product}
                   onAddToCart={handleAddToCart}
                   onViewDetails={handleViewDetails}
                 />
-              </motion.div>
+              </div>
             ))}
           </div>
 
@@ -538,63 +413,54 @@ export default function MainContent({
             <Button 
               size="lg"
               onClick={() => router.push('/products')}
-              className="w-full max-w-md bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-bold rounded-full shadow-lg hover:shadow-xl transition-all duration-300"
+              className="w-full max-w-md bg-[#ff4d00] hover:bg-[#d94100] text-white font-bold rounded-full shadow-lg hover:shadow-xl transition-all duration-300"
             >
               Xem tất cả sản phẩm
               <ArrowRight className="ml-2 w-5 h-5" />
             </Button>
           </div>
-        </motion.section>
+        </section>
+
+        <section className="rounded-2xl border border-zinc-200 bg-white px-5 py-6 shadow-sm" aria-label="Thương hiệu nổi bật">
+          <p className="mb-5 text-center text-xs font-extrabold uppercase tracking-[0.16em] text-zinc-400">Thương hiệu nổi bật</p>
+          <div className="grid grid-cols-2 items-center gap-4 text-center sm:grid-cols-3 lg:grid-cols-6">
+            {featuredBrands.map((brand) => (
+              <span key={brand} className="rounded-xl bg-zinc-50 px-4 py-3 text-sm font-black tracking-wide text-zinc-600">{brand}</span>
+            ))}
+          </div>
+        </section>
 
         {/* Recently Viewed */}
         <RecentlyViewed />
 
+        {/* Dành riêng cho bạn — chỉ hiện khi đã đăng nhập (tự ẩn nếu không).
+            key theo user.id: đổi tài khoản remount sạch state, không bao giờ
+            lộ gợi ý của user cũ sang user mới (tránh setState trong effect). */}
+        <ForYouSection key={user?.id ?? "guest"} />
+
         {/* Blog Posts - Modern Cards */}
         {posts.length > 0 && (
-          <motion.section
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            transition={{ duration: 0.6 }}
-            className="space-y-8"
-          >
+          <section className="space-y-8">
             <div className="text-center space-y-2">
-              <motion.h2 
-                className="text-3xl md:text-4xl font-black text-gray-900 dark:text-white"
-                initial={{ opacity: 0, y: 20 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.2 }}
-              >
+              <h2 className="text-3xl md:text-4xl font-black text-gray-900 dark:text-white">
                 Tin tức & Khuyến mãi
-              </motion.h2>
-              <motion.p 
-                className="text-gray-600 dark:text-gray-400 text-lg"
-                initial={{ opacity: 0 }}
-                whileInView={{ opacity: 1 }}
-                transition={{ delay: 0.3 }}
-              >
+              </h2>
+              <p className="text-gray-600 dark:text-gray-400 text-lg">
                 Cập nhật những thông tin mới nhất
-              </motion.p>
+              </p>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {posts.map((post, idx) => (
-                <motion.div
-                  key={post.id}
-                  initial={{ opacity: 0, y: 20 }}
-                  whileInView={{ opacity: 1, y: 0 }}
-                  viewport={{ once: true }}
-                  transition={{ delay: idx * 0.1, duration: 0.5 }}
-                  whileHover={{ y: -8 }}
-                >
-                  <Link href={`/blog/${post.slug}`}>
-                    <Card className="group overflow-hidden border-0 shadow-xl hover:shadow-2xl transition-all duration-300 bg-white dark:bg-gray-900">
+              {posts.map((post) => (
+                <div key={post.id}>
+                  <Link href={`/news/${post.id}`}>
+                    <Card className="group overflow-hidden border-0 bg-white shadow-lg transition-shadow duration-300 hover:shadow-xl dark:bg-gray-900">
                       <div className="relative aspect-[16/10] overflow-hidden bg-gradient-to-br from-gray-100 to-gray-200 dark:from-gray-800 dark:to-gray-700">
                         {post.thumbnail ? (
                           <img
                             src={post.thumbnail}
                             alt={post.title}
-                            className="object-cover w-full h-full group-hover:scale-110 transition-transform duration-500"
+                            className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
                           />
                         ) : (
                           <div className="w-full h-full flex items-center justify-center">
@@ -608,47 +474,27 @@ export default function MainContent({
                           <Calendar className="w-4 h-4" />
                           <span>{new Date(post.publishedAt).toLocaleDateString('vi-VN')}</span>
                         </div>
-                        <h3 className="font-bold text-xl text-gray-900 dark:text-white line-clamp-2 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
+                        <h3 className="font-bold text-xl text-gray-900 dark:text-white line-clamp-2 group-hover:text-[#c53b00] transition-colors">
                           {post.title}
                         </h3>
                         <p className="text-gray-600 dark:text-gray-400 line-clamp-2 text-sm">
                           {stripHtml(post.content)}
                         </p>
-                        <div className="flex items-center text-blue-600 dark:text-blue-400 font-semibold text-sm group-hover:gap-2 transition-all">
+                        <div className="flex items-center text-[#c53b00] font-semibold text-sm group-hover:gap-2 transition-all">
                           Đọc thêm
                           <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
                         </div>
                       </CardContent>
                     </Card>
                   </Link>
-                </motion.div>
+                </div>
               ))}
             </div>
-          </motion.section>
+          </section>
         )}
 
       </div>
 
-      <style jsx global>{`
-        @keyframes blob {
-          0%, 100% { transform: translate(0, 0) scale(1); }
-          25% { transform: translate(20px, -50px) scale(1.1); }
-          50% { transform: translate(-20px, 20px) scale(0.9); }
-          75% { transform: translate(50px, 50px) scale(1.05); }
-        }
-        
-        .animate-blob {
-          animation: blob 10s infinite ease-in-out;
-        }
-        
-        .animation-delay-2000 {
-          animation-delay: 2s;
-        }
-        
-        .animation-delay-4000 {
-          animation-delay: 4s;
-        }
-      `}</style>
     </div>
   );
 }

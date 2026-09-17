@@ -1,281 +1,342 @@
-'use client';
+"use client";
 
-import { useState, useEffect } from 'react';
-import Link from 'next/link';
-import { ChevronLeft, ChevronRight, Tag, Zap, Star, ArrowRight } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Banner } from '@/lib/marketingApi';
+import { useEffect, useState, useSyncExternalStore } from "react";
+import Image from "next/image";
+import Link from "next/link";
+import {
+  ArrowRight,
+  BadgeCheck,
+  ChevronLeft,
+  ChevronRight,
+  Clock3,
+  Pause,
+  Play,
+  ShieldCheck,
+  ShoppingBag,
+  Sparkles,
+  Truck,
+  Zap,
+} from "lucide-react";
+
+import { Button } from "@/components/ui/button";
+import {
+  ElectronicsSaleVisual,
+  ExpressDeliveryVisual,
+  fallbackBanners,
+  getStitchBannerKind,
+  TradeInVisual,
+  type StitchBannerKind,
+} from "@/components/home/stitch-banners";
+import type { Banner } from "@/lib/marketingApi";
 
 interface HeroBannerProps {
   banners: Banner[];
   onViewDetails?: (url: string) => void;
 }
 
-export default function HeroBanner({ banners, onViewDetails }: HeroBannerProps) {
-  const [currentIndex, setCurrentIndex] = useState(0);
+const reducedMotionQuery = "(prefers-reduced-motion: reduce)";
 
-  // Auto-play slider
-  useEffect(() => {
-    if (banners.length <= 1) return;
-    
-    const interval = setInterval(() => {
-      setCurrentIndex((prev) => (prev + 1) % banners.length);
-    }, 5000); // Change slide every 5 seconds
+function subscribeToReducedMotion(onChange: () => void) {
+  const mediaQuery = window.matchMedia(reducedMotionQuery);
+  mediaQuery.addEventListener("change", onChange);
+  return () => mediaQuery.removeEventListener("change", onChange);
+}
 
-    return () => clearInterval(interval);
-  }, [banners.length]);
+function getReducedMotionSnapshot() {
+  return window.matchMedia(reducedMotionQuery).matches;
+}
 
-  const prev = () => {
-    setCurrentIndex((prevIndex) => (prevIndex === 0 ? banners.length - 1 : prevIndex - 1));
+function getReducedMotionServerSnapshot() {
+  return false;
+}
+
+function usePrefersReducedMotion() {
+  return useSyncExternalStore(
+    subscribeToReducedMotion,
+    getReducedMotionSnapshot,
+    getReducedMotionServerSnapshot,
+  );
+}
+
+function subscribeToClock(onChange: () => void) {
+  const timer = window.setInterval(onChange, 1000);
+  return () => window.clearInterval(timer);
+}
+
+function getClockSnapshot() {
+  return Math.floor(Date.now() / 1000);
+}
+
+function getClockServerSnapshot() {
+  return 0;
+}
+
+const heroThemes = {
+  default: {
+    panel: "from-[#b83400] via-[#e04400] to-[#ff6b00]",
+    visual: "bg-[#eef0f1]",
+    buttonText: "text-[#a83200]",
+  },
+  electronics: {
+    panel: "from-[#9f2500] via-[#dc3c00] to-[#ff6b00]",
+    visual: "bg-[#120b08]",
+    buttonText: "text-[#a83200]",
+  },
+  delivery: {
+    panel: "from-[#0b3570] via-[#0759a5] to-[#0284c7]",
+    visual: "bg-[#06182c]",
+    buttonText: "text-[#0759a5]",
+  },
+  "trade-in": {
+    panel: "from-[#211d59] via-[#3730a3] to-[#6d28d9]",
+    visual: "bg-[#0a1526]",
+    buttonText: "text-[#3730a3]",
+  },
+} as const;
+
+function StitchBannerVisual({ kind }: { kind: StitchBannerKind }) {
+  if (kind === "delivery") return <ExpressDeliveryVisual />;
+  if (kind === "trade-in") return <TradeInVisual />;
+  return <ElectronicsSaleVisual />;
+}
+
+/** Đếm ngược thời gian thực tới endDate (chỉ render sau mount để tránh lệch hydration). */
+export function useCountdown(endDate?: string) {
+  const target = endDate ? new Date(endDate).getTime() : NaN;
+  const currentSecond = useSyncExternalStore(
+    subscribeToClock,
+    getClockSnapshot,
+    getClockServerSnapshot,
+  );
+  if (currentSecond === 0 || !Number.isFinite(target)) return null;
+  const now = currentSecond * 1000;
+  const diff = Math.max(0, target - now);
+  return {
+    days: Math.floor(diff / 86_400_000),
+    hours: Math.floor((diff % 86_400_000) / 3_600_000),
+    minutes: Math.floor((diff % 3_600_000) / 60_000),
+    seconds: Math.floor((diff % 60_000) / 1000),
+    done: diff <= 0,
   };
+}
 
-  const next = () => {
-    setCurrentIndex((prevIndex) => (prevIndex + 1) % banners.length);
-  };
+function CountdownBadge({ endDate }: { endDate: string }) {
+  const countdown = useCountdown(endDate);
+  if (!countdown || countdown.done) return null;
 
   return (
-    <div className="relative w-full">
-      {/* Main Banner Slider */}
-      <div className="relative h-[280px] sm:h-[350px] md:h-[450px] lg:h-[500px] rounded-2xl overflow-hidden shadow-2xl group">
-        {banners.length > 0 ? (
-          <>
-            {banners.map((banner, i) => (
-              <div
-                key={banner.id}
-                className={`absolute inset-0 transition-opacity duration-700 ease-in-out ${
-                  i === currentIndex ? 'opacity-100' : 'opacity-0 pointer-events-none'
-                }`}
-              >
-                {/* Banner Image with Lazy Loading */}
-                <img
-                  src={banner.imageUrl}
-                  alt={banner.title}
-                  loading="lazy"
-                  className="w-full h-full object-cover"
-                />
+    <div className="mt-5 flex flex-wrap items-center gap-2" aria-label="Đếm ngược kết thúc">
+      <span className="mr-1 inline-flex items-center gap-2 text-xs font-bold uppercase tracking-wide text-white/80">
+        <Clock3 className="h-4 w-4" /> Kết thúc sau
+      </span>
+      {[
+        [countdown.days, "Ngày"],
+        [countdown.hours, "Giờ"],
+        [countdown.minutes, "Phút"],
+        [countdown.seconds, "Giây"],
+      ].map(([value, label]) => (
+        <span key={label as string} className="flex min-w-10 flex-col items-center rounded-lg bg-black/30 px-2 py-1.5 backdrop-blur-sm">
+          <span className="text-base font-black tabular-nums leading-none">
+            {String(value).padStart(2, "0")}
+          </span>
+          <span className="mt-1 text-[9px] font-bold uppercase text-white/70">{label}</span>
+        </span>
+      ))}
+    </div>
+  );
+}
 
-                {/* Professional Gradient Overlay */}
-                <div className="absolute inset-0 bg-gradient-to-r from-black/70 via-black/50 to-transparent dark:from-black/80 dark:via-black/60"></div>
+/**
+ * Suy mẫu hiển thị: STATIC giữ giao diện gốc; AUTO tự chọn theo dữ liệu
+ * (có endDate -> đếm ngược, có sản phẩm nổi -> thẻ nổi); TEMPLATE_1/2/3 ép mẫu.
+ */
+export function resolveBannerTemplate(banner: Banner): "STATIC" | "TEMPLATE_1" | "TEMPLATE_2" | "TEMPLATE_3" {
+  const forced = banner.template || "AUTO";
+  if (forced === "STATIC") return "STATIC";
+  if (forced === "TEMPLATE_1" || forced === "TEMPLATE_2" || forced === "TEMPLATE_3") return forced;
+  if (banner.endDate) return "TEMPLATE_1";
+  if ((banner.featuredProducts || []).length > 0) return "TEMPLATE_2";
+  return "STATIC";
+}
 
-                {/* Content */}
-                <div className="absolute inset-0 flex items-center">
-                  <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-                    <div
-                      className={`max-w-xl sm:max-w-2xl space-y-3 sm:space-y-4 md:space-y-6 text-white transition-all duration-700 ${
-                        i === currentIndex ? 'translate-x-0 opacity-100' : '-translate-x-10 opacity-0'
-                      }`}
-                    >
-                      {/* Badge */}
-                      {banner.description && (
-                        <div className="inline-flex items-center gap-2 px-3 sm:px-4 py-1.5 sm:py-2 bg-white/10 backdrop-blur-md rounded-full border border-white/20 shadow-lg">
-                          <span className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></span>
-                          <span className="text-xs sm:text-sm font-medium tracking-wide">
-                            {banner.description}
-                          </span>
-                        </div>
-                      )}
+const fmtPrice = (n: number | null | undefined) =>
+  n == null ? "" : new Intl.NumberFormat("vi-VN").format(n) + "₫";
 
-                      {/* Title */}
-                      <h1 className="text-2xl sm:text-3xl md:text-5xl lg:text-6xl font-extrabold leading-tight tracking-tight">
-                        {banner.title}
-                      </h1>
+export default function HeroBanner({ banners, onViewDetails }: HeroBannerProps) {
+  // Ba banner động luôn xuất hiện; banner quản trị chỉ được nối thêm khi đang bật.
+  const slides = [...fallbackBanners, ...banners];
+  const [currentIndex, setCurrentIndex] = useState(0);
+  const [isHovered, setIsHovered] = useState(false);
+  const [isFocusWithin, setIsFocusWithin] = useState(false);
+  const [isAutoPlayPaused, setIsAutoPlayPaused] = useState(false);
+  const prefersReducedMotion = usePrefersReducedMotion();
+  const activeIndex = currentIndex % slides.length;
+  const banner = slides[activeIndex] || fallbackBanners[0];
+  const href = banner.linkUrl || "/products";
+  const imageSrc = banner.imageUrl || "/images/stitch/hero-appliances.jpg";
+  const template = resolveBannerTemplate(banner);
+  const featured = banner.featuredProducts || [];
+  const stitchKind = getStitchBannerKind(banner);
+  const theme = heroThemes[stitchKind || "default"];
 
-                      {/* CTA Buttons */}
-                      {banner.linkUrl && (
-                        <div className="flex flex-wrap gap-3 sm:gap-4 pt-2 sm:pt-4">
-                          <Link href={banner.linkUrl}>
-                            <Button
-                              size="lg"
-                              className="bg-white text-gray-900 hover:bg-gray-100 font-semibold rounded-xl px-6 sm:px-8 py-3 sm:py-6 text-sm sm:text-base shadow-xl hover:shadow-2xl transition-all duration-200 hover:scale-[1.02]"
-                            >
-                              Mua ngay
-                              <ChevronRight className="ml-2 w-4 h-4 sm:w-5 sm:h-5" />
-                            </Button>
-                          </Link>
-                          <Button
-                            size="lg"
-                            variant="outline"
-                            className="border-2 border-white text-white hover:bg-white/10 backdrop-blur-sm font-semibold rounded-xl px-6 sm:px-8 py-3 sm:py-6 text-sm sm:text-base transition-all duration-200"
-                            onClick={() => banner.linkUrl && onViewDetails && onViewDetails(banner.linkUrl)}
-                          >
-                            Xem thêm
-                          </Button>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              </div>
-            ))}
+  useEffect(() => {
+    if (slides.length <= 1 || prefersReducedMotion || isHovered || isFocusWithin || isAutoPlayPaused) return;
+    const timer = window.setInterval(
+      () => setCurrentIndex((index) => (index + 1) % slides.length),
+      6000,
+    );
+    return () => window.clearInterval(timer);
+  }, [isAutoPlayPaused, isFocusWithin, isHovered, prefersReducedMotion, slides.length]);
 
-            {/* Navigation Controls */}
-            {banners.length > 1 && (
+  const previous = () => setCurrentIndex((index) => (index - 1 + slides.length) % slides.length);
+  const next = () => setCurrentIndex((index) => (index + 1) % slides.length);
+
+  return (
+    <section className="space-y-4" aria-label="Khuyến mãi nổi bật">
+      <div>
+        <article
+          className="group relative grid min-h-[390px] overflow-hidden rounded-2xl border border-orange-100 bg-white shadow-[0_14px_45px_rgba(127,36,0,0.12)] sm:grid-cols-[0.85fr_1.15fr] lg:min-h-[430px]"
+          onMouseEnter={() => setIsHovered(true)}
+          onMouseLeave={() => setIsHovered(false)}
+          onFocusCapture={() => setIsFocusWithin(true)}
+          onBlurCapture={(event) => {
+            if (!event.currentTarget.contains(event.relatedTarget as Node | null)) {
+              setIsFocusWithin(false);
+            }
+          }}
+        >
+          <div className={`relative z-10 flex flex-col justify-center bg-gradient-to-br ${theme.panel} p-7 text-white sm:p-9 lg:p-11`}>
+            <span className="mb-4 inline-flex w-fit items-center gap-2 rounded-full border border-white/25 bg-white/10 px-3 py-1.5 text-[11px] font-extrabold uppercase tracking-[0.14em]">
+              <Sparkles className="h-3.5 w-3.5 text-orange-100" /> Ưu đãi nổi bật
+            </span>
+            {banner.badgeText && (
+              <span className="mb-3 inline-flex w-fit items-center gap-1.5 rounded-lg bg-yellow-300 px-3 py-1 text-xs font-black uppercase tracking-wide text-[#7a2000] shadow">
+                <Zap className="h-3.5 w-3.5" /> {banner.badgeText}
+              </span>
+            )}
+            <h1 className="text-3xl font-black leading-[1.08] tracking-tight sm:text-4xl lg:text-5xl">
+              {banner.title || fallbackBanners[0].title}
+            </h1>
+            <p className="mt-4 max-w-md text-sm leading-6 text-white/85 sm:text-base">
+              {banner.description || fallbackBanners[0].description}
+            </p>
+            {template === "TEMPLATE_1" && banner.endDate && <CountdownBadge endDate={banner.endDate} />}
+            <div className="mt-7 flex flex-wrap gap-3">
+               <Button asChild className={`h-11 bg-white px-5 font-extrabold ${theme.buttonText} shadow-md hover:bg-white/90`}>
+                 <Link href={href}>{banner.ctaText || "Mua ngay"} <ArrowRight className="ml-2 h-4 w-4" /></Link>
+               </Button>
+              {onViewDetails && (
+                <Button type="button" variant="outline" className="h-11 border-white/40 bg-transparent px-5 font-bold text-white hover:bg-white/15 hover:text-white" onClick={() => onViewDetails(href)}>
+                  Xem ưu đãi
+                </Button>
+              )}
+            </div>
+          </div>
+
+          <div className={`relative min-h-[230px] overflow-hidden ${theme.visual} sm:min-h-full`}>
+            {stitchKind ? (
+              <StitchBannerVisual kind={stitchKind} />
+            ) : (
               <>
-                {/* Previous/Next Buttons */}
-                <div className="absolute left-4 sm:left-6 top-1/2 -translate-y-1/2 z-10">
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="w-10 h-10 sm:w-12 sm:h-12 bg-white/10 hover:bg-white/20 backdrop-blur-md text-white rounded-full border border-white/20 shadow-lg opacity-0 group-hover:opacity-100 transition-all duration-300 hover:scale-110"
-                    onClick={prev}
-                  >
-                    <ChevronLeft className="w-5 h-5 sm:w-6 sm:h-6" />
-                  </Button>
+                <Image src={imageSrc} alt={banner.title || "Ưu đãi điện máy MegaMart"} fill priority sizes="(min-width: 1024px) 58vw, (min-width: 640px) 55vw, 100vw" className="object-cover transition-transform duration-500 group-hover:scale-105" />
+                <div className="pointer-events-none absolute inset-0 bg-gradient-to-r from-[#ff6b00]/10 via-transparent to-transparent" />
+                <div className="absolute right-4 top-4 rounded-xl bg-white px-4 py-3 text-center text-[#a83200] shadow-lg">
+                  <p className="text-[10px] font-bold uppercase tracking-wide text-zinc-500">Giảm đến</p>
+                  <p className="text-2xl font-black">50%</p>
                 </div>
-                <div className="absolute right-4 sm:right-6 top-1/2 -translate-y-1/2 z-10">
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="w-10 h-10 sm:w-12 sm:h-12 bg-white/10 hover:bg-white/20 backdrop-blur-md text-white rounded-full border border-white/20 shadow-lg opacity-0 group-hover:opacity-100 transition-all duration-300 hover:scale-110"
-                    onClick={next}
-                  >
-                    <ChevronRight className="w-5 h-5 sm:w-6 sm:h-6" />
-                  </Button>
-                </div>
-
-                {/* Pagination Dots */}
-                <div className="absolute bottom-4 sm:bottom-6 left-1/2 -translate-x-1/2 flex gap-2 z-10">
-                  {banners.map((_, i) => (
-                    <button
-                      key={i}
-                      className={`h-1.5 rounded-full transition-all duration-300 ${
-                        i === currentIndex ? 'w-8 bg-white shadow-lg' : 'w-1.5 bg-white/50 hover:bg-white/75'
-                      }`}
-                      onClick={() => setCurrentIndex(i)}
-                      aria-label={`Go to slide ${i + 1}`}
-                    />
-                  ))}
+                <div className="absolute bottom-4 left-4 flex items-center gap-2 rounded-xl bg-zinc-950/75 px-4 py-2.5 text-xs font-bold text-white shadow-lg backdrop-blur-sm">
+                  <BadgeCheck className="h-4 w-4 text-orange-300" /> Chính hãng 100%
                 </div>
               </>
             )}
-          </>
-        ) : (
-          /* Fallback Banner with Image */
-          <div className="absolute inset-0">
-            {/* Background Image */}
-            <img
-              src="https://images.unsplash.com/photo-1607082348824-0a96f2a4b9da?q=80&w=2070"
-              alt="Shopping Banner"
-              className="w-full h-full object-cover"
-            />
-            
-            {/* Gradient Overlay */}
-            <div className="absolute inset-0 bg-gradient-to-r from-blue-600/90 via-blue-500/70 to-transparent"></div>
-            
-            {/* Content */}
-            <div className="absolute inset-0 flex items-center">
-              <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-                <div className="max-w-xl sm:max-w-2xl space-y-3 sm:space-y-4 md:space-y-6 text-white">
-                  {/* Badge */}
-                  <div className="inline-flex items-center gap-2 px-3 sm:px-4 py-1.5 sm:py-2 bg-white/10 backdrop-blur-md rounded-full border border-white/20 shadow-lg">
-                    <span className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></span>
-                    <span className="text-xs sm:text-sm font-medium tracking-wide">
-                      Khuyến mãi đặc biệt
-                    </span>
-                  </div>
-
-                  {/* Title */}
-                  <h1 className="text-2xl sm:text-3xl md:text-5xl lg:text-6xl font-extrabold leading-tight tracking-tight">
-                    Chào mừng đến<br />MegaMart
-                  </h1>
-
-                  {/* Description */}
-                  <p className="text-base sm:text-lg md:text-xl text-white/90 max-w-lg">
-                    Khám phá hàng ngàn sản phẩm chất lượng cao với ưu đãi hấp dẫn mỗi ngày
-                  </p>
-
-                  {/* CTA Buttons */}
-                  <div className="flex flex-wrap gap-3 sm:gap-4 pt-2 sm:pt-4">
-                    <Link href="/products">
-                      <Button
-                        size="lg"
-                        className="bg-white text-gray-900 hover:bg-gray-100 font-semibold rounded-xl px-6 sm:px-8 py-3 sm:py-6 text-sm sm:text-base shadow-xl hover:shadow-2xl transition-all duration-200 hover:scale-[1.02]"
-                      >
-                        Mua ngay
-                        <ChevronRight className="ml-2 w-4 h-4 sm:w-5 sm:h-5" />
-                      </Button>
-                    </Link>
-                    <Link href="/category/dien-thoai">
-                      <Button
-                        size="lg"
-                        className="bg-white/10 border-2 border-white text-white hover:bg-white/20 backdrop-blur-sm font-semibold rounded-xl px-6 sm:px-8 py-3 sm:py-6 text-sm sm:text-base transition-all duration-200"
-                      >
-                        Khám phá
-                      </Button>
-                    </Link>
-                  </div>
-                </div>
-              </div>
-            </div>
           </div>
-        )}
+
+          {slides.length > 1 && (
+            <div className="absolute bottom-4 right-4 z-20 flex items-center gap-1.5 rounded-full bg-white/85 p-1 shadow-md backdrop-blur-sm">
+              <Button type="button" variant="ghost" size="icon" onClick={previous} className="h-8 w-8 rounded-full text-zinc-800 hover:bg-white" aria-label="Banner trước">
+                <ChevronLeft className="h-4 w-4" />
+              </Button>
+              <div className="flex items-center" role="group" aria-label="Chọn banner">
+                {slides.map((slide, index) => (
+                  <button
+                    key={slide.id}
+                    type="button"
+                    onClick={() => setCurrentIndex(index)}
+                    className="group/dot grid h-6 w-6 place-items-center rounded-full"
+                    aria-label={`Xem banner ${index + 1}: ${slide.title}`}
+                    aria-current={activeIndex === index ? "true" : undefined}
+                  >
+                    <span className={`h-2 rounded-full transition-[width,background-color] ${activeIndex === index ? "w-5 bg-[#ff4d00]" : "w-2 bg-zinc-300 group-hover/dot:bg-zinc-400"}`} />
+                  </button>
+                ))}
+              </div>
+              {!prefersReducedMotion && (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => setIsAutoPlayPaused((paused) => !paused)}
+                  className="h-8 w-8 rounded-full text-zinc-800 hover:bg-white"
+                  aria-label={isAutoPlayPaused ? "Tiếp tục tự động chuyển banner" : "Tạm dừng tự động chuyển banner"}
+                >
+                  {isAutoPlayPaused ? <Play className="h-3.5 w-3.5" /> : <Pause className="h-3.5 w-3.5" />}
+                </Button>
+              )}
+              <Button type="button" variant="ghost" size="icon" onClick={next} className="h-8 w-8 rounded-full text-zinc-800 hover:bg-white" aria-label="Banner tiếp theo">
+                <ChevronRight className="h-4 w-4" />
+              </Button>
+            </div>
+          )}
+        </article>
+
       </div>
 
-      {/* Quick Action Cards - Below Banner */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mt-6">
-        {/* Card 1 - Featured Deal */}
-        <Link href="/category/dien-thoai" className="group cursor-pointer">
-          <div className="relative h-[160px] sm:h-[180px] rounded-xl overflow-hidden bg-gradient-to-br from-indigo-600 to-blue-700 shadow-lg hover:shadow-xl transition-all duration-200 hover:-translate-y-1">
-            <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIHZpZXdCb3g9IjAgMCA0MCA0MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZyBmaWxsPSJub25lIiBmaWxsLXJ1bGU9ImV2ZW5vZGQiPjxjaXJjbGUgY3g9IjIwIiBjeT0iMjAiIHI9IjE4IiBzdHJva2U9IiNmZmYiIHN0cm9rZS1vcGFjaXR5PSIuMSIvPjwvZz48L3N2Zz4=')] opacity-20"></div>
-            <div className="relative h-full p-5 sm:p-6 flex flex-col justify-between text-white">
-              <div>
-                <div className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-white/20 backdrop-blur-sm rounded-full text-xs font-medium mb-2">
-                  <Zap className="w-3 h-3" />
-                  <span>Hot Deal</span>
-                </div>
-                <h3 className="text-xl sm:text-2xl font-bold mb-1">iPhone 15 Pro Max</h3>
-                <p className="text-sm text-white/90">Titanium. Mạnh mẽ. Nhẹ.</p>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-yellow-300 font-bold text-lg sm:text-xl">Giảm 7.000.000đ</span>
-                <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
-              </div>
-            </div>
-          </div>
-        </Link>
+      {template !== "STATIC" && featured.length > 0 && (
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+          {featured.slice(0, 4).map((p) => (
+            <Link
+              key={p.id}
+              href={`/product/${p.id}`}
+              className="group flex items-center gap-3 rounded-2xl border border-zinc-200 bg-white/80 p-3 shadow-sm backdrop-blur transition-all hover:-translate-y-0.5 hover:shadow-md"
+            >
+              {p.imageUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={p.imageUrl} alt={p.name} className="h-14 w-14 shrink-0 rounded-xl border border-zinc-100 object-cover" />
+              ) : (
+                <span className="grid h-14 w-14 shrink-0 place-items-center rounded-xl bg-orange-50 text-lg font-black text-[#e04400]">
+                  {p.name.charAt(0)}
+                </span>
+              )}
+              <span className="min-w-0">
+                <span className="block truncate text-xs font-bold text-zinc-900 group-hover:text-[#a83200]">
+                  {p.name}
+                </span>
+                {p.salePrice != null ? (
+                  <span className="mt-0.5 block text-sm font-black text-[#c53b00]">
+                    {fmtPrice(p.salePrice)}{" "}
+                    <span className="font-medium text-zinc-400 line-through">{fmtPrice(p.price)}</span>
+                  </span>
+                ) : p.price != null ? (
+                  <span className="mt-0.5 block text-sm font-black text-[#c53b00]">{fmtPrice(p.price)}</span>
+                ) : null}
+              </span>
+            </Link>
+          ))}
+        </div>
+      )}
 
-        {/* Card 2 - Category Highlight */}
-        <Link href="/category/laptop" className="group cursor-pointer">
-          <div className="relative h-[160px] sm:h-[180px] rounded-xl overflow-hidden bg-gradient-to-br from-pink-600 to-rose-700 shadow-lg hover:shadow-xl transition-all duration-200 hover:-translate-y-1">
-            <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIHZpZXdCb3g9IjAgMCA0MCA0MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZyBmaWxsPSJub25lIiBmaWxsLXJ1bGU9ImV2ZW5vZGQiPjxjaXJjbGUgY3g9IjIwIiBjeT0iMjAiIHI9IjE4IiBzdHJva2U9IiNmZmYiIHN0cm9rZS1vcGFjaXR5PSIuMSIvPjwvZz48L3N2Zz4=')] opacity-20"></div>
-            <div className="relative h-full p-5 sm:p-6 flex flex-col justify-between text-white">
-              <div>
-                <div className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-white/20 backdrop-blur-sm rounded-full text-xs font-medium mb-2">
-                  <Star className="w-3 h-3" />
-                  <span>Best Seller</span>
-                </div>
-                <h3 className="text-xl sm:text-2xl font-bold mb-1">MacBook Air M3</h3>
-                <p className="text-sm text-white/90">Siêu mỏng nhẹ, hiệu năng khủng</p>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-yellow-300 font-bold text-lg sm:text-xl">Từ 24.990.000đ</span>
-                <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
-              </div>
-            </div>
+      <div className="grid gap-3 sm:grid-cols-3">
+        {[
+          { icon: Truck, title: "Giao lắp tận nơi", text: "Nhanh chóng trên toàn quốc" },
+          { icon: ShieldCheck, title: "Bảo hành chính hãng", text: "Đổi trả minh bạch, dễ dàng" },
+          { icon: ShoppingBag, title: "Trả góp 0%", text: "Thủ tục đơn giản, duyệt nhanh" },
+        ].map((benefit) => (
+          <div key={benefit.title} className="flex items-center gap-3 rounded-xl border border-zinc-200 bg-white p-4 shadow-sm">
+            <span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-orange-50 text-[#e04400]"><benefit.icon className="h-5 w-5" /></span>
+            <div><h2 className="text-sm font-extrabold text-zinc-900">{benefit.title}</h2><p className="mt-0.5 text-xs text-zinc-500">{benefit.text}</p></div>
           </div>
-        </Link>
-
-        {/* Card 3 - Special Offer */}
-        <Link href="/category/phu-kien" className="group sm:col-span-2 lg:col-span-1 cursor-pointer">
-          <div className="relative h-[140px] sm:h-[160px] rounded-xl overflow-hidden bg-gradient-to-br from-violet-600 to-purple-700 shadow-lg hover:shadow-xl transition-all duration-200 hover:-translate-y-1">
-            <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIHZpZXdCb3g9IjAgMCA0MCA0MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZyBmaWxsPSJub25lIiBmaWxsLXJ1bGU9ImV2ZW5vZGQiPjxjaXJjbGUgY3g9IjIwIiBjeT0iMjAiIHI9IjE4IiBzdHJva2U9IiNmZmYiIHN0cm9rZS1vcGFjaXR5PSIuMSIvPjwvZz48L3N2Zz4=')] opacity-20"></div>
-            <div className="relative h-full p-5 sm:p-6 flex flex-col justify-between text-white">
-              <div>
-                <div className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-white/20 backdrop-blur-sm rounded-full text-xs font-medium mb-2">
-                  <Tag className="w-3 h-3" />
-                  <span>Sale Off</span>
-                </div>
-                <h3 className="text-xl sm:text-2xl font-bold mb-1">Phụ kiện Apple</h3>
-                <p className="text-sm text-white/90">AirPods, Case, Sạc chính hãng</p>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-yellow-300 font-bold text-lg sm:text-xl">Giảm đến 50%</span>
-                <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
-              </div>
-            </div>
-          </div>
-        </Link>
+        ))}
       </div>
-    </div>
+    </section>
   );
 }

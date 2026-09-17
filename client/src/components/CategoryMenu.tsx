@@ -60,7 +60,7 @@ export default function CategoryMenu() {
   }
 
   return (
-    <div className="bg-white dark:bg-gray-900 rounded-lg shadow-lg overflow-hidden border dark:border-gray-800">
+    <div className="overflow-hidden rounded-lg border border-zinc-200 bg-white shadow-lg">
       {/* Categories List */}
       <motion.div
         initial={{ opacity: 0 }}
@@ -89,12 +89,12 @@ function CategoryItem({ category }: { category: Category }) {
     return (
       <Link
         href={`/category/${category.slug}`}
-        className="flex items-center justify-between px-4 py-3 hover:bg-gradient-to-r hover:from-blue-50 hover:to-indigo-50 dark:hover:from-blue-900/20 dark:hover:to-indigo-900/20 transition-all duration-300 group"
+        className="group flex items-center justify-between px-4 py-3 transition-colors hover:bg-orange-50"
       >
-        <span className="text-sm text-gray-700 dark:text-gray-300 group-hover:text-blue-600 dark:group-hover:text-blue-400 font-medium transition-colors duration-200">
+        <span className="text-sm font-medium text-zinc-700 transition-colors group-hover:text-[#c53b00]">
           {category.name}
         </span>
-        <ChevronRight className="h-4 w-4 text-gray-400 dark:text-gray-500 group-hover:text-blue-600 dark:group-hover:text-blue-400 group-hover:translate-x-1 transition-all duration-200" />
+        <ChevronRight className="h-4 w-4 text-zinc-400 transition-all group-hover:translate-x-1 group-hover:text-[#c53b00]" />
       </Link>
     );
   }
@@ -104,19 +104,19 @@ function CategoryItem({ category }: { category: Category }) {
       <HoverCardTrigger asChild>
         <Link
           href={`/category/${category.slug}`}
-          className="flex items-center justify-between px-4 py-3 hover:bg-gradient-to-r hover:from-blue-50 hover:to-indigo-50 dark:hover:from-blue-900/20 dark:hover:to-indigo-900/20 transition-all duration-300 group"
+          className="group flex items-center justify-between px-4 py-3 transition-colors hover:bg-orange-50"
         >
-          <span className="text-sm text-gray-700 dark:text-gray-300 group-hover:text-blue-600 dark:group-hover:text-blue-400 font-medium transition-colors duration-200">
+          <span className="text-sm font-medium text-zinc-700 transition-colors group-hover:text-[#c53b00]">
             {category.name}
           </span>
-          <ChevronRight className="h-4 w-4 text-gray-400 dark:text-gray-500 group-hover:text-blue-600 dark:group-hover:text-blue-400 group-hover:translate-x-1 transition-all duration-200" />
+          <ChevronRight className="h-4 w-4 text-zinc-400 transition-all group-hover:translate-x-1 group-hover:text-[#c53b00]" />
         </Link>
       </HoverCardTrigger>
 
       <HoverCardContent
         side="right"
         align="start"
-        className="w-96 p-0 border-2 border-blue-100 dark:border-blue-900"
+        className="w-96 border border-zinc-200 p-0"
         sideOffset={8}
       >
         <motion.div
@@ -124,7 +124,7 @@ function CategoryItem({ category }: { category: Category }) {
           animate={{ opacity: 1, x: 0, scale: 1 }}
           exit={{ opacity: 0, x: -10, scale: 0.95 }}
           transition={{ duration: 0.2, ease: "easeOut" }}
-          className="bg-white dark:bg-gray-900 rounded-lg shadow-2xl border dark:border-gray-800 overflow-hidden"
+          className="overflow-hidden rounded-lg border border-zinc-200 bg-white shadow-2xl"
         >
           {/* Subcategories List */}
           <div className="p-4 max-h-[400px] overflow-y-auto">
@@ -152,7 +152,7 @@ function CategoryItem({ category }: { category: Category }) {
                 >
                   <Link
                     href={`/category/${child.slug}`}
-                    className="block px-3 py-2.5 text-sm text-gray-700 dark:text-gray-300 hover:bg-gradient-to-r hover:from-blue-50 hover:to-indigo-50 dark:hover:from-blue-900/20 dark:hover:to-indigo-900/20 hover:text-blue-600 dark:hover:text-blue-400 rounded-lg transition-all duration-200 hover:shadow-md border border-transparent hover:border-blue-200 dark:hover:border-blue-800 hover:scale-105 transform"
+                    className="block rounded-lg border border-transparent px-3 py-2.5 text-sm text-zinc-700 transition-all hover:border-orange-200 hover:bg-orange-50 hover:text-[#c53b00]"
                   >
                     {child.name}
                   </Link>

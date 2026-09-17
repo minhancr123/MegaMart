@@ -7,17 +7,15 @@ import { Clock, ChevronLeft, ChevronRight, X } from "lucide-react";
 import Link from "next/link";
 import Image from "next/image";
 import { useRef, useState, useEffect } from "react";
+import { useMounted } from "@/hooks/useMounted";
 
 export default function RecentlyViewed() {
   const { items, clearAll } = useRecentlyViewedStore();
   const scrollRef = useRef<HTMLDivElement>(null);
   const [canScrollLeft, setCanScrollLeft] = useState(false);
   const [canScrollRight, setCanScrollRight] = useState(false);
-  const [mounted, setMounted] = useState(false);
-
-  useEffect(() => {
-    setMounted(true);
-  }, []);
+  const mounted = useMounted();
+  const [renderedAt] = useState(() => Date.now());
 
   useEffect(() => {
     const el = scrollRef.current;
@@ -56,7 +54,7 @@ export default function RecentlyViewed() {
     }).format(price);
 
   const getTimeAgo = (timestamp: number) => {
-    const diff = Date.now() - timestamp;
+    const diff = renderedAt - timestamp;
     const minutes = Math.floor(diff / 60000);
     if (minutes < 1) return "Vừa xem";
     if (minutes < 60) return `${minutes} phút trước`;

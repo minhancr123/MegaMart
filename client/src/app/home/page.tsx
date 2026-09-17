@@ -6,12 +6,12 @@ import { Metadata } from "next";
 
 // SEO Metadata
 export const metadata: Metadata = {
-  title: 'Mega Shop - Trang chủ | Sản phẩm chính hãng giá tốt',
-  description: 'Khám phá hàng ngàn sản phẩm chất lượng từ các thương hiệu uy tín với giá tốt nhất tại Mega Shop',
-  keywords: 'mua sắm online, điện thoại, laptop, phụ kiện, giá rẻ',
+  title: 'MegaMart VN - Điện máy chính hãng, giá tốt',
+  description: 'Mua tivi, máy lạnh, tủ lạnh, máy giặt, laptop và thiết bị gia dụng chính hãng tại MegaMart VN.',
+  keywords: 'điện máy, tivi, máy lạnh, tủ lạnh, máy giặt, laptop, gia dụng',
   openGraph: {
-    title: 'Mega Shop - Sản phẩm chính hãng giá tốt',
-    description: 'Khám phá hàng ngàn sản phẩm chất lượng với giá tốt nhất',
+    title: 'MegaMart VN - Điện máy chính hãng, giá tốt',
+    description: 'Khám phá hàng ngàn sản phẩm điện máy chính hãng với giá tốt.',
     type: 'website',
   },
 };
@@ -60,7 +60,7 @@ export default async function Home() {
   console.log("Home page - Featured Products:", featuredProducts);
   console.log("Home page - Categories:", fetchCategories);
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-950">
+    <div className="min-h-screen bg-[#f7f8fa]">
       <MainContent featuredProducts={featuredProducts} fetchCategories={fetchCategories} newsPosts={latestPosts} />
     </div>
   );

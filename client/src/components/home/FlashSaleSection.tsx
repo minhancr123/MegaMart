@@ -134,7 +134,7 @@ export default function FlashSaleSection({ flashSales }: FlashSaleSectionProps) 
         >
             <div className="relative rounded-3xl overflow-hidden shadow-2xl">
                 {/* Background with Gradient and Noise/Pattern */}
-                <div className={`absolute inset-0 bg-gradient-to-r ${isUpcoming ? 'from-amber-500 to-orange-600' : 'from-red-600 to-rose-600'}`} />
+                <div className={`absolute inset-0 bg-gradient-to-r ${isUpcoming ? 'from-amber-500 to-orange-600' : 'from-[#fc4c00] to-[#af3200]'}`} />
                 <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] opacity-10 mix-blend-overlay" />
                 <div className="absolute top-0 right-0 w-96 h-96 bg-white/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/3" />
 
@@ -213,7 +213,10 @@ export default function FlashSaleSection({ flashSales }: FlashSaleSectionProps) 
                             const salePrice = item.salePrice;
                             const discount = originalPrice > 0 ? Math.round(((originalPrice - salePrice) / originalPrice) * 100) : 0;
                             const soldPercentage = item.quantity > 0 ? Math.min((item.soldCount / item.quantity) * 100, 100) : 0;
-                            const imageUrl = product?.images?.[0] || '';
+                            const imageUrl =
+                              product?.images?.find((img: any) => img.isPrimary)?.url ||
+                              product?.images?.[0]?.url ||
+                              '';
 
                             return (
                                 <motion.div
@@ -226,7 +229,7 @@ export default function FlashSaleSection({ flashSales }: FlashSaleSectionProps) 
                                 >
                                     <div className="relative aspect-square mb-4 bg-slate-100 rounded-xl overflow-hidden">
                                         {imageUrl ? (
-                                            <img src={imageUrl} alt={product?.name} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" />
+                                            <img src={imageUrl} alt={product?.name} className="h-full w-full object-contain p-3 transition-transform duration-300 group-hover:scale-105" />
                                         ) : (
                                             <div className="w-full h-full flex items-center justify-center text-slate-400">No Image</div>
                                         )}
@@ -237,7 +240,7 @@ export default function FlashSaleSection({ flashSales }: FlashSaleSectionProps) 
                                         </div>
                                     </div>
 
-                                    <h3 className="font-semibold text-slate-900 line-clamp-2 mb-2 h-10 text-sm group-hover:text-red-600 transition-colors">
+                                    <h3 className="mb-2 min-h-10 break-words text-sm font-semibold leading-5 text-slate-900 line-clamp-2 transition-colors group-hover:text-red-600">
                                         {product?.name}
                                     </h3>
 

@@ -26,7 +26,7 @@ const FAQ_DATA: FAQItem[] = [
   {
     keywords: ["đơn hàng", "đơn", "order", "theo dõi", "tracking", "ở đâu", "giao đến đâu", "kiểm tra"],
     question: "Theo dõi đơn hàng",
-    answer: "Bạn có thể theo dõi đơn hàng tại mục **Tài khoản → Đơn hàng của tôi**. Tại đây bạn sẽ thấy trạng thái chi tiết của từng đơn hàng: Chờ xử lý → Đã xác nhận → Đang giao → Đã giao.\n\nNếu có thắc mắc, liên hệ hotline **1900 1234** để được hỗ trợ ngay!",
+    answer: "Bạn có thể theo dõi đơn hàng tại mục **Tài khoản → Đơn hàng của tôi**. Tại đây bạn sẽ thấy trạng thái chi tiết của từng đơn hàng: Chờ xử lý → Đã xác nhận → Đang giao → Đã giao.\n\nNếu có thắc mắc, liên hệ hotline **1900 6789** để được hỗ trợ ngay!",
     icon: <Package className="w-4 h-4" />,
   },
   {
@@ -50,7 +50,7 @@ const FAQ_DATA: FAQItem[] = [
   {
     keywords: ["liên hệ", "hotline", "điện thoại", "email", "hỗ trợ", "tư vấn", "contact", "gọi"],
     question: "Liên hệ hỗ trợ",
-    answer: "Bạn có thể liên hệ MegaMart qua:\n\n📞 **Hotline**: 1900 1234 (8h - 22h hàng ngày)\n📧 **Email**: support@megamart.vn\n💬 **Chat**: Ngay tại đây!\n📍 **Địa chỉ**: 123 Đường ABC, Quận 1, TP.HCM\n\nĐội ngũ CSKH luôn sẵn sàng hỗ trợ bạn!",
+    answer: "Bạn có thể liên hệ MegaMart qua:\n\n📞 **Hotline**: 1900 6789 (8h - 21h hàng ngày)\n📧 **Email**: hotro@megamart.vn\n💬 **Chat**: Ngay tại đây!\n📍 **Địa chỉ**: 128 Nguyễn Gia Trí, Bình Thạnh, TP.HCM\n\nĐội ngũ CSKH luôn sẵn sàng hỗ trợ bạn!",
     icon: <Phone className="w-4 h-4" />,
   },
   {
@@ -115,7 +115,7 @@ function findAnswer(input: string): { answer: string; quickReplies?: string[] } 
 
   // Default fallback
   return {
-    answer: "Xin lỗi, tôi chưa hiểu rõ câu hỏi của bạn. 😅\n\nBạn có thể thử hỏi về:\n• Theo dõi đơn hàng\n• Chính sách đổi trả\n• Phương thức thanh toán\n• Thông tin giao hàng\n\nHoặc liên hệ hotline **1900 1234** để được hỗ trợ trực tiếp!",
+    answer: "Xin lỗi, tôi chưa hiểu rõ câu hỏi của bạn. 😅\n\nBạn có thể thử hỏi về:\n• Theo dõi đơn hàng\n• Chính sách đổi trả\n• Phương thức thanh toán\n• Thông tin giao hàng\n\nHoặc liên hệ hotline **1900 6789** để được hỗ trợ trực tiếp!",
     quickReplies: FAQ_DATA.slice(0, 4).map(f => f.question),
   };
 }
@@ -240,7 +240,7 @@ export default function ChatbotWidget() {
       {/* Chat Toggle Button */}
       <motion.button
         onClick={() => setIsOpen(!isOpen)}
-        className="fixed bottom-6 right-6 z-[70] w-14 h-14 rounded-full bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-lg hover:shadow-xl flex items-center justify-center transition-all duration-300 hover:scale-105"
+        className="fixed bottom-6 right-6 z-[70] w-14 h-14 rounded-full bg-gradient-to-r from-[#ff6b00] to-[#d94100] text-white shadow-lg hover:shadow-xl flex items-center justify-center transition-all duration-300 hover:scale-105"
         whileHover={{ scale: 1.05 }}
         whileTap={{ scale: 0.95 }}
       >
@@ -277,7 +277,7 @@ export default function ChatbotWidget() {
 
         {/* Pulse ring */}
         {!isOpen && (
-          <span className="absolute inset-0 rounded-full bg-blue-600 animate-ping opacity-20" />
+          <span className="absolute inset-0 rounded-full bg-orange-600 animate-ping opacity-20" />
         )}
       </motion.button>
 
@@ -292,7 +292,7 @@ export default function ChatbotWidget() {
             className="fixed bottom-24 right-4 sm:right-6 z-[70] w-[calc(100vw-2rem)] sm:w-[380px] h-[520px] bg-white dark:bg-gray-950 rounded-2xl shadow-2xl border border-gray-200 dark:border-gray-800 flex flex-col overflow-hidden"
           >
             {/* Header */}
-            <div className="bg-gradient-to-r from-blue-600 to-indigo-600 px-4 py-3 flex items-center gap-3">
+            <div className="bg-gradient-to-r from-[#ff6b00] to-[#d94100] px-4 py-3 flex items-center gap-3">
               <div className="w-10 h-10 bg-white/20 backdrop-blur-sm rounded-full flex items-center justify-center">
                 <Bot className="w-6 h-6 text-white" />
               </div>
@@ -326,14 +326,14 @@ export default function ChatbotWidget() {
                     <div
                       className={`max-w-[80%] rounded-2xl px-4 py-2.5 text-sm leading-relaxed ${
                         msg.sender === "user"
-                          ? "bg-blue-600 text-white rounded-br-md"
+                          ? "bg-[#ff4d00] text-white rounded-br-md"
                           : "bg-white dark:bg-gray-900 text-gray-800 dark:text-gray-200 shadow-sm border border-gray-100 dark:border-gray-800 rounded-bl-md"
                       }`}
                     >
                       {renderMarkdown(msg.text)}
                     </div>
                     {msg.sender === "user" && (
-                      <div className="w-7 h-7 rounded-full bg-blue-600 flex items-center justify-center flex-shrink-0 mt-1">
+                      <div className="w-7 h-7 rounded-full bg-[#ff4d00] flex items-center justify-center flex-shrink-0 mt-1">
                         <User className="w-4 h-4 text-white" />
                       </div>
                     )}
@@ -346,7 +346,7 @@ export default function ChatbotWidget() {
                         <button
                           key={reply}
                           onClick={() => handleQuickReply(reply)}
-                          className="text-xs px-3 py-1.5 rounded-full border border-blue-200 dark:border-blue-800 text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/30 transition-colors whitespace-nowrap"
+                          className="text-xs px-3 py-1.5 rounded-full border border-orange-200 text-[#c53b00] hover:bg-orange-50 transition-colors whitespace-nowrap"
                         >
                           {reply}
                         </button>
@@ -390,13 +390,13 @@ export default function ChatbotWidget() {
                   type="submit"
                   size="icon"
                   disabled={!input.trim() || isTyping}
-                  className="rounded-full bg-blue-600 hover:bg-blue-700 w-10 h-10 flex-shrink-0"
+                  className="rounded-full bg-[#ff4d00] hover:bg-[#d94100] w-10 h-10 flex-shrink-0"
                 >
                   <Send className="w-4 h-4" />
                 </Button>
               </form>
               <p className="text-center text-[10px] text-gray-400 dark:text-gray-500 mt-2">
-                Trợ lý FAQ • Liên hệ 1900 1234 để được hỗ trợ trực tiếp
+                Trợ lý FAQ • Liên hệ 1900 6789 để được hỗ trợ trực tiếp
               </p>
             </div>
           </motion.div>

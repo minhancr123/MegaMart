@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { User, ShoppingCart, Menu, Search, LogInIcon, Handbag, ChevronDown, Heart, Scale, Sparkles, Store } from "lucide-react";
+import { LogoMark } from "@/components/Logo";
 
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -157,18 +158,16 @@ export default function Header() {
 
         <div className="max-w-7xl mx-auto px-3 sm:px-4 py-3 sm:py-4 relative z-10">
           <div className="flex items-center justify-between gap-2 sm:gap-4">
-            {/* Logo with gradient */}
+            {/* Logo với biểu tượng Hexagon công nghệ mới */}
             <Link href="/">
               <motion.div 
-                className="flex-shrink-0 flex items-center gap-2"
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
+                className="flex-shrink-0 flex items-center gap-2.5"
+                whileHover={{ scale: 1.03 }}
+                whileTap={{ scale: 0.97 }}
               >
-                <div className="w-10 h-10 bg-gradient-to-br from-blue-600 via-purple-600 to-pink-600 rounded-xl flex items-center justify-center shadow-lg">
-                  <Store className="w-6 h-6 text-white" />
-                </div>
-                <h1 className="text-xl sm:text-2xl md:text-3xl font-black bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 dark:from-blue-400 dark:via-purple-400 dark:to-pink-400 bg-clip-text text-transparent">
-                  MegaMart
+                <LogoMark className="w-10 h-10 shadow-md rounded-2xl" />
+                <h1 className="text-xl sm:text-2xl md:text-3xl font-black text-slate-900 dark:text-white tracking-tight">
+                  Mega<span className="text-[#ff4d00]">Mart</span>
                 </h1>
               </motion.div>
             </Link>

@@ -22,7 +22,7 @@ export default function PrivacyPage() {
                             Chính sách bảo mật
                         </h1>
                         <p className="text-slate-600 dark:text-gray-400">
-                            Cập nhật lần cuối: 29 tháng 01, 2025
+                            Cập nhật lần cuối: 09 tháng 09, 2026
                         </p>
                     </div>
 
@@ -159,8 +159,8 @@ export default function PrivacyPage() {
                             </p>
                             <div className="bg-slate-50 rounded-xl p-6">
                                 <p className="text-slate-700"><strong>Email:</strong> privacy@megamart.vn</p>
-                                <p className="text-slate-700"><strong>Hotline:</strong> 1900 1234</p>
-                                <p className="text-slate-700"><strong>Địa chỉ:</strong> 123 Đường ABC, Quận 1, TP.HCM</p>
+                                <p className="text-slate-700"><strong>Hotline:</strong> 1900 6789</p>
+                                <p className="text-slate-700"><strong>Địa chỉ:</strong> 128 Nguyễn Gia Trí, Bình Thạnh, TP.HCM</p>
                             </div>
                         </section>
                     </div>

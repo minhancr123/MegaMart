@@ -9,10 +9,12 @@ export class ReviewService {
   async create(dto: CreateReviewDto) {
     const { userId, productId, rating, comment, images } = dto;
 
+    if (!userId) throw new BadRequestException('Bạn cần đăng nhập để đánh giá sản phẩm');
+
     const product = await this.prisma.product.findUnique({ where: { id: productId } });
     if (!product) throw new NotFoundException('Sản phẩm không tồn tại');
 
-    // Optional check: user đã mua hàng này?
+    // User phải mua hàng này trước khi đánh giá.
     if (userId) {
       const hasPurchased = await this.prisma.order.findFirst({
         where: {
@@ -33,11 +35,11 @@ export class ReviewService {
 
     const review = await this.prisma.review.create({
       data: {
-        userId: userId || 'guest',
+        userId,
         productId,
         rating,
         comment,
-        images: images?.length ? images : null,
+        images: images?.length ? images : undefined,
         approved: true,
       },
     });

@@ -1,40 +1,101 @@
-import { Injectable } from '@nestjs/common';
+import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import { PrismaService } from 'src/prismaClient/prisma.service';
 import { ProductResponseDto } from './dto/product.dto';
 import { formatPrice } from 'src/utils/price.util';
 
 import { AuditLogService, AuditAction, AuditEntity } from '../audit-log/audit-log.service';
+
+export interface FindAllProductsParams {
+    search?: string;
+    categoryId?: string;
+    minPrice?: number;
+    maxPrice?: number;
+    /** 'newest' (mặc định) | 'price-asc' | 'price-desc' | 'name-asc' */
+    sort?: string;
+    page?: number;
+    limit?: number;
+}
+
 @Injectable()
 export class ProductsService {
     constructor(
         private prisma: PrismaService,
         private auditLogService: AuditLogService
     ) { }
-    async findAll(search?: string) {
+    /**
+     * Danh sách sản phẩm: phân trang + lọc + sắp xếp đều làm ở server.
+     *
+     * Giá hiệu lực (salePrice nếu có, không thì price) nằm ở bảng Variant, mà Prisma
+     * không where/orderBy theo trường của quan hệ to-many được. Nên bước chọn id dùng
+     * raw SQL, rồi hydrate lại bằng Prisma để giữ nguyên shape cũ của mỗi sản phẩm.
+     */
+    async findAll(params: FindAllProductsParams = {}) {
+        const page = Math.max(1, Number(params.page) || 1);
+        const limit = Math.min(100, Math.max(1, Number(params.limit) || 12));
+        const offset = (page - 1) * limit;
 
-        return new Promise(async (resolve, reject) => {
-            try {
-                const whereClause: any = {
-                    deletedAt: null
-                };
+        // Chọn danh mục cha thì lấy luôn sản phẩm nằm ở các danh mục con.
+        let categoryIds: string[] | null = null;
+        if (params.categoryId) {
+            const children = await this.prisma.category.findMany({
+                where: { parentId: params.categoryId },
+                select: { id: true },
+            });
+            categoryIds = [params.categoryId, ...children.map(c => c.id)];
+        }
 
-                // Add search filter if provided
-                if (search) {
-                    whereClause.OR = [
-                        { name: { contains: search, mode: 'insensitive' } },
-                        { description: { contains: search, mode: 'insensitive' } },
-                        { brand: { contains: search, mode: 'insensitive' } },
-                        { variants: { some: { sku: { contains: search, mode: 'insensitive' } } } }
-                    ];
-                }
+        const search = params.search?.trim();
+        const like = search ? `%${search}%` : null;
+        const min = Number(params.minPrice) > 0 ? BigInt(Math.round(Number(params.minPrice))) : null;
+        const max = Number(params.maxPrice) > 0 ? BigInt(Math.round(Number(params.maxPrice))) : null;
 
-                const products = await this.prisma.product.findMany({
-                    where: whereClause,
+        const source = Prisma.sql`
+            FROM "Product" p
+            LEFT JOIN LATERAL (
+                SELECT MIN(COALESCE(v."salePrice", v.price)) AS eff
+                FROM "Variant" v
+                WHERE v."productId" = p.id
+            ) vp ON true
+            WHERE p."deletedAt" IS NULL
+            ${categoryIds ? Prisma.sql`AND p."categoryId" = ANY(${categoryIds})` : Prisma.empty}
+            ${like ? Prisma.sql`AND (
+                p.name ILIKE ${like} OR p.description ILIKE ${like} OR p.brand ILIKE ${like}
+                OR EXISTS (SELECT 1 FROM "Variant" sv WHERE sv."productId" = p.id AND sv.sku ILIKE ${like})
+            )` : Prisma.empty}
+            ${min != null ? Prisma.sql`AND vp.eff >= ${min}` : Prisma.empty}
+            ${max != null ? Prisma.sql`AND vp.eff <= ${max}` : Prisma.empty}
+        `;
+
+        // p.id làm tie-breaker để hai trang liền nhau không lặp/bỏ sót sản phẩm.
+        const orderBy = {
+            'price-asc': Prisma.sql`ORDER BY vp.eff ASC NULLS LAST, p.id ASC`,
+            'price-desc': Prisma.sql`ORDER BY vp.eff DESC NULLS LAST, p.id ASC`,
+            'name-asc': Prisma.sql`ORDER BY p.name ASC, p.id ASC`,
+        }[params.sort ?? ''] ?? Prisma.sql`ORDER BY p."createdAt" DESC, p.id ASC`;
+
+        const [rows, counted] = await Promise.all([
+            this.prisma.$queryRaw<{ id: string }[]>`
+                SELECT p.id ${source} ${orderBy} LIMIT ${limit} OFFSET ${offset}`,
+            this.prisma.$queryRaw<{ total: bigint }[]>`
+                SELECT COUNT(*)::bigint AS total ${source}`,
+        ]);
+
+        const total = Number(counted[0]?.total ?? 0);
+        const totalPages = Math.ceil(total / limit);
+        const ids = rows.map(r => r.id);
+        if (ids.length === 0) {
+            return { products: [], total, page, limit, totalPages };
+        }
+
+        const products = await this.prisma.product.findMany({
+                    where: { id: { in: ids } },
                     select: {
                         id: true,
                         name: true,
                         slug: true,
                         description: true,
+                descriptionImages: true,
                         brand: true,
                         soldCount: true,
                         createdAt: true,
@@ -65,7 +126,11 @@ export class ProductsService {
                                 id: true,
                                 sku: true,
                                 price: true,
+                                // Thiếu 2 trường này nên UI không bao giờ hiện được giá sale
+                                salePrice: true,
+                                discountPercent: true,
                                 stock: true,
+                                reservedQuantity: true,
                                 colors: true,
                                 attributes: true
                             }
@@ -76,29 +141,30 @@ export class ProductsService {
                                 variants: true
                             }
                         }
-                    },
-                    orderBy: {
-                        createdAt: 'desc'
-                    }
-                });
+            },
+        });
 
-                // Convert BigInt fields to Number and scale
-                const serializedProducts = products.map(product => ({
-                    ...product,
-                    variants: product.variants.map(variant => ({
-                        ...variant,
-                        price: formatPrice(variant.price),
-                        colors: variant.colors || []
-                    })),
-                }));
+        // findMany không giữ thứ tự của `in`, nên xếp lại theo thứ tự raw query đã sắp.
+        const byId = new Map(products.map(p => [p.id, p]));
+        const ordered = ids.map(id => byId.get(id)).filter((p): p is typeof products[number] => !!p);
 
-                console.log(`✅ Found ${products.length} products with full data`);
-                resolve(serializedProducts);
-            } catch (error) {
-                console.error('❌ Error fetching products:', error);
-                reject(error);
-            }
-        })
+        return {
+            products: ordered.map(product => ({
+                ...product,
+                variants: product.variants.map(variant => ({
+                    ...variant,
+                    price: formatPrice(variant.price),
+                    // salePrice là BigInt nullable: Number(null) ra 0 nên phải giữ null
+                    salePrice: variant.salePrice == null ? null : formatPrice(variant.salePrice),
+                    colors: variant.colors || [],
+                    availableStock: Math.max(0, Number((variant as any).stock ?? 0) - Number((variant as any).reservedQuantity ?? 0))
+                })),
+            })),
+            total,
+            page,
+            limit,
+            totalPages,
+        };
     }
 
     async getFeaturedProducts(): Promise<ProductResponseDto[]> {
@@ -119,6 +185,7 @@ export class ProductsService {
                 slug: true,
                 name: true,
                 description: true,
+                descriptionImages: true,
                 brand: true,
                 soldCount: true,
                 createdAt: true,
@@ -137,6 +204,7 @@ export class ProductsService {
                         sku: true,
                         price: true,
                         stock: true,
+                        reservedQuantity: true,
                         colors: true,
                         attributes: true
                     },
@@ -219,6 +287,7 @@ export class ProductsService {
                     slug: true,
                     name: true,
                     description: true,
+                descriptionImages: true,
                     brand: true,
                     soldCount: true,
                     createdAt: true,
@@ -243,6 +312,7 @@ export class ProductsService {
                             sku: true,
                             price: true,
                             stock: true,
+                            reservedQuantity: true,
                             colors: true,
                             attributes: true
                         },
@@ -293,6 +363,7 @@ export class ProductsService {
                 slug: true,
                 name: true,
                 description: true,
+                descriptionImages: true,
                 brand: true,
                 soldCount: true,
                 createdAt: true,
@@ -318,18 +389,55 @@ export class ProductsService {
 
     async createProduct(createProductDto: any, userId?: string) {
         try {
+            // Kiểm tra trùng slug/SKU trước để báo lỗi rõ thay vì 500 của Prisma
+            if (createProductDto.slug) {
+                const existingSlug = await this.prisma.product.findUnique({
+                    where: { slug: createProductDto.slug }
+                });
+                if (existingSlug) {
+                    throw new HttpException(
+                        { success: false, message: `Slug "${createProductDto.slug}" đã tồn tại (trùng với "${existingSlug.name}"). Vui lòng đổi tên hoặc slug.` },
+                        HttpStatus.BAD_REQUEST
+                    );
+                }
+            }
+            const skus: string[] = (createProductDto.variants || [])
+                .map((v: any) => v?.sku)
+                .filter(Boolean);
+            const dupInRequest = skus.find((s, i) => skus.indexOf(s) !== i);
+            if (dupInRequest) {
+                throw new HttpException(
+                    { success: false, message: `SKU "${dupInRequest}" bị lặp trong form. Mỗi biến thể cần SKU riêng.` },
+                    HttpStatus.BAD_REQUEST
+                );
+            }
+            if (skus.length > 0) {
+                const existingSku = await this.prisma.variant.findFirst({
+                    where: { sku: { in: skus } }
+                });
+                if (existingSku) {
+                    throw new HttpException(
+                        { success: false, message: `SKU "${existingSku.sku}" đã tồn tại. Vui lòng đổi SKU.` },
+                        HttpStatus.BAD_REQUEST
+                    );
+                }
+            }
+
             // Create product with variants
             const product = await this.prisma.product.create({
                 data: {
                     name: createProductDto.name,
                     slug: createProductDto.slug,
                     description: createProductDto.description,
+                    descriptionImages: createProductDto.descriptionImages || [],
                     brand: createProductDto.brand,
                     categoryId: createProductDto.categoryId,
                     variants: {
                         create: createProductDto.variants.map((variant: any) => ({
                             sku: variant.sku,
-                            price: BigInt(Math.round(variant.price * 100)),
+                            // Giá lưu thẳng bằng VND. Trước đây nhân 100 (kiểu cents)
+                            // nhưng formatPrice() lúc đọc không chia lại -> hiện sai 100 lần.
+                            price: BigInt(Math.round(variant.price)),
                             stock: variant.stock || 0,
                             colors: variant.colors || null,
                             attributes: variant.attributes || {}
@@ -388,12 +496,26 @@ export class ProductsService {
                 throw new Error('Product not found');
             }
 
+            // Đổi slug thì kiểm tra trùng (trừ chính nó) để báo lỗi rõ
+            if (updateProductDto.slug && updateProductDto.slug !== existingProduct.slug) {
+                const slugClash = await this.prisma.product.findUnique({
+                    where: { slug: updateProductDto.slug }
+                });
+                if (slugClash) {
+                    throw new HttpException(
+                        { success: false, message: `Slug "${updateProductDto.slug}" đã tồn tại (trùng với "${slugClash.name}"). Vui lòng đổi slug khác.` },
+                        HttpStatus.BAD_REQUEST
+                    );
+                }
+            }
+
             // Prepare update data
             const updateData: any = {};
 
             if (updateProductDto.name) updateData.name = updateProductDto.name;
             if (updateProductDto.slug) updateData.slug = updateProductDto.slug;
             if (updateProductDto.description !== undefined) updateData.description = updateProductDto.description;
+            if (updateProductDto.descriptionImages !== undefined) updateData.descriptionImages = updateProductDto.descriptionImages;
             if (updateProductDto.brand !== undefined) updateData.brand = updateProductDto.brand;
             if (updateProductDto.categoryId !== undefined) updateData.categoryId = updateProductDto.categoryId;
 
@@ -435,13 +557,13 @@ export class ProductsService {
                                 throw new Error(`Invalid price value: ${variantDto.price}`);
                             }
 
-                            // Check if price is too large
-                            const priceInCents = Math.round(priceValue * 100);
-                            if (priceInCents > Number.MAX_SAFE_INTEGER) {
+                            // Giá lưu thẳng bằng VND, không nhân 100 (xem ghi chú ở createProduct)
+                            const priceVnd = Math.round(priceValue);
+                            if (priceVnd > Number.MAX_SAFE_INTEGER) {
                                 throw new Error(`Price too large: ${priceValue}`);
                             }
 
-                            variantUpdateData.price = BigInt(priceInCents);
+                            variantUpdateData.price = BigInt(priceVnd);
                         }
                         if (variantDto.stock !== undefined) variantUpdateData.stock = variantDto.stock;
                         if (variantDto.colors !== undefined) {
@@ -460,7 +582,7 @@ export class ProductsService {
                             data: {
                                 productId: id,
                                 sku: variantDto.sku,
-                                price: BigInt(Math.round(variantDto.price * 100)),
+                                price: BigInt(Math.round(variantDto.price)),
                                 stock: variantDto.stock || 0,
                                 colors: variantDto.colors ? JSON.parse(JSON.stringify(variantDto.colors)) : null,
                                 attributes: variantDto.attributes || {}
@@ -613,13 +735,78 @@ export class ProductsService {
         }
     }
 
+    /**
+     * Tình trạng hàng theo kho của 1 sản phẩm - PUBLIC cho storefront.
+     * Chỉ trả trạng thái (còn/sắp hết/hết), KHÔNG lộ số lượng exact và
+     * ngưỡng nội bộ. Chi tiết theo từng biến thể để khách chọn size nào
+     * thì thấy đúng kho còn size đó.
+     */
+    async getProductAvailability(productId: string) {
+        const [warehouses, rows] = await Promise.all([
+            this.prisma.warehouse.findMany({
+                where: { isActive: true },
+                select: { id: true, code: true, name: true },
+                orderBy: { code: 'asc' },
+            }),
+            this.prisma.warehouseInventory.findMany({
+                where: { variant: { productId } },
+                select: {
+                    warehouseId: true,
+                    variantId: true,
+                    quantity: true,
+                    minQuantity: true,
+                    variant: { select: { sku: true } },
+                },
+            }),
+        ]);
+
+        const byKey = new Map<string, { quantity: number; minQuantity: number }>();
+        for (const r of rows) {
+            byKey.set(`${r.warehouseId}:${r.variantId}`, {
+                quantity: r.quantity,
+                minQuantity: r.minQuantity,
+            });
+        }
+
+        return {
+            productId,
+            warehouses: warehouses.map((w) => ({
+                warehouseId: w.id,
+                warehouseCode: w.code,
+                warehouseName: w.name,
+                variants: Array.from(
+                    new Map(
+                        rows
+                            .filter((r) => r.warehouseId === w.id)
+                            .map((r) => [r.variantId, r.variant.sku]),
+                    ).entries(),
+                ).map(([variantId, sku]) => {
+                    const rec = byKey.get(`${w.id}:${variantId}`);
+                    const qty = rec ? rec.quantity : 0;
+                    return {
+                        variantId,
+                        sku,
+                        // Thiếu dòng tồn = 0 = hết hàng ở kho này
+                        inStock: qty > 0,
+                        lowStock: qty > 0 && rec ? qty <= rec.minQuantity : false,
+                    };
+                }),
+            })),
+        };
+    }
+
     private formatProductResponse(product: any): ProductResponseDto {
         return {
             ...product,
             variants: product.variants.map((variant: any) => ({
                 ...variant,
                 price: formatPrice(variant.price), // Convert BigInt to number
-                colors: variant.colors || []
+                // salePrice cũng là BigInt: bỏ sót sẽ làm JSON.stringify ném
+                // "Do not know how to serialize a BigInt". Giữ null thay vì ép về 0.
+                salePrice: variant.salePrice == null ? null : formatPrice(variant.salePrice),
+                colors: variant.colors || [],
+                // Available = On Hand - Reserved, tính động, kẹp >= 0.
+                availableStock: Math.max(0, Number(variant.stock ?? 0) - Number(variant.reservedQuantity ?? 0))
             }))
         }
     }

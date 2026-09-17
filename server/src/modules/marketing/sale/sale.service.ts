@@ -164,6 +164,9 @@ export class SaleService {
   async getActiveSales() {
     const now = new Date();
 
+    // Chỉ select đúng field cần map ở dưới: product nguyên dòng (description
+    // dài + descriptionImages + attributes JSON) từng phình response lên >30MB
+    // và vượt giới hạn 5MB của Prisma Accelerate (P6009).
     const variants = await this.prisma.variant.findMany({
       where: {
         discountPercent: { not: null },
@@ -187,12 +190,23 @@ export class SaleService {
           },
         ],
       },
-      include: {
+      select: {
+        id: true,
+        sku: true,
+        price: true,
+        salePrice: true,
+        discountPercent: true,
+        saleStartDate: true,
+        saleEndDate: true,
         product: {
-          include: {
+          select: {
+            id: true,
+            name: true,
+            slug: true,
             images: {
               where: { isPrimary: true },
               take: 1,
+              select: { url: true },
             },
           },
         },

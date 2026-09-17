@@ -1,4 +1,4 @@
-import { IsString, IsOptional, IsBoolean, IsInt, IsDateString, IsUrl } from 'class-validator';
+import { IsString, IsOptional, IsBoolean, IsInt, IsDateString, IsUrl, IsArray } from 'class-validator';
 import { Type } from 'class-transformer';
 
 export class CreateBannerDto {
@@ -32,6 +32,35 @@ export class CreateBannerDto {
   @IsOptional()
   @IsDateString()
   endDate?: string;
+
+  @IsOptional()
+  @IsString()
+  position?: string;
+
+  @IsOptional()
+  @IsString()
+  template?: string;
+
+  @IsOptional()
+  @IsString()
+  ctaText?: string;
+
+  @IsOptional()
+  @IsString()
+  badgeText?: string;
+
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  featuredProductIds?: string[];
+
+  @IsOptional()
+  @IsInt()
+  impressions?: number;
+
+  @IsOptional()
+  @IsInt()
+  clicks?: number;
 }
 
 export class UpdateBannerDto {
@@ -67,6 +96,35 @@ export class UpdateBannerDto {
   @IsOptional()
   @IsDateString()
   endDate?: string;
+
+  @IsOptional()
+  @IsString()
+  position?: string;
+
+  @IsOptional()
+  @IsString()
+  template?: string;
+
+  @IsOptional()
+  @IsString()
+  ctaText?: string;
+
+  @IsOptional()
+  @IsString()
+  badgeText?: string;
+
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  featuredProductIds?: string[];
+
+  @IsOptional()
+  @IsInt()
+  impressions?: number;
+
+  @IsOptional()
+  @IsInt()
+  clicks?: number;
 }
 
 export class UpdateBannerOrderDto {

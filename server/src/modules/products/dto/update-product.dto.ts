@@ -101,14 +101,19 @@ export class UpdateProductDto {
     @Type(() => UpdateVariantDto)
     variants?: UpdateVariantDto[];
 
-    @ApiProperty({ 
-        required: false, 
+    @ApiProperty({
+        required: false,
         type: [UpdateProductImageDto],
         description: 'Can be array of URLs (strings) or array of image objects with isPrimary flag'
     })
     @IsOptional()
     @IsArray()
     images?: (string | UpdateProductImageDto)[]; // Array of image URLs or image objects
+
+    @ApiProperty({ required: false, type: [String], description: 'URL ảnh minh họa trong mô tả ([DESCIMG:n])' })
+    @IsOptional()
+    @IsArray()
+    descriptionImages?: string[];
 }
 
 export class CreateProductWithVariantsDto {
@@ -145,4 +150,9 @@ export class CreateProductWithVariantsDto {
     @IsOptional()
     @IsArray()
     images?: string[];
+
+    @ApiProperty({ required: false, type: [String], description: 'URL ảnh minh họa trong mô tả ([DESCIMG:n])' })
+    @IsOptional()
+    @IsArray()
+    descriptionImages?: string[];
 }

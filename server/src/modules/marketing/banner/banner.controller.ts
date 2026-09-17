@@ -34,6 +34,14 @@ export class BannerController {
     return this.bannerService.findAll(includeInactive === 'true');
   }
 
+  @Get('stats')
+  @UseGuards(JwtAuthGuard, AdminGuard)
+  @ApiBearerAuth('JWT-auth')
+  @ApiOperation({ summary: 'Thống kê banner cho trang quản trị' })
+  async getStats() {
+    return this.bannerService.getStats();
+  }
+
   @Get(':id')
   @UseGuards(JwtAuthGuard, AdminGuard)
   @ApiBearerAuth('JWT-auth')
@@ -50,7 +58,7 @@ export class BannerController {
     return this.bannerService.create(createBannerDto);
   }
 
-  @Put('order')
+  @Put(['order', 'reorder'])
   @UseGuards(JwtAuthGuard, AdminGuard)
   @ApiBearerAuth('JWT-auth')
   @ApiOperation({ summary: 'Update banner display order' })

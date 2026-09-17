@@ -302,6 +302,11 @@ export class CloudinaryImageSyncService {
         images: {
           orderBy: { displayOrder: 'asc' },
         },
+        variants: {
+          take: 1,
+          orderBy: { createdAt: 'asc' },
+          select: { sku: true },
+        },
       },
     });
 
@@ -312,7 +317,7 @@ export class CloudinaryImageSyncService {
     return {
       id: product.id,
       name: product.name,
-      sku: product.sku,
+      sku: product.variants[0]?.sku || null,
       images: product.images,
     };
   }

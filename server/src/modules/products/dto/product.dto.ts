@@ -29,6 +29,13 @@ export class CreateProductDto {
   description?: string;
 
   @ApiProperty({
+    description: 'URL ảnh minh họa xen trong bài mô tả (vị trí [DESCIMG:n])',
+    required: false,
+  })
+  @IsOptional()
+  descriptionImages?: string[];
+
+  @ApiProperty({
     description: 'Product brand',
     example: 'Apple',
     required: false,

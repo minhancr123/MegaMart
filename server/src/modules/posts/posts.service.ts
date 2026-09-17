@@ -111,13 +111,18 @@ export class PostsService {
                 where,
                 skip: Number(skip),
                 take: Number(limit),
-                orderBy: { createdAt: 'desc' },
+                orderBy: [{ publishedAt: 'desc' }, { createdAt: 'desc' }],
                 include: {
                     author: {
                         select: {
                             id: true,
                             name: true,
                             avatarUrl: true
+                        }
+                    },
+                    postTags: {
+                        include: {
+                            tag: true
                         }
                     }
                 }
@@ -126,7 +131,10 @@ export class PostsService {
         ]);
 
         return {
-            data: posts,
+            data: posts.map(({ postTags, ...post }) => ({
+                ...post,
+                tags: postTags.map((postTag) => postTag.tag.name),
+            })),
             meta: {
                 total,
                 page: Number(page),

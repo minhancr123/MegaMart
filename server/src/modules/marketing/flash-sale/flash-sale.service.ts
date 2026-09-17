@@ -152,7 +152,8 @@ export class FlashSaleService {
         items: items ? {
           create: items.map(item => ({
             variantId: item.variantId,
-            salePrice: BigInt(Math.round(item.salePrice * 100)),
+            // Giá lưu thẳng VND (formatPrice lúc đọc không chia 100)
+            salePrice: BigInt(Math.round(item.salePrice)),
             quantity: item.quantity,
           })),
         } : undefined,
@@ -246,7 +247,7 @@ export class FlashSaleService {
       data: addItemsDto.items.map(item => ({
         flashSaleId: id,
         variantId: item.variantId,
-        salePrice: BigInt(Math.round(item.salePrice * 100)),
+        salePrice: BigInt(Math.round(item.salePrice)),
         quantity: item.quantity,
       })),
       skipDuplicates: true,
@@ -277,7 +278,7 @@ export class FlashSaleService {
     const updateData: any = {};
 
     if (updateDto.salePrice !== undefined) {
-      updateData.salePrice = BigInt(Math.round(updateDto.salePrice * 100));
+      updateData.salePrice = BigInt(Math.round(updateDto.salePrice));
     }
 
     if (updateDto.quantity !== undefined) {

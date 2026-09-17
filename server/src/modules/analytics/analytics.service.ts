@@ -1,12 +1,24 @@
 import { Injectable } from '@nestjs/common';
+import { OrderStatus, PaymentStatus } from '@prisma/client';
 import { PrismaService } from 'src/prismaClient/prisma.service';
+import { Cacheable } from './cacheable.decorator';
 
 export type TimePeriod = 'day' | 'week' | 'month' | 'quarter' | 'year';
+
+// Đơn được tính vào doanh thu: mọi trạng thái trừ CANCELED, FAILED (không phát sinh
+// doanh thu) và REFUNDED (tiền đã trả lại khách). Dùng blacklist để không sót các
+// trạng thái vận hành CONFIRMED/PROCESSING/SHIPPING.
+const EXCLUDED_REVENUE_STATUSES: OrderStatus[] = [
+    OrderStatus.CANCELED,
+    OrderStatus.FAILED,
+    OrderStatus.REFUNDED,
+];
 
 @Injectable()
 export class AnalyticsService {
     constructor(private prisma: PrismaService) { }
 
+    @Cacheable(60_000, 'revenue')
     async getRevenueStats(period: TimePeriod = 'week', date?: Date) {
         const targetDate = date || new Date();
         const { startDate, endDate } = this.getDateRange(period, targetDate);
@@ -18,7 +30,7 @@ export class AnalyticsService {
                     lte: endDate,
                 },
                 status: {
-                    in: ['PAID', 'PENDING'],
+                    notIn: EXCLUDED_REVENUE_STATUSES,
                 },
             },
             select: {
@@ -26,11 +38,20 @@ export class AnalyticsService {
                 total: true,
                 status: true,
                 createdAt: true,
+                payments: {
+                    select: { status: true },
+                },
             },
         });
 
         const totalRevenue = orders.reduce((sum, order) => sum + Number(order.total), 0);
-        const paidOrders = orders.filter(o => o.status === 'PAID');
+        // Thực thu = có payment PAID (online đã trả hoặc COD đã thu), hoặc đơn đã giao/hoàn thành.
+        // Không dựa vào order.status vì đơn online đã trả tiền vẫn đi qua CONFIRMED/PROCESSING/SHIPPING.
+        const paidOrders = orders.filter(o =>
+            o.payments.some(p => p.status === PaymentStatus.PAID) ||
+            o.status === OrderStatus.DELIVERED ||
+            o.status === OrderStatus.COMPLETED,
+        );
         const paidRevenue = paidOrders.reduce((sum, order) => sum + Number(order.total), 0);
 
         // Group by date for chart data
@@ -49,6 +70,7 @@ export class AnalyticsService {
         };
     }
 
+    @Cacheable(60_000, 'status-dist')
     async getOrderStatusDistribution() {
         const statusCounts = await this.prisma.order.groupBy({
             by: ['status'],
@@ -63,6 +85,7 @@ export class AnalyticsService {
         }));
     }
 
+    @Cacheable(60_000, 'top-selling')
     async getTopSellingProducts(period: TimePeriod = 'week', limit: number = 10) {
         const { startDate, endDate } = this.getDateRange(period, new Date());
 
@@ -74,7 +97,7 @@ export class AnalyticsService {
                         lte: endDate,
                     },
                     status: {
-                        in: ['PAID', 'PENDING'],
+                        notIn: EXCLUDED_REVENUE_STATUSES,
                     },
                 },
             },
@@ -202,6 +225,7 @@ export class AnalyticsService {
         });
     }
 
+    @Cacheable(60_000, 'event-stats')
     async getEventStats(startDate?: Date, endDate?: Date) {
         const where = {
             createdAt: {
@@ -286,6 +310,7 @@ export class AnalyticsService {
         });
     }
 
+    @Cacheable(60_000, 'funnel')
     async getConversionFunnel(startDate?: Date, endDate?: Date) {
         const where = {
             createdAt: {
@@ -331,6 +356,7 @@ export class AnalyticsService {
         };
     }
 
+    @Cacheable(60_000, 'search')
     async getSearchAnalytics(startDate?: Date, endDate?: Date) {
         const searchEvents = await this.prisma.userEvent.findMany({
             where: {

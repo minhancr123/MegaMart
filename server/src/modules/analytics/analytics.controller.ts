@@ -8,12 +8,12 @@ import type { Request } from 'express';
 
 @ApiTags('analytics')
 @Controller('analytics')
-@UseGuards(JwtAuthGuard)
-@ApiBearerAuth()
 export class AnalyticsController {
     constructor(private readonly analyticsService: AnalyticsService) { }
 
     @Get('revenue-stats')
+    @UseGuards(JwtAuthGuard)
+    @ApiBearerAuth()
     @ApiOperation({ summary: 'Get revenue statistics by time period' })
     @ApiQuery({ name: 'period', enum: ['day', 'week', 'month', 'quarter', 'year'], required: false })
     @ApiQuery({ name: 'date', required: false, description: 'ISO date string' })
@@ -32,6 +32,8 @@ export class AnalyticsController {
     }
 
     @Get('order-status-distribution')
+    @UseGuards(JwtAuthGuard)
+    @ApiBearerAuth()
     @ApiOperation({ summary: 'Get order status distribution' })
     async getOrderStatusDistribution() {
         const distribution = await this.analyticsService.getOrderStatusDistribution();
@@ -44,6 +46,8 @@ export class AnalyticsController {
     }
 
     @Get('top-selling-products')
+    @UseGuards(JwtAuthGuard)
+    @ApiBearerAuth()
     @ApiOperation({ summary: 'Get top selling products' })
     @ApiQuery({ name: 'period', enum: ['day', 'week', 'month', 'quarter', 'year'], required: false })
     @ApiQuery({ name: 'limit', type: Number, required: false })
@@ -78,6 +82,8 @@ export class AnalyticsController {
     }
 
     @Get('event-stats')
+    @UseGuards(JwtAuthGuard)
+    @ApiBearerAuth()
     @ApiOperation({ summary: 'Get event statistics' })
     @ApiQuery({ name: 'startDate', required: false, type: Date })
     @ApiQuery({ name: 'endDate', required: false, type: Date })
@@ -86,7 +92,10 @@ export class AnalyticsController {
         @Query('endDate') endDate?: string,
     ) {
         const start = startDate ? new Date(startDate) : undefined;
-        const end = endDate ? new Date(endDate) : undefined;
+        let end = endDate ? new Date(endDate) : undefined;
+        if (end) {
+            end.setHours(23, 59, 59, 999);
+        }
 
         const stats = await this.analyticsService.getEventStats(start, end);
 
@@ -98,6 +107,8 @@ export class AnalyticsController {
     }
 
     @Get('user-journey/:sessionId')
+    @UseGuards(JwtAuthGuard)
+    @ApiBearerAuth()
     @ApiOperation({ summary: 'Get user journey by session' })
     async getUserJourney(@Query('sessionId') sessionId: string) {
         const journey = await this.analyticsService.getUserJourney(sessionId);
@@ -110,6 +121,8 @@ export class AnalyticsController {
     }
 
     @Get('conversion-funnel')
+    @UseGuards(JwtAuthGuard)
+    @ApiBearerAuth()
     @ApiOperation({ summary: 'Get conversion funnel analytics' })
     @ApiQuery({ name: 'startDate', required: false, type: Date })
     @ApiQuery({ name: 'endDate', required: false, type: Date })
@@ -118,7 +131,10 @@ export class AnalyticsController {
         @Query('endDate') endDate?: string,
     ) {
         const start = startDate ? new Date(startDate) : undefined;
-        const end = endDate ? new Date(endDate) : undefined;
+        let end = endDate ? new Date(endDate) : undefined;
+        if (end) {
+            end.setHours(23, 59, 59, 999);
+        }
 
         const funnel = await this.analyticsService.getConversionFunnel(start, end);
 
@@ -130,6 +146,8 @@ export class AnalyticsController {
     }
 
     @Get('search-analytics')
+    @UseGuards(JwtAuthGuard)
+    @ApiBearerAuth()
     @ApiOperation({ summary: 'Get search analytics (top search terms)' })
     @ApiQuery({ name: 'startDate', required: false, type: Date })
     @ApiQuery({ name: 'endDate', required: false, type: Date })
@@ -138,7 +156,10 @@ export class AnalyticsController {
         @Query('endDate') endDate?: string,
     ) {
         const start = startDate ? new Date(startDate) : undefined;
-        const end = endDate ? new Date(endDate) : undefined;
+        let end = endDate ? new Date(endDate) : undefined;
+        if (end) {
+            end.setHours(23, 59, 59, 999);
+        }
 
         const searchStats = await this.analyticsService.getSearchAnalytics(start, end);
 

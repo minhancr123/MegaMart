@@ -5,8 +5,15 @@ import helmet from 'helmet';
 import { AppModule } from './app.module';
 import { GlobalExceptionFilter } from './filters/global-exception.filter';
 
+// Cho phép JSON.stringify tự động tuần tự hóa BigInt (Prisma price, v.v.)
+(BigInt.prototype as any).toJSON = function () {
+  const intVal = Number(this);
+  return Number.isSafeInteger(intVal) ? intVal : this.toString();
+};
+
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
+  app.enableShutdownHooks();
 
   // Set global API prefix
   app.setGlobalPrefix('api');

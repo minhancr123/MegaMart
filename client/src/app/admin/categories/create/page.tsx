@@ -106,7 +106,7 @@ export default function CreateCategoryPage() {
   const parentCategories = categories.filter((c) => !c.parentId);
 
   return (
-    <div className="p-8 max-w-3xl mx-auto">
+    <div className="mx-auto max-w-3xl space-y-6">
       <div className="mb-6">
         <Link href="/admin/categories">
           <Button variant="ghost" className="gap-2 mb-4">
@@ -114,15 +114,15 @@ export default function CreateCategoryPage() {
             Quay lại
           </Button>
         </Link>
-        <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Thêm danh mục mới</h1>
-        <p className="text-gray-600 dark:text-gray-400 mt-1">Tạo danh mục sản phẩm mới</p>
+        <h1 className="text-3xl font-bold text-foreground">Thêm danh mục mới</h1>
+        <p className="text-muted-foreground mt-1">Tạo danh mục sản phẩm mới</p>
       </div>
 
-      <form onSubmit={handleSubmit(onSubmit)} className="space-y-6 bg-white dark:bg-gray-900 p-6 rounded-lg shadow-sm border dark:border-gray-800">
+      <form onSubmit={handleSubmit(onSubmit)} className="space-y-6 bg-card p-6 rounded-lg shadow-sm border dark:border-gray-800">
         {/* Name */}
         <div className="space-y-2">
           <Label htmlFor="name">
-            Tên danh mục <span className="text-red-500">*</span>
+            Tên danh mục <span className="text-destructive">*</span>
           </Label>
           <Input
             id="name"
@@ -131,14 +131,14 @@ export default function CreateCategoryPage() {
             placeholder="VD: Điện thoại"
           />
           {errors.name && (
-            <p className="text-sm text-red-500">{errors.name.message}</p>
+            <p className="text-sm text-destructive">{errors.name.message}</p>
           )}
         </div>
 
         {/* Slug */}
         <div className="space-y-2">
           <Label htmlFor="slug">
-            Slug <span className="text-red-500">*</span>
+            Slug <span className="text-destructive">*</span>
           </Label>
           <Input
             id="slug"
@@ -146,9 +146,9 @@ export default function CreateCategoryPage() {
             placeholder="dien-thoai"
           />
           {errors.slug && (
-            <p className="text-sm text-red-500">{errors.slug.message}</p>
+            <p className="text-sm text-destructive">{errors.slug.message}</p>
           )}
-          <p className="text-xs text-gray-500 dark:text-gray-400">
+          <p className="text-xs text-muted-foreground">
             URL thân thiện, tự động tạo từ tên danh mục
           </p>
         </div>
@@ -180,7 +180,7 @@ export default function CreateCategoryPage() {
               ))}
             </SelectContent>
           </Select>
-          <p className="text-xs text-gray-500 dark:text-gray-400">
+          <p className="text-xs text-muted-foreground">
             Để trống nếu đây là danh mục gốc
           </p>
         </div>
@@ -189,7 +189,7 @@ export default function CreateCategoryPage() {
         <div className="flex items-center justify-between p-4 border rounded-lg">
           <div>
             <Label htmlFor="active">Trạng thái hoạt động</Label>
-            <p className="text-sm text-gray-500 dark:text-gray-400">Hiển thị danh mục này trên website</p>
+            <p className="text-sm text-muted-foreground">Hiển thị danh mục này trên website</p>
           </div>
           <Switch
             id="active"

@@ -15,7 +15,7 @@ interface Post {
     content: string;
     type: string;
     status: string;
-    imageUrl?: string;
+    thumbnail?: string;
     tags?: string[];
 }
 

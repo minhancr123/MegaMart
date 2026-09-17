@@ -26,6 +26,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Tag, Search, Plus, Edit, Trash2, Calendar } from "lucide-react";
 import { salesApi, SaleVariant } from "@/lib/salesApi";
 import { toast } from "sonner";

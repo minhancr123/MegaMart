@@ -182,15 +182,15 @@ export default function FlashSalesPage() {
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Quản lý Flash Sale</h1>
-          <p className="text-gray-500 dark:text-gray-400 mt-1">Tạo và quản lý các chương trình Flash Sale</p>
+          <h1 className="text-2xl font-bold text-foreground">Quản lý Flash Sale</h1>
+          <p className="mt-1 text-sm text-muted-foreground">Tạo và quản lý các chương trình Flash Sale</p>
         </div>
         <Dialog open={dialogOpen} onOpenChange={(open) => {
           setDialogOpen(open);
           if (!open) resetForm();
         }}>
           <DialogTrigger asChild>
-            <Button className="gap-2 bg-red-500 hover:bg-red-600">
+            <Button className="gap-2">
               <Zap className="w-4 h-4" />
               Tạo Flash Sale
             </Button>
@@ -260,7 +260,7 @@ export default function FlashSalesPage() {
                 <Button type="button" variant="outline" onClick={() => setDialogOpen(false)}>
                   Hủy
                 </Button>
-                <Button type="submit" className="bg-red-500 hover:bg-red-600">
+                <Button type="submit">
                   {editingFlashSale ? "Cập nhật" : "Tạo mới"}
                 </Button>
               </div>
@@ -295,7 +295,7 @@ export default function FlashSalesPage() {
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-red-500"></div>
             </div>
           ) : flashSales.length === 0 ? (
-            <div className="text-center py-8 text-gray-500 dark:text-gray-400">
+            <div className="py-8 text-center text-muted-foreground">
               Chưa có Flash Sale nào. Hãy tạo chương trình đầu tiên!
             </div>
           ) : (
@@ -316,7 +316,7 @@ export default function FlashSalesPage() {
                       <div>
                         <p className="font-medium dark:text-white">{flashSale.name}</p>
                         {flashSale.description && (
-                          <p className="text-sm text-gray-500 dark:text-gray-400 truncate max-w-[250px]">
+                          <p className="max-w-[250px] truncate text-sm text-muted-foreground">
                             {flashSale.description}
                           </p>
                         )}
@@ -366,7 +366,7 @@ export default function FlashSalesPage() {
                         <Button
                           variant="ghost"
                           size="icon"
-                          className="text-red-600 hover:text-red-700"
+                          className="text-destructive hover:text-destructive/80"
                           onClick={() => setDeleteId(flashSale.id)}
                         >
                           <Trash2 className="w-4 h-4" />

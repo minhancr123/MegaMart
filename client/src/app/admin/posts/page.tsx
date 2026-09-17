@@ -2,7 +2,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Skeleton } from "@/components/ui/skeleton";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import {
     Table,
@@ -20,7 +19,12 @@ import {
     SelectValue,
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { Pencil, Trash2, Plus, Search } from "lucide-react";
+import { Pencil, Trash2, Plus, Search, FileText } from "lucide-react";
+import { Card } from "@/components/ui/card";
+import { Pagination } from "@/components/ui/pagination";
+import { AdminPageHeader } from "@/components/admin/AdminPageHeader";
+import { AdminTableSkeleton } from "@/components/admin/AdminTableSkeleton";
+import { AdminEmptyState } from "@/components/admin/AdminEmptyState";
 import Link from "next/link";
 import { fetchPosts, deletePost } from "@/lib/postsApi";
 import { toast } from "sonner";
@@ -105,7 +109,7 @@ export default function PostsPage() {
     };
 
     const handleDelete = async (id: string) => {
-        if (!confirm("Bạn có chắc chắn muốn xóa bài viết này?")) return;
+        setIsDeleting(true);
         try {
             await deletePost(id);
             toast.success("Xóa bài viết thành công");
@@ -113,25 +117,31 @@ export default function PostsPage() {
         } catch (error) {
             console.error("Failed to delete post", error);
             toast.error("Xóa bài viết thất bại");
+        } finally {
+            setIsDeleting(false);
+            setDeleteId(null);
         }
     };
 
     return (
         <div className="space-y-6">
-            <div className="flex justify-between items-center">
-                <h1 className="text-3xl font-bold">Quản lý Tin tức & Sự kiện</h1>
-                <Link href="/admin/posts/create">
-                    <Button>
-                        <Plus className="w-4 h-4 mr-2" />
-                        Thêm mới
-                    </Button>
-                </Link>
-            </div>
+            <AdminPageHeader
+                title="Quản lý Tin tức & Sự kiện"
+                description="Tạo và quản lý bài viết tin tức, sự kiện"
+                actions={
+                    <Link href="/admin/posts/create">
+                        <Button>
+                            <Plus className="w-4 h-4 mr-2" />
+                            Thêm mới
+                        </Button>
+                    </Link>
+                }
+            />
 
-            <div className="flex gap-4 items-center bg-white dark:bg-gray-900 p-4 rounded-lg shadow-sm border dark:border-gray-800">
-                <form onSubmit={handleSearch} className="flex-1 flex gap-2">
+            <Card className="flex flex-col gap-4 p-4 lg:flex-row lg:items-center">
+                <form onSubmit={handleSearch} className="flex flex-1 gap-2">
                     <div className="relative flex-1">
-                        <Search className="absolute left-2 top-2.5 h-4 w-4 text-gray-500 dark:text-gray-400" />
+                        <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
                         <Input
                             placeholder="Tìm kiếm bài viết..."
                             value={search}
@@ -142,7 +152,7 @@ export default function PostsPage() {
                     <Button type="submit" variant="secondary">Tìm kiếm</Button>
                 </form>
                 <Select value={type} onValueChange={setType}>
-                    <SelectTrigger className="w-[180px]">
+                    <SelectTrigger className="w-full lg:w-[180px]">
                         <SelectValue placeholder="Loại bài viết" />
                     </SelectTrigger>
                     <SelectContent>
@@ -152,7 +162,7 @@ export default function PostsPage() {
                     </SelectContent>
                 </Select>
                 <Select value={status} onValueChange={setStatus}>
-                    <SelectTrigger className="w-[180px]">
+                    <SelectTrigger className="w-full lg:w-[180px]">
                         <SelectValue placeholder="Trạng thái" />
                     </SelectTrigger>
                     <SelectContent>
@@ -162,12 +172,12 @@ export default function PostsPage() {
                         <SelectItem value="ARCHIVED">Lưu trữ</SelectItem>
                     </SelectContent>
                 </Select>
-            </div>
+            </Card>
 
-            <div className="bg-white dark:bg-gray-900 rounded-lg shadow-sm border dark:border-gray-800 overflow-hidden">
+            <Card className="gap-0 overflow-hidden py-0">
                 <Table>
                     <TableHeader>
-                        <TableRow className="dark:bg-gray-800">
+                        <TableRow className="bg-muted/50">
                             <TableHead>Tiêu đề</TableHead>
                             <TableHead>Loại</TableHead>
                             <TableHead>Trạng thái</TableHead>
@@ -178,52 +188,46 @@ export default function PostsPage() {
                     </TableHeader>
                     <TableBody>
                         {loading ? (
-                            Array.from({ length: 5 }).map((_, i) => (
-                                <TableRow key={i}>
-                                    <TableCell><Skeleton className="h-4 w-full" /></TableCell>
-                                    <TableCell><Skeleton className="h-6 w-20" /></TableCell>
-                                    <TableCell><Skeleton className="h-6 w-24" /></TableCell>
-                                    <TableCell><Skeleton className="h-4 w-32" /></TableCell>
-                                    <TableCell><Skeleton className="h-4 w-24" /></TableCell>
-                                    <TableCell className="text-right">
-                                        <div className="flex justify-end gap-2">
-                                            <Skeleton className="h-8 w-8" />
-                                            <Skeleton className="h-8 w-8" />
-                                        </div>
-                                    </TableCell>
-                                </TableRow>
-                            ))
+                            <AdminTableSkeleton columns={6} />
                         ) : posts.length === 0 ? (
                             <TableRow>
-                                <TableCell colSpan={6} className="text-center py-8">Không có bài viết nào</TableCell>
+                                <TableCell colSpan={6} className="p-0">
+                                    <AdminEmptyState
+                                        icon={FileText}
+                                        title="Không có bài viết nào"
+                                        description="Thử đổi bộ lọc hoặc tạo bài viết mới."
+                                    />
+                                </TableCell>
                             </TableRow>
                         ) : (
                             posts.map((post: Post) => (
                                 <TableRow key={post.id}>
                                     <TableCell className="font-medium">{post.title}</TableCell>
                                     <TableCell>
-                                        <Badge variant={post.type === "EVENT" ? "default" : "secondary"}>
+                                        <Badge variant={post.type === "EVENT" ? "info" : "secondary"}>
                                             {post.type === "EVENT" ? "Sự kiện" : "Tin tức"}
                                         </Badge>
                                     </TableCell>
                                     <TableCell>
-                                        <Badge variant={post.status === "PUBLISHED" ? "default" : post.status === "DRAFT" ? "outline" : "destructive"}>
+                                        <Badge variant={post.status === "PUBLISHED" ? "success" : post.status === "DRAFT" ? "outline" : "secondary"}>
                                             {post.status === "PUBLISHED" ? "Đã xuất bản" : post.status === "DRAFT" ? "Nháp" : "Lưu trữ"}
                                         </Badge>
                                     </TableCell>
-                                    <TableCell>{post.author?.name || "N/A"}</TableCell>
-                                    <TableCell>{format(new Date(post.createdAt), "dd/MM/yyyy HH:mm")}</TableCell>
+                                    <TableCell className="text-muted-foreground">{post.author?.name || "N/A"}</TableCell>
+                                    <TableCell className="text-muted-foreground">{format(new Date(post.createdAt), "dd/MM/yyyy HH:mm")}</TableCell>
                                     <TableCell className="text-right">
                                         <div className="flex justify-end gap-2">
                                             <Link href={`/admin/posts/edit/${post.id}`}>
-                                                <Button variant="ghost" size="icon">
+                                                <Button variant="ghost" size="icon" aria-label="Sửa bài viết">
                                                     <Pencil className="w-4 h-4" />
                                                 </Button>
                                             </Link>
                                             <Button 
                                                 variant="ghost" 
                                                 size="icon" 
-                                                className="text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950" 
+                                                className="text-destructive hover:bg-destructive/10 hover:text-destructive"
+                                                aria-label="Xóa bài viết"
+                                                
                                                 onClick={() => setDeleteId(post.id)}
                                             >
                                                 <Trash2 className="w-4 h-4" />
@@ -235,27 +239,15 @@ export default function PostsPage() {
                         )}
                     </TableBody>
                 </Table>
-            </div>
+            </Card>
 
-            <div className="flex justify-center gap-2 mt-4">
-                <Button
-                    variant="outline"
-                    disabled={page === 1}
-                    onClick={() => setPage(p => Math.max(1, p - 1))}
-                >
-                    Trước
-                </Button>
-                <span className="py-2 px-4 bg-white dark:bg-gray-900 dark:text-white rounded border dark:border-gray-700">
-                    Trang {page} / {totalPages}
-                </span>
-                <Button
-                    variant="outline"
-                    disabled={page >= totalPages}
-                    onClick={() => setPage(p => Math.min(totalPages, p + 1))}
-                >
-                    Sau
-                </Button>
-            </div>
+            {!loading && totalPages > 1 && (
+                <Pagination
+                    currentPage={page}
+                    totalPages={totalPages}
+                    onPageChange={setPage}
+                />
+            )}
 
             <ConfirmDialog
                 open={!!deleteId}

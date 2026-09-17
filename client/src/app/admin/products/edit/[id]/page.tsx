@@ -1,9 +1,10 @@
 "use client";
 
 import { ProductForm, ProductFormValues } from "@/components/admin/ProductForm";
+import ProductStockCard from "@/components/admin/ProductStockCard";
 import { updateProduct } from "@/lib/adminApi";
 import { fetchProductById } from "@/lib/productApi";
-import { useRouter, useParams } from "next/navigation";
+import { useRouter, useParams, useSearchParams } from "next/navigation";
 import { useState, useEffect } from "react";
 import { toast } from "sonner";
 import { ChevronLeft, Loader2 } from "lucide-react";
@@ -32,6 +33,8 @@ interface ProductColor {
 export default function EditProductPage() {
     const router = useRouter();
     const params = useParams();
+    const searchParams = useSearchParams();
+    const fromQuery = searchParams.get("from");
     const id = params.id as string;
 
     const [loading, setLoading] = useState(false);
@@ -76,7 +79,8 @@ export default function EditProductPage() {
                     url: img.url,
                     isPrimary: img.isPrimary || false,
                     alt: img.alt || ""
-                })) || []
+                })) || [],
+                descriptionImages: (product as any).descriptionImages || []
             };
 
             setInitialData(formData);
@@ -97,9 +101,11 @@ export default function EditProductPage() {
             
             // Reload product data instead of redirecting
             await loadProduct();
-        } catch (error) {
+        } catch (error: any) {
             console.error("Failed to update product", error);
-            toast.error("Có lỗi xảy ra khi cập nhật sản phẩm");
+            const serverMessage =
+                error?.data?.message || error?.errormassage || error?.response?.data?.message;
+            toast.error(serverMessage || "Có lỗi xảy ra khi cập nhật sản phẩm");
         } finally {
             setLoading(false);
         }
@@ -107,8 +113,9 @@ export default function EditProductPage() {
 
     if (fetching) {
         return (
-            <div className="flex justify-center items-center min-h-[400px]">
-                <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
+            <div className="flex flex-col justify-center items-center min-h-[400px] gap-3">
+                <div className="w-10 h-10 rounded-full border-4 border-primary/20 border-t-primary animate-spin" />
+                <span className="text-muted-foreground text-sm font-medium animate-pulse">Đang tải dữ liệu sản phẩm...</span>
             </div>
         );
     }
@@ -116,14 +123,25 @@ export default function EditProductPage() {
     return (
         <div className="space-y-6">
             <div className="flex items-center gap-4">
-                <Link href="/admin/products">
-                    <Button variant="ghost" size="icon">
-                        <ChevronLeft className="w-5 h-5" />
-                    </Button>
-                </Link>
+                <Button 
+                    variant="ghost" 
+                    size="icon"
+                    onClick={() => {
+                        if (fromQuery) {
+                            router.push(`/admin/products${fromQuery.startsWith("?") ? fromQuery : `?${fromQuery}`}`);
+                        } else if (window.history.length > 1) {
+                            router.back();
+                        } else {
+                            router.push("/admin/products");
+                        }
+                    }}
+                    title="Quay lại"
+                >
+                    <ChevronLeft className="w-5 h-5" />
+                </Button>
                 <div>
-                    <h1 className="text-3xl font-bold text-gray-900">Chỉnh sửa sản phẩm</h1>
-                    <p className="text-gray-500 mt-1">Cập nhật thông tin sản phẩm</p>
+                    <h1 className="text-2xl font-bold text-foreground">Chỉnh sửa sản phẩm</h1>
+                    <p className="text-muted-foreground mt-1">Cập nhật thông tin sản phẩm</p>
                 </div>
             </div>
 
@@ -134,6 +152,8 @@ export default function EditProductPage() {
                     loading={loading}
                 />
             )}
+
+            <ProductStockCard productId={id} />
         </div>
     );
 }

@@ -60,15 +60,17 @@ export default function AnalyticsPage() {
       setLoading(true);
       const params = `?startDate=${dateRange.startDate}&endDate=${dateRange.endDate}`;
 
-      const [eventsRes, funnelRes, searchRes] = await Promise.all([
-        axiosClient.get(`/analytics/event-stats${params}`),
-        axiosClient.get(`/analytics/conversion-funnel${params}`),
-        axiosClient.get(`/analytics/search-analytics${params}`),
+      // Timeout 30s cho analytics (DB serverless thỉnh thoảng cold-start lâu)
+      const timeout = { timeout: 30000 };
+      const [eventsRes, funnelRes, searchRes]: any = await Promise.all([
+        axiosClient.get(`/analytics/event-stats${params}`, timeout),
+        axiosClient.get(`/analytics/conversion-funnel${params}`, timeout),
+        axiosClient.get(`/analytics/search-analytics${params}`, timeout),
       ]);
 
-      setEventStats(eventsRes.data.data);
-      setFunnel(funnelRes.data.data);
-      setSearchTerms(searchRes.data.data);
+      setEventStats(eventsRes?.data ?? eventsRes);
+      setFunnel(funnelRes?.data ?? funnelRes);
+      setSearchTerms(searchRes?.data ?? searchRes ?? []);
     } catch (error) {
       console.error('Failed to fetch analytics:', error);
     } finally {
@@ -141,7 +143,7 @@ export default function AnalyticsPage() {
   return (
     <div className="p-4 sm:p-6 space-y-6">
       <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-        <h1 className="text-2xl sm:text-3xl font-bold">Analytics Dashboard</h1>
+        <h1 className="text-2xl sm:text-2xl font-bold">Analytics Dashboard</h1>
         <div className="flex flex-col sm:flex-row gap-2 sm:gap-4 w-full md:w-auto">
           <div className="flex items-center gap-2 w-full sm:w-auto">
             <input
@@ -261,9 +263,9 @@ export default function AnalyticsPage() {
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
-                <div className="flex items-center justify-between p-4 bg-blue-50 rounded">
+                <div className="flex items-center justify-between p-4 bg-primary/5 rounded">
                   <div className="flex items-center gap-2">
-                    <Eye className="w-5 h-5 text-blue-600" />
+                    <Eye className="w-5 h-5 text-primary" />
                     <span>Xem sản phẩm</span>
                   </div>
                   <span className="font-bold">{funnel?.productViews.toLocaleString()}</span>
@@ -333,15 +335,15 @@ export default function AnalyticsPage() {
             <CardContent>
               <div className="space-y-2">
                 {searchTerms.length === 0 ? (
-                  <p className="text-gray-500 dark:text-gray-400">Chưa có dữ liệu tìm kiếm</p>
+                  <p className="text-muted-foreground">Chưa có dữ liệu tìm kiếm</p>
                 ) : (
                   searchTerms.map((item, index) => (
-                    <div key={index} className="flex justify-between items-center p-2 hover:bg-gray-50 dark:hover:bg-gray-800">
+                    <div key={index} className="flex justify-between items-center p-2 hover:bg-muted/50 dark:hover:bg-gray-800">
                       <div className="flex items-center gap-2">
-                        <span className="text-gray-500 dark:text-gray-400 text-sm">#{index + 1}</span>
+                        <span className="text-muted-foreground text-sm">#{index + 1}</span>
                         <span className="font-medium dark:text-white">{item.term}</span>
                       </div>
-                      <span className="text-sm text-gray-600 dark:text-gray-300">{item.count} lần</span>
+                      <span className="text-sm text-muted-foreground dark:text-gray-300">{item.count} lần</span>
                     </div>
                   ))
                 )}
@@ -358,7 +360,7 @@ export default function AnalyticsPage() {
             <CardContent>
               <div className="space-y-2">
                 {eventStats?.eventsByType.map((event, index) => (
-                  <div key={index} className="flex justify-between items-center p-2 hover:bg-gray-50">
+                  <div key={index} className="flex justify-between items-center p-2 hover:bg-muted/50">
                     <span>{getEventLabel(event.eventType)}</span>
                     <span className="font-bold">{event._count.toLocaleString()}</span>
                   </div>
@@ -380,30 +382,30 @@ export default function AnalyticsPage() {
               href="https://clarity.microsoft.com"
               target="_blank"
               rel="noopener noreferrer"
-              className="p-4 border rounded hover:bg-gray-50 dark:hover:bg-gray-800 transition"
+              className="p-4 border rounded hover:bg-muted/50 dark:hover:bg-gray-800 transition"
             >
               <h3 className="font-bold mb-2 dark:text-white">Microsoft Clarity</h3>
-              <p className="text-sm text-gray-600 dark:text-gray-300">Session recordings & heatmaps</p>
+              <p className="text-sm text-muted-foreground dark:text-gray-300">Session recordings & heatmaps</p>
             </a>
             
             <a
               href="https://analytics.google.com"
               target="_blank"
               rel="noopener noreferrer"
-              className="p-4 border rounded hover:bg-gray-50 dark:hover:bg-gray-800 transition"
+              className="p-4 border rounded hover:bg-muted/50 dark:hover:bg-gray-800 transition"
             >
               <h3 className="font-bold mb-2 dark:text-white">Google Analytics</h3>
-              <p className="text-sm text-gray-600 dark:text-gray-300">Traffic & behavior analysis</p>
+              <p className="text-sm text-muted-foreground dark:text-gray-300">Traffic & behavior analysis</p>
             </a>
             
             <a
               href="https://sentry.io"
               target="_blank"
               rel="noopener noreferrer"
-              className="p-4 border rounded hover:bg-gray-50 dark:hover:bg-gray-800 transition"
+              className="p-4 border rounded hover:bg-muted/50 dark:hover:bg-gray-800 transition"
             >
               <h3 className="font-bold mb-2 dark:text-white">Sentry</h3>
-              <p className="text-sm text-gray-600 dark:text-gray-300">Error tracking & monitoring</p>
+              <p className="text-sm text-muted-foreground dark:text-gray-300">Error tracking & monitoring</p>
             </a>
           </div>
         </CardContent>

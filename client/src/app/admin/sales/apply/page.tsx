@@ -21,6 +21,8 @@ import {
 } from "@/components/ui/table";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
+// Khối loading bên dưới dùng <Skeleton> nhưng chưa import -> ReferenceError khi đang tải.
+import { Skeleton } from "@/components/ui/skeleton";
 import { ArrowLeft, Tag, Search, Plus } from "lucide-react";
 import { salesApi } from "@/lib/salesApi";
 import { fetchAllProducts } from "@/lib/productApi";
@@ -35,7 +37,9 @@ interface Product {
   variants: Array<{
     id: string;
     sku: string;
-    price: string;
+    // API trả number (BigInt đã convert sang Number); formatPrice() gọi Number()
+    // nên nhận được cả hai kiểu.
+    price: string | number;
     attributes?: Record<string, unknown>;
     stock: number;
   }>;
@@ -59,9 +63,11 @@ export default function ApplySalePage() {
   const fetchProducts = async () => {
     try {
       setLoading(true);
-      const response = await fetchAllProducts();
-      const data = response.data?.data || response.data || [];
-      setProducts(data);
+      // fetchAllProducts trả thẳng Product[]; bóc .data như cũ luôn ra [] nên
+      // danh sách này trước giờ vẫn rỗng. Server kẹp limit 100 -> 100 sản phẩm mới nhất.
+      const data = await fetchAllProducts(100);
+      // Product cục bộ ở file này là bản rút gọn của Product trong @/interfaces
+      setProducts(data as unknown as Product[]);
     } catch (error) {
       console.error("Error fetching products:", error);
       toast.error("Không thể tải danh sách sản phẩm");
@@ -124,14 +130,14 @@ export default function ApplySalePage() {
     }
   };
 
-  const formatPrice = (price: string) => {
+  const formatPrice = (price: string | number) => {
     return new Intl.NumberFormat("vi-VN", {
       style: "currency",
       currency: "VND",
     }).format(Number(price));
   };
 
-  const calculateSalePrice = (originalPrice: string) => {
+  const calculateSalePrice = (originalPrice: string | number) => {
     const price = Number(originalPrice);
     const salePrice = price * (1 - discountPercent / 100);
     return formatPrice(salePrice.toString());

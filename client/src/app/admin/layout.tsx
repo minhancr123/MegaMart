@@ -1,231 +1,187 @@
 "use client";
+
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
-import { LayoutDashboard, Package, ShoppingCart, Users, Settings, LogOut, FileText, Image, Zap, History, Warehouse, FolderTree, Tag, Activity, Menu } from "lucide-react";
+import { useEffect, useState, type ComponentType } from "react";
+import {
+  Activity, Bot, FileText, FolderTree, Gift, History, Image as ImageIcon,
+  LayoutDashboard, LogOut, Menu, Package, Settings, ShieldCheck, ShoppingCart,
+  Tag, Users, Warehouse, Zap,
+} from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import { Sheet, SheetClose, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { useAuthStore } from "@/store/authStore";
-import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger, SheetClose } from "@/components/ui/sheet";
-import { ThemeToggle } from "@/components/theme-toggle";
 
-export default function AdminLayout({
-    children,
-}: {
-    children: React.ReactNode;
-}) {
-    const pathname = usePathname();
-    const { user, hasHydrated, logout } = useAuthStore();
-    const router = useRouter();
-    const [isChecking, setIsChecking] = useState(true);
-    const [mobileOpen, setMobileOpen] = useState(false);
+type NavItem = {
+  title: string;
+  href: string;
+  icon: ComponentType<{ className?: string }>;
+};
 
-    const sidebarItems = [
-        {
-            title: "Tổng quan",
-            href: "/admin",
-            icon: LayoutDashboard,
-        },
-        {
-            title: "Sản phẩm",
-            href: "/admin/products",
-            icon: Package,
-        },
-        {
-            title: "Danh mục",
-            href: "/admin/categories",
-            icon: FolderTree,
-        },
-        {
-            title: "Đơn hàng",
-            href: "/admin/orders",
-            icon: ShoppingCart,
-        },
-        {
-            title: "Khách hàng",
-            href: "/admin/users",
-            icon: Users,
-        },
-        {
-            title: "Tin tức & Sự kiện",
-            href: "/admin/posts",
-            icon: FileText,
-        },
-        {
-            title: "Banners",
-            href: "/admin/banners",
-            icon: Image,
-        },
-        {
-            title: "Flash Sale",
-            href: "/admin/flash-sales",
-            icon: Zap,
-        },
-        {
-            title: "Quản lý Sale",
-            href: "/admin/sales",
-            icon: Tag,
-        },
-        {
-            title: "Analytics",
-            href: "/admin/analytics",
-            icon: Activity,
-        },
-        {
-            title: "Nhật ký hệ thống",
-            href: "/admin/audit-logs",
-            icon: History,
-        },
-        {
-            title: "Quản lý kho",
-            href: "/admin/inventory",
-            icon: Warehouse,
-        },
-        {
-            title: "Cài đặt",
-            href: "/admin/settings",
-            icon: Settings,
-        },
-    ];
+const mainItems: NavItem[] = [
+  { title: "Tổng quan", href: "/admin", icon: LayoutDashboard },
+  { title: "Sản phẩm", href: "/admin/products", icon: Package },
+  { title: "Danh mục", href: "/admin/categories", icon: FolderTree },
+  { title: "Đơn hàng", href: "/admin/orders", icon: ShoppingCart },
+  { title: "Người dùng", href: "/admin/users", icon: Users },
+  { title: "Kho hàng", href: "/admin/inventory", icon: Warehouse },
+  { title: "Khuyến mãi", href: "/admin/sales", icon: Tag },
+  { title: "Flash Sales", href: "/admin/flash-sales", icon: Zap },
+  { title: "Loyalty AI", href: "/admin/loyalty-nurture", icon: Gift },
+  { title: "Voucher AI", href: "/admin/voucher-governance", icon: ShieldCheck },
+  { title: "Agent Jobs", href: "/admin/agent-jobs", icon: Bot },
+  { title: "Banner", href: "/admin/banners", icon: ImageIcon },
+  { title: "Bài viết", href: "/admin/posts", icon: FileText },
+  { title: "Phân tích", href: "/admin/analytics", icon: Activity },
+  { title: "Nhật ký hệ thống", href: "/admin/audit-logs", icon: History },
+];
 
-    useEffect(() => {
-        // Wait for hydration to complete
-        if (!hasHydrated) {
-            setIsChecking(true);
-            return;
-        }
+const settingsItem: NavItem = { title: "Cài đặt", href: "/admin/settings", icon: Settings };
 
-        console.log('Auth check:', { user, hasHydrated });
+function AdminLogo({ onNavigate }: { onNavigate?: () => void }) {
+  return (
+    <Link href="/admin" onClick={onNavigate} className="flex items-center gap-3 px-1">
+      <span className="grid h-10 w-10 place-items-center rounded-lg bg-[#ff4d00] text-lg font-black text-white">M</span>
+      <span className="min-w-0">
+        <span className="block text-base font-extrabold tracking-tight text-white">MegaMart VN</span>
+        <span className="block text-[11px] text-zinc-500">Hệ thống Quản trị</span>
+      </span>
+    </Link>
+  );
+}
 
-        if (!user) {
-            // Not logged in → redirect to auth
-            router.push('/auth');
-        } else if (user.role !== 'ADMIN') {
-            // Logged in but not admin → redirect to home
-            router.push('/');
-        } else {
-            // All good, user is admin
-            setIsChecking(false);
-        }
-    }, [user, hasHydrated, router]);
-
-    // Show loading state while checking auth
-    if (!hasHydrated || isChecking) {
-        return (
-            <div className="min-h-screen bg-gray-100 flex items-center justify-center">
-                <div className="text-center">
-                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-                    <p className="text-gray-600">Đang kiểm tra quyền truy cập...</p>
-                </div>
-            </div>
-        );
-    }
-
-    // If user is not admin, don't render the layout (redirect will happen)
-    if (!user || user.role !== 'ADMIN') {
-        return null;
-    }
-
-    return (
-        <div className="min-h-screen bg-gray-100 dark:bg-gray-950">
-            {/* Sidebar - Desktop */}
-            <aside className="w-64 bg-white dark:bg-gray-900 border-r border-gray-200 dark:border-gray-800 fixed h-full z-10 hidden md:flex flex-col">
-                <div className="h-16 flex items-center px-6 border-b border-gray-200 dark:border-gray-800 flex-shrink-0">
-                    <Link href="/" className="text-2xl font-bold text-blue-600">
-                        Mega<span className="text-gray-900 dark:text-white">Admin</span>
-                    </Link>
-                </div>
-                <div className="flex-1 overflow-y-auto p-4 space-y-1 custom-scrollbar">
-                    {sidebarItems.map((item) => {
-                        const isActive = pathname === item.href;
-                        return (
-                            <Link
-                                key={item.href}
-                                href={item.href}
-                                className={`flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-colors ${isActive
-                                    ? "bg-blue-50 dark:bg-blue-950 text-blue-600 dark:text-blue-400"
-                                    : "text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-gray-100"
-                                    }`}
-                            >
-                                <item.icon className="w-5 h-5" />
-                                {item.title}
-                            </Link>
-                        );
-                    })}
-                </div>
-                <div className="p-4 border-t border-gray-200 dark:border-gray-800 flex-shrink-0">
-                    <Button
-                        variant="ghost"
-                        className="w-full justify-start text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950"
-                        onClick={() => {
-                            logout();
-                            router.push("/");
-                        }}
-                    >
-                        <LogOut className="w-5 h-5 mr-2" />
-                        Đăng xuất
-                    </Button>
-                </div>
-            </aside>
-
-            {/* Mobile top bar with menu */}
-            <div className="md:hidden sticky top-0 z-20 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 px-4 py-3 flex items-center justify-between">
-                <Link href="/" className="text-xl font-bold text-blue-600">Mega<span className="text-gray-900 dark:text-white">Admin</span></Link>
-                <div className="flex items-center gap-2">
-                    <ThemeToggle />
-                    <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
-                        <SheetTrigger asChild>
-                            <Button variant="ghost" size="icon">
-                                <Menu className="h-5 w-5" />
-                            </Button>
-                        </SheetTrigger>
-                        <SheetContent side="left" className="p-0 w-[260px]">
-                            <SheetHeader className="px-4 pt-4 pb-2 text-left">
-                                <SheetTitle>Menu quản trị</SheetTitle>
-                            </SheetHeader>
-                            <div className="px-2 pb-4 space-y-1">
-                                {sidebarItems.map((item) => {
-                                    const isActive = pathname === item.href;
-                                    return (
-                                        <SheetClose asChild key={item.href}>
-                                            <Link
-                                                href={item.href}
-                                                className={`flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-colors ${isActive
-                                                    ? "bg-blue-50 text-blue-600"
-                                                    : "text-gray-700 hover:bg-gray-50 hover:text-gray-900"
-                                                    }`}
-                                            >
-                                                <item.icon className="w-5 h-5" />
-                                                {item.title}
-                                            </Link>
-                                        </SheetClose>
-                                    );
-                                })}
-                            </div>
-                            <div className="border-t px-4 py-3">
-                                <SheetClose asChild>
-                                    <Button
-                                        variant="ghost"
-                                        className="w-full justify-start text-red-600 hover:text-red-700 hover:bg-red-50"
-                                        onClick={() => {
-                                            logout();
-                                            router.push("/");
-                                        }}
-                                    >
-                                        <LogOut className="w-5 h-5 mr-2" />
-                                        Đăng xuất
-                                    </Button>
-                                </SheetClose>
-                            </div>
-                        </SheetContent>
-                    </Sheet>
-                </div>
-            </div>
-
-            {/* Main Content */}
-            <main className="flex-1 md:ml-64 p-4 md:p-8">
-                {children}
-            </main>
-        </div>
+function Navigation({ pathname, onNavigate, closeOnNavigate }: { pathname: string; onNavigate?: () => void; closeOnNavigate?: boolean }) {
+  const isActive = (item: NavItem) => item.href === "/admin" ? pathname === item.href : pathname.startsWith(item.href);
+  const renderLink = (item: NavItem) => {
+    const active = isActive(item);
+    const link = (
+      <Link
+        key={item.href}
+        href={item.href}
+        onClick={onNavigate}
+        className={`relative flex min-h-10 items-center gap-3 rounded-md px-3 py-2 text-[13px] font-medium transition-colors duration-200 ${active
+          ? "bg-white/[0.08] text-white before:absolute before:inset-y-1 before:left-0 before:w-1 before:rounded-r before:bg-[#ff4d00]"
+          : "text-zinc-400 hover:bg-white/[0.05] hover:text-white"}`}
+      >
+        <item.icon className={`h-[18px] w-[18px] ${active ? "text-[#ff6b00]" : "text-zinc-500"}`} />
+        <span>{item.title}</span>
+      </Link>
     );
+
+    if (closeOnNavigate) {
+      return (
+        <SheetClose asChild key={item.href}>
+          {link}
+        </SheetClose>
+      );
+    }
+
+    return link;
+  };
+
+  return (
+    <>
+      <nav className="flex-1 space-y-1 overflow-y-auto px-3 py-4">{mainItems.map(renderLink)}</nav>
+      <div className="border-t border-white/10 p-3">{renderLink(settingsItem)}</div>
+    </>
+  );
+}
+
+export default function AdminLayout({ children }: { children: React.ReactNode }) {
+  const pathname = usePathname();
+  const router = useRouter();
+  const { user, hasHydrated, logout } = useAuthStore();
+  const [mobileOpen, setMobileOpen] = useState(false);
+
+  useEffect(() => {
+    const overlaySelector = '[role="dialog"], [role="alertdialog"], [role="listbox"], [role="menu"]';
+    const releaseStuckPointerLock = () => {
+      // Bỏ qua rất sớm khi body không bị khóa để observer toàn cây không tốn query DOM.
+      if (document.body.style.pointerEvents !== "none") return;
+      // Giữ khóa khi overlay vẫn còn trong DOM, kể cả lúc animation đóng.
+      if (!document.querySelector(overlaySelector)) {
+        document.body.style.pointerEvents = "";
+      }
+    };
+
+    releaseStuckPointerLock();
+    const observer = new MutationObserver(releaseStuckPointerLock);
+    observer.observe(document.body, { attributes: true, attributeFilter: ["style", "class"], childList: true, subtree: true });
+    window.addEventListener("focus", releaseStuckPointerLock);
+
+    return () => {
+      observer.disconnect();
+      window.removeEventListener("focus", releaseStuckPointerLock);
+      releaseStuckPointerLock();
+    };
+  }, [pathname]);
+
+  useEffect(() => {
+    if (!hasHydrated) return;
+    if (!user) router.replace("/auth");
+    else if (user.role !== "ADMIN") router.replace("/");
+  }, [hasHydrated, router, user]);
+
+  if (!hasHydrated || !user || user.role !== "ADMIN") {
+    return (
+      <div className="grid min-h-screen place-items-center bg-[#f7f8fa]">
+        <div className="text-center">
+          <div className="mx-auto mb-4 h-10 w-10 animate-spin rounded-full border-2 border-zinc-200 border-t-[#ff4d00]" />
+          <p className="text-sm text-zinc-500">Đang kiểm tra quyền truy cập...</p>
+        </div>
+      </div>
+    );
+  }
+
+  const handleLogout = () => {
+    logout();
+    router.push("/");
+  };
+
+  return (
+    <div data-admin-shell className="min-h-screen bg-[#f7f8fa]">
+      <aside className="fixed inset-y-0 left-0 z-40 hidden w-[260px] flex-col bg-[#0d0e11] lg:flex">
+        <div className="border-b border-white/10 p-5"><AdminLogo /></div>
+        <Navigation pathname={pathname} />
+        <div className="border-t border-white/10 p-4">
+          <div className="mb-3 flex items-center gap-3 rounded-lg bg-white/[0.04] p-3">
+            <span className="grid h-9 w-9 place-items-center rounded-full bg-[#ff4d00]/15 text-sm font-bold text-[#ff8a52]">
+              {user.name?.charAt(0)?.toUpperCase() || "A"}
+            </span>
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-xs font-semibold text-white">{user.name || "Quản trị viên"}</p>
+              <p className="truncate text-[11px] text-zinc-500">Administrator</p>
+            </div>
+          </div>
+          <Button variant="ghost" onClick={handleLogout} className="w-full justify-start text-zinc-400 hover:bg-red-500/10 hover:text-red-300">
+            <LogOut className="h-4 w-4" /> Đăng xuất
+          </Button>
+        </div>
+      </aside>
+
+      <header className="sticky top-0 z-30 flex h-16 items-center justify-between border-b border-zinc-200 bg-white px-4 lg:hidden">
+        <span className="flex items-center gap-2 text-sm font-extrabold text-zinc-900"><span className="grid h-8 w-8 place-items-center rounded-lg bg-[#ff4d00] text-white">M</span>MegaMart VN</span>
+        <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
+          <SheetTrigger asChild><Button variant="outline" size="icon" aria-label="Mở menu quản trị"><Menu className="h-5 w-5" /></Button></SheetTrigger>
+          <SheetContent side="left" className="flex w-[280px] flex-col border-0 bg-[#0d0e11] p-0 text-white">
+            <SheetHeader className="border-b border-white/10 p-5 text-left">
+              <SheetTitle className="sr-only">Điều hướng quản trị</SheetTitle>
+              <AdminLogo onNavigate={() => setMobileOpen(false)} />
+            </SheetHeader>
+            <Navigation pathname={pathname} closeOnNavigate />
+            <div className="border-t border-white/10 p-4">
+              <Button variant="ghost" onClick={handleLogout} className="w-full justify-start text-zinc-400 hover:bg-red-500/10 hover:text-red-300">
+                <LogOut className="h-4 w-4" /> Đăng xuất
+              </Button>
+            </div>
+          </SheetContent>
+        </Sheet>
+      </header>
+
+      <main className="min-h-screen p-4 sm:p-6 lg:ml-[260px] lg:p-8 xl:p-10">
+        <div className="mx-auto w-full max-w-[1600px]">{children}</div>
+      </main>
+    </div>
+  );
 }

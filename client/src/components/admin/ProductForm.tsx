@@ -30,11 +30,13 @@ import {
     DialogTitle,
 } from "@/components/ui/dialog";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Trash2, Plus, Loader2, Upload, Image as ImageIcon, Star } from "lucide-react";
-import { useEffect, useState } from "react";
+import { Trash2, Plus, Loader2, Upload, Image as ImageIcon, Star, QrCode } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
 import axiosClient from "@/lib/axiosClient";
+import { formatAttributeValue } from "@/lib/productAttributes";
 import { toast } from "sonner";
 import { AIGenerateDescription } from "./AIGenerateDescription";
+import VariantQrDialog from "./VariantQrDialog";
 
 // Hàm chuyển đổi mã hex sang tên màu tiếng Việt chi tiết
 const getColorName = (hex: string): string => {
@@ -52,9 +54,6 @@ const getColorName = (hex: string): string => {
     const max = Math.max(r, g, b);
     const min = Math.min(r, g, b);
     const saturation = max === 0 ? 0 : (max - min) / max;
-
-    // Xác định màu cơ bản
-    let colorName = "";
 
     // Màu xám (không có màu)
     if (saturation < 0.1) {
@@ -131,6 +130,8 @@ const productSchema = z.object({
         })
     ).min(1, "Phải có ít nhất 1 biến thể"),
     images: z.array(productImageSchema).optional(),
+    // URL ảnh minh họa xen trong mô tả - vị trí chèn là marker [DESCIMG:n]
+    descriptionImages: z.array(z.string().url("URL ảnh không hợp lệ")).optional(),
 });
 
 type ProductFormValues = z.infer<typeof productSchema>;
@@ -147,6 +148,48 @@ export function ProductForm({ initialData, onSubmit, loading }: ProductFormProps
     const [categories, setCategories] = useState<any[]>([]);
     const [imageInput, setImageInput] = useState("");
     const [uploadingImage, setUploadingImage] = useState(false);
+    const [descImageInput, setDescImageInput] = useState("");
+    // Index biến thể đang mở dialog QR (null = đóng)
+    const [qrVariantIndex, setQrVariantIndex] = useState<number | null>(null);
+    // Preview trạng thái URL đang nhập: idle | ok | error
+    const [descUrlStatus, setDescUrlStatus] = useState<"idle" | "ok" | "error">("idle");
+    // Index các ảnh trong danh sách bị lỗi tải (để gắn cờ đỏ)
+    const [brokenDescImg, setBrokenDescImg] = useState<Set<number>>(new Set());
+    // Ref tới ô textarea mô tả để chèn marker đúng vị trí con trỏ
+    const descTextareaRef = useRef<HTMLTextAreaElement | null>(null);
+
+    // Chèn marker [DESCIMG:n] đúng chỗ con trỏ trong ô mô tả
+    const insertDescMarkerAtCursor = (marker: string) => {
+        const el = descTextareaRef.current;
+        const current = form.getValues("description") || "";
+        if (!el) {
+            form.setValue(
+                "description",
+                `${current}${current && !current.endsWith("\n") ? "\n" : ""}${marker}\n`
+            );
+            return;
+        }
+        const start = el.selectionStart ?? current.length;
+        const end = el.selectionEnd ?? current.length;
+        const before = current.slice(0, start);
+        const after = current.slice(end);
+        const needNlBefore = before !== "" && !before.endsWith("\n");
+        const needNlAfter = after !== "" && !after.startsWith("\n");
+        form.setValue(
+            "description",
+            `${before}${needNlBefore ? "\n" : ""}${marker}${needNlAfter ? "\n" : ""}${after}`
+        );
+        const caret =
+            (before + (needNlBefore ? "\n" : "") + marker).length + (needNlAfter ? 1 : 0);
+        requestAnimationFrame(() => {
+            el.focus();
+            try {
+                el.setSelectionRange(caret, caret);
+            } catch {
+                // Bỏ qua nếu trình duyệt không hỗ trợ
+            }
+        });
+    };
     const [productId, setProductId] = useState(initialData?.id || null);
     
     // Dialog state for adding attributes
@@ -187,6 +230,7 @@ export function ProductForm({ initialData, onSubmit, loading }: ProductFormProps
             categoryId: "",
             variants: [{ sku: "", price: 0, stock: 0, colors: [], attributes: {} }],
             images: [],
+            descriptionImages: [],
         },
     });
 
@@ -377,6 +421,21 @@ export function ProductForm({ initialData, onSubmit, loading }: ProductFormProps
         toast.success("Đã đặt làm ảnh chính");
     };
 
+    // Bảng thông số kỹ thuật: lưu trong attributes.specsTable của BIẾN THỂ ĐẦU TIÊN
+    // (đúng chỗ sidebar "Thông số kỹ thuật" ngoài trang sản phẩm đọc).
+    const watchedFirstAttrs = form.watch("variants.0.attributes") as any;
+    const specsRows: Array<{ label: string; value: string; group?: string }> =
+        Array.isArray(watchedFirstAttrs?.specsTable) ? watchedFirstAttrs.specsTable : [];
+    const setSpecsTable = (rows: Array<{ label: string; value: string; group?: string }>) => {
+        const variants = form.getValues("variants") || [];
+        if (variants.length === 0) {
+            toast.error("Thêm ít nhất 1 biến thể trước khi nhập thông số");
+            return;
+        }
+        const attrs = { ...((variants[0].attributes as any) || {}), specsTable: rows };
+        form.setValue("variants.0.attributes", attrs);
+    };
+
     const handleSubmit = (data: ProductFormValues) => {
         // Sync all colors to attributes.color (comma-separated) for each variant
         const processedData = {
@@ -504,12 +563,160 @@ export function ProductForm({ initialData, onSubmit, loading }: ProductFormProps
                                                 />
                                             </div>
                                             <FormControl>
-                                                <Textarea placeholder="Mô tả chi tiết sản phẩm..." className="min-h-[150px]" {...field} />
+                                                <Textarea
+                                                    placeholder="Mô tả chi tiết sản phẩm..."
+                                                    className="min-h-[150px]"
+                                                    {...field}
+                                                    ref={(el) => {
+                                                        field.ref(el);
+                                                        descTextareaRef.current = el;
+                                                    }}
+                                                />
                                             </FormControl>
                                             <FormMessage />
                                         </FormItem>
                                     )}
                                 />
+
+                                {/* Ảnh minh họa xen trong mô tả ([DESCIMG:n]) */}
+                                <div className="space-y-2 rounded-lg border border-dashed border-slate-300 p-3">
+                                    <p className="text-sm font-medium">Ảnh minh họa mô tả</p>
+                                    <p className="text-xs text-muted-foreground">
+                                        Bấm vào ô mô tả để đặt con trỏ đúng chỗ muốn chèn, rồi dán URL và bấm "Thêm ảnh" —
+                                        marker sẽ nằm đúng vị trí đó. Lưu ý dùng <strong>link ảnh trực tiếp</strong> (mở
+                                        được ảnh riêng, thường kết thúc bằng .jpg/.png/.webp); link trang web, link
+                                        Google Drive/Facebook sẽ không hiện được.
+                                    </p>
+                                    <div className="flex gap-2">
+                                        <Input
+                                            placeholder="https://.../anh-minh-hoa.jpg"
+                                            value={descImageInput}
+                                            onChange={(e) => {
+                                                setDescImageInput(e.target.value);
+                                                setDescUrlStatus("idle");
+                                            }}
+                                        />
+                                        <Button
+                                            type="button"
+                                            variant="outline"
+                                            onClick={() => {
+                                                const url = descImageInput.trim();
+                                                if (!url) return;
+                                                try {
+                                                    const parsed = new URL(url);
+                                                    if (!["http:", "https:"].includes(parsed.protocol)) {
+                                                        throw new Error("bad protocol");
+                                                    }
+                                                } catch {
+                                                    toast.error("URL ảnh không hợp lệ");
+                                                    return;
+                                                }
+                                                const current = form.getValues("descriptionImages") || [];
+                                                if (current.includes(url)) {
+                                                    toast.error("URL ảnh này đã tồn tại");
+                                                    return;
+                                                }
+                                                const next = [...current, url];
+                                                form.setValue("descriptionImages", next, { shouldValidate: true });
+                                                insertDescMarkerAtCursor(`[DESCIMG:${next.length - 1}]`);
+                                                setDescImageInput("");
+                                                setDescUrlStatus("idle");
+                                                toast.success("Đã thêm ảnh vào mô tả");
+                                            }}
+                                        >
+                                            <Plus className="w-4 h-4 mr-1" /> Thêm ảnh
+                                        </Button>
+                                    </div>
+                                    {/* Xem trước URL đang nhập - thấy ngay link có tải được ảnh không */}
+                                    {descImageInput.trim() !== "" && descUrlStatus !== "error" && (
+                                        <div className="flex items-center gap-2 rounded-md border bg-gray-50 p-2">
+                                            <img
+                                                key={descImageInput.trim()}
+                                                src={descImageInput.trim()}
+                                                alt="Xem trước"
+                                                className="h-16 w-16 rounded object-cover border"
+                                                onLoad={() => setDescUrlStatus("ok")}
+                                                onError={() => setDescUrlStatus("error")}
+                                            />
+                                            <p className="text-xs text-muted-foreground">
+                                                {descUrlStatus === "ok"
+                                                    ? "Link tải được ảnh. Bấm Thêm ảnh để dùng."
+                                                    : "Đang kiểm tra link ảnh..."}
+                                            </p>
+                                        </div>
+                                    )}
+                                    {descImageInput.trim() !== "" && descUrlStatus === "error" && (
+                                        <p className="text-xs text-red-600 font-medium">
+                                            Link này không tải được ảnh. Hãy mở link trong tab mới kiểm tra: phải hiện
+                                            mỗi tấm ảnh (không phải trang web), rồi copy đúng URL đó.
+                                        </p>
+                                    )}
+                                    {(form.watch("descriptionImages") || []).length > 0 && (
+                                        <div className="grid grid-cols-3 gap-2 pt-1">
+                                            {(form.watch("descriptionImages") || []).map((url: string, index: number) => (
+                                                <div key={`${url}-${index}`} className="relative group rounded-md overflow-hidden border bg-gray-100">
+                                                    <img
+                                                        src={url}
+                                                        alt={`Minh họa ${index + 1}`}
+                                                        className="w-full h-20 object-cover"
+                                                        onLoad={() =>
+                                                            setBrokenDescImg((prev) => {
+                                                                if (!prev.has(index)) return prev;
+                                                                const next = new Set(prev);
+                                                                next.delete(index);
+                                                                return next;
+                                                            })
+                                                        }
+                                                        onError={() =>
+                                                            setBrokenDescImg((prev) => new Set(prev).add(index))
+                                                        }
+                                                    />
+                                                    <span className="absolute top-1 left-1 bg-black/60 text-white text-[10px] px-1.5 py-0.5 rounded">
+                                                        [DESCIMG:{index}]
+                                                    </span>
+                                                    {brokenDescImg.has(index) && (
+                                                        <span className="absolute bottom-1 left-1 right-1 bg-red-600/90 text-white text-[10px] px-1.5 py-0.5 rounded text-center">
+                                                            Link lỗi
+                                                        </span>
+                                                    )}
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => {
+                                                            const current = form.getValues("descriptionImages") || [];
+                                                            form.setValue(
+                                                                "descriptionImages",
+                                                                current.filter((_, i) => i !== index)
+                                                            );
+                                                            setBrokenDescImg((prev) => {
+                                                                const next = new Set<number>();
+                                                                prev.forEach((i) => {
+                                                                    if (i < index) next.add(i);
+                                                                    else if (i > index) next.add(i - 1);
+                                                                });
+                                                                return next;
+                                                            });
+                                                            // Xóa marker của ảnh này và đánh lại số các marker sau nó
+                                                            const desc = form.getValues("description") || "";
+                                                            const updated = desc
+                                                                .replace(/\[DESCIMG:(\d+)\]/g, (m, n) => {
+                                                                    const k = Number(n);
+                                                                    if (k === index) return "";
+                                                                    if (k > index) return `[DESCIMG:${k - 1}]`;
+                                                                    return m;
+                                                                })
+                                                                .replace(/\n{3,}/g, "\n\n");
+                                                            form.setValue("description", updated);
+                                                        }}
+                                                        className="absolute top-1 right-1 bg-red-600 hover:bg-red-700 text-white p-1 rounded-full shadow opacity-0 group-hover:opacity-100 transition-opacity"
+                                                        title="Xóa ảnh"
+                                                    >
+                                                        <Trash2 className="w-3 h-3" />
+                                                    </button>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
+                                </div>
                             </CardContent>
                         </Card>
 
@@ -577,7 +784,17 @@ export function ProductForm({ initialData, onSubmit, loading }: ProductFormProps
                                                     name={`variants.${index}.attributes`}
                                                     render={({ field }) => {
                                                         const attributes = field.value || {};
-                                                        const entries = Object.entries(attributes);
+                                                        // Bỏ qua object/mảng object (specsTable, colors...) vì React
+                                                        // không render được - chúng đã có UI quản lý riêng.
+                                                        const entries = Object.entries(attributes).filter(
+                                                            ([, v]) =>
+                                                                v == null ||
+                                                                typeof v === "string" ||
+                                                                typeof v === "number" ||
+                                                                typeof v === "boolean" ||
+                                                                (Array.isArray(v) &&
+                                                                    v.every((i) => typeof i !== "object"))
+                                                        );
 
                                                         const addAttribute = () => {
                                                             setAttrDialog({
@@ -606,7 +823,7 @@ export function ProductForm({ initialData, onSubmit, loading }: ProductFormProps
                                                                                     className="inline-flex items-center gap-1 px-2 py-1 bg-slate-100 border border-slate-200 rounded text-xs"
                                                                                 >
                                                                                     <span className="font-medium text-slate-600">{key}:</span>
-                                                                                    <span className="text-slate-800">{value as string}</span>
+                                                                                    <span className="text-slate-800">{formatAttributeValue(value)}</span>
                                                                                     <button
                                                                                         type="button"
                                                                                         onClick={() => removeAttribute(key)}
@@ -724,12 +941,89 @@ export function ProductForm({ initialData, onSubmit, loading }: ProductFormProps
                                                     }}
                                                 />
                                             </div>
-                                            <div className="col-span-1">
+                                            <div className="col-span-1 flex flex-col gap-1">
+                                                <Button
+                                                    type="button"
+                                                    variant="ghost"
+                                                    size="icon"
+                                                    title="Nhãn QR biến thể"
+                                                    onClick={() => setQrVariantIndex(index)}
+                                                >
+                                                    <QrCode className="w-4 h-4" />
+                                                </Button>
                                                 <Button type="button" variant="ghost" size="icon" onClick={() => remove(index)} className="text-red-500 hover:text-red-700 hover:bg-red-50">
                                                     <Trash2 className="w-4 h-4" />
                                                 </Button>
                                             </div>
                                         </div>
+                                    </div>
+                                ))}
+                            </CardContent>
+                        </Card>
+
+                        {/* Bảng thông số kỹ thuật */}
+                        <Card>
+                            <CardHeader>
+                                <CardTitle className="flex justify-between items-center">
+                                    <span>Thông số kỹ thuật</span>
+                                    <Button
+                                        type="button"
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={() => setSpecsTable([...specsRows, { label: "", value: "", group: "" }])}
+                                    >
+                                        <Plus className="w-4 h-4 mr-2" /> Thêm dòng
+                                    </Button>
+                                </CardTitle>
+                            </CardHeader>
+                            <CardContent className="space-y-2">
+                                <p className="text-xs text-muted-foreground">
+                                    Hiện ở sidebar "Thông số kỹ thuật" ngoài trang sản phẩm. Nhóm (group) không bắt buộc.
+                                </p>
+                                {specsRows.length === 0 && (
+                                    <p className="text-xs text-muted-foreground italic">Chưa có dòng nào.</p>
+                                )}
+                                {specsRows.map((row, index) => (
+                                    <div key={index} className="grid grid-cols-12 gap-2 items-center">
+                                        <Input
+                                            placeholder="Nhóm (vd: Màn hình)"
+                                            value={row.group || ""}
+                                            onChange={(e) => {
+                                                const next = [...specsRows];
+                                                next[index] = { ...next[index], group: e.target.value };
+                                                setSpecsTable(next);
+                                            }}
+                                            className="col-span-3 h-9 text-xs"
+                                        />
+                                        <Input
+                                            placeholder="Tên thông số (vd: Độ phân giải)"
+                                            value={row.label}
+                                            onChange={(e) => {
+                                                const next = [...specsRows];
+                                                next[index] = { ...next[index], label: e.target.value };
+                                                setSpecsTable(next);
+                                            }}
+                                            className="col-span-4 h-9 text-xs"
+                                        />
+                                        <Input
+                                            placeholder="Giá trị (vd: 4K Ultra HD)"
+                                            value={row.value}
+                                            onChange={(e) => {
+                                                const next = [...specsRows];
+                                                next[index] = { ...next[index], value: e.target.value };
+                                                setSpecsTable(next);
+                                            }}
+                                            className="col-span-4 h-9 text-xs"
+                                        />
+                                        <Button
+                                            type="button"
+                                            variant="ghost"
+                                            size="icon"
+                                            onClick={() => setSpecsTable(specsRows.filter((_, i) => i !== index))}
+                                            className="col-span-1 text-red-500 hover:text-red-700 hover:bg-red-50"
+                                        >
+                                            <Trash2 className="w-4 h-4" />
+                                        </Button>
                                     </div>
                                 ))}
                             </CardContent>
@@ -1016,38 +1310,56 @@ export function ProductForm({ initialData, onSubmit, loading }: ProductFormProps
                         >
                             Hủy
                         </Button>
-                        <Button
-                            type="button"
-                            onClick={() => {
-                                if (colorDialog.variantIndex !== null) {
-                                    const currentColors = form.getValues(`variants.${colorDialog.variantIndex}.colors`) || [];
-                                    const newColor = {
-                                        hex: colorDialog.hex,
-                                        name: colorDialog.name || getColorName(colorDialog.hex),
-                                        imageUrl: colorDialog.imageUrl || undefined
-                                    };
-                                    
-                                    const updatedColors = [...currentColors, newColor];
-                                    form.setValue(`variants.${colorDialog.variantIndex}.colors`, updatedColors);
-                                    
-                                    // Sync all colors to attributes.color (comma-separated)
-                                    const currentAttributes = form.getValues(`variants.${colorDialog.variantIndex}.attributes`) || {};
-                                    const colorNames = updatedColors.map(c => c.name).join(", ");
-                                    form.setValue(`variants.${colorDialog.variantIndex}.attributes`, {
-                                        ...currentAttributes,
-                                        color: colorNames
-                                    });
-                                    
-                                    setColorDialog({ open: false, variantIndex: null, hex: "#000000", name: "", imageUrl: "" });
-                                    toast.success("Đã thêm màu và cập nhật attributes");
-                                }
+                            <Button
+                                type="button"
+                                onClick={() => {
+                                    if (colorDialog.variantIndex !== null) {
+                                        const currentColors = form.getValues(`variants.${colorDialog.variantIndex}.colors`) || [];
+                                        const newColor = {
+                                            hex: colorDialog.hex,
+                                            name: colorDialog.name || getColorName(colorDialog.hex),
+                                            imageUrl: colorDialog.imageUrl || undefined
+                                        };
+
+                                        const updatedColors = [...currentColors, newColor];
+                                        form.setValue(`variants.${colorDialog.variantIndex}.colors`, updatedColors);
+
+                                        // Sync all colors to attributes.color (comma-separated)
+                                        const currentAttributes = form.getValues(`variants.${colorDialog.variantIndex}.attributes`) || {};
+                                        const colorNames = updatedColors.map(c => c.name).join(", ");
+                                        form.setValue(`variants.${colorDialog.variantIndex}.attributes`, {
+                                            ...currentAttributes,
+                                            color: colorNames
+                                        });
+
+                                        setColorDialog({ open: false, variantIndex: null, hex: "#000000", name: "", imageUrl: "" });
+                                        toast.success("Đã thêm màu và cập nhật attributes");
+                                    }
+                                }}
+                            >
+                                Thêm màu
+                            </Button>
+                        </DialogFooter>
+                    </DialogContent>
+                </Dialog>
+
+                {/* Dialog nhãn QR biến thể */}
+                {(() => {
+                    const variants = form.watch("variants") || [];
+                    const v = qrVariantIndex != null ? variants[qrVariantIndex] : undefined;
+                    const sku = (v?.sku || "").trim();
+                    if (qrVariantIndex == null) return null;
+                    return (
+                        <VariantQrDialog
+                            open={qrVariantIndex != null}
+                            onOpenChange={(open) => {
+                                if (!open) setQrVariantIndex(null);
                             }}
-                        >
-                            Thêm màu
-                        </Button>
-                    </DialogFooter>
-                </DialogContent>
-            </Dialog>
-        </Form>
-    );
-}
+                            sku={sku || "CHUA-CO-SKU"}
+                            productName={form.watch("name") || ""}
+                        />
+                    );
+                })()}
+            </Form>
+        );
+    }

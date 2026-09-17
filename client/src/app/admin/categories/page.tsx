@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
@@ -23,7 +23,11 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Search, Pencil, Trash2, Loader2, FolderTree } from "lucide-react";
+import { Plus, Search, Pencil, Trash2, FolderTree } from "lucide-react";
+import { Card } from "@/components/ui/card";
+import { AdminPageHeader } from "@/components/admin/AdminPageHeader";
+import { AdminTableSkeleton } from "@/components/admin/AdminTableSkeleton";
+import { AdminEmptyState } from "@/components/admin/AdminEmptyState";
 import { fetchAllCategories, deleteCategory } from "@/lib/categoryApi";
 import { toast } from "sonner";
 
@@ -84,24 +88,24 @@ export default function CategoriesPage() {
   const parentCategories = filteredCategories.filter((c) => !c.parentId);
 
   return (
-    <div className="p-8">
-      <div className="flex justify-between items-center mb-6">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Quản lý Danh mục</h1>
-          <p className="text-gray-600 dark:text-gray-400 mt-1">Quản lý danh mục sản phẩm</p>
-        </div>
-        <Link href="/admin/categories/create">
-          <Button className="gap-2">
-            <Plus className="w-4 h-4" />
-            Thêm danh mục
-          </Button>
-        </Link>
-      </div>
+    <div className="space-y-6">
+      <AdminPageHeader
+        title="Quản lý Danh mục"
+        description="Quản lý danh mục sản phẩm"
+        actions={
+          <Link href="/admin/categories/create">
+            <Button className="gap-2">
+              <Plus className="w-4 h-4" />
+              Thêm danh mục
+            </Button>
+          </Link>
+        }
+      />
 
-      <div className="bg-white dark:bg-gray-900 rounded-lg shadow-sm border dark:border-gray-800">
-        <div className="p-4 border-b dark:border-gray-800">
-          <div className="relative max-w-sm">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 dark:text-gray-500" />
+      <Card className="gap-0 overflow-hidden py-0">
+        <div className="border-b p-4">
+          <div className="relative w-full sm:max-w-sm">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
             <Input
               placeholder="Tìm kiếm danh mục..."
               value={searchQuery}
@@ -111,19 +115,16 @@ export default function CategoriesPage() {
           </div>
         </div>
 
-        {loading ? (
-          <div className="flex justify-center items-center py-12">
-            <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
-          </div>
-        ) : filteredCategories.length === 0 ? (
-          <div className="text-center py-12 text-gray-500 dark:text-gray-400">
-            <FolderTree className="w-12 h-12 mx-auto mb-3 text-gray-300 dark:text-gray-600" />
-            <p>Không tìm thấy danh mục nào</p>
-          </div>
+        {!loading && filteredCategories.length === 0 ? (
+          <AdminEmptyState
+            icon={FolderTree}
+            title="Không tìm thấy danh mục nào"
+            description={searchQuery ? "Thử đổi từ khóa tìm kiếm khác." : "Bắt đầu bằng cách thêm danh mục đầu tiên."}
+          />
         ) : (
           <Table>
             <TableHeader>
-              <TableRow>
+              <TableRow className="bg-muted/50">
                 <TableHead>Tên danh mục</TableHead>
                 <TableHead>Slug</TableHead>
                 <TableHead>Danh mục con</TableHead>
@@ -132,15 +133,16 @@ export default function CategoriesPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {parentCategories.map((category) => (
-                <>
-                  <TableRow key={category.id}>
-                    <TableCell className="font-medium flex items-center gap-2 dark:text-white">
-                      <FolderTree className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+              {loading ? <AdminTableSkeleton columns={5} /> : null}
+              {!loading && parentCategories.map((category) => (
+                <React.Fragment key={category.id}>
+                  <TableRow>
+                    <TableCell className="flex items-center gap-2 font-medium text-foreground">
+                      <FolderTree className="w-4 h-4 text-primary" />
                       {category.name}
                     </TableCell>
                     <TableCell>
-                      <code className="text-xs bg-gray-100 dark:bg-gray-800 dark:text-gray-300 px-2 py-1 rounded">
+                      <code className="rounded bg-muted px-2 py-1 text-xs text-foreground">
                         {category.slug}
                       </code>
                     </TableCell>
@@ -157,7 +159,7 @@ export default function CategoriesPage() {
                     <TableCell className="text-right">
                       <div className="flex justify-end gap-2">
                         <Link href={`/admin/categories/edit/${category.id}`}>
-                          <Button variant="ghost" size="sm">
+                          <Button variant="ghost" size="sm" aria-label="Sửa danh mục">
                             <Pencil className="w-4 h-4" />
                           </Button>
                         </Link>
@@ -166,19 +168,19 @@ export default function CategoriesPage() {
                           size="sm"
                           onClick={() => setDeleteId(category.id)}
                         >
-                          <Trash2 className="w-4 h-4 text-red-600" />
+                          <Trash2 className="w-4 h-4 text-destructive" />
                         </Button>
                       </div>
                     </TableCell>
                   </TableRow>
                   {/* Child categories */}
                   {category.children?.map((child: Category) => (
-                    <TableRow key={child.id} className="bg-gray-50 dark:bg-gray-800/50">
-                      <TableCell className="pl-12 text-gray-600 dark:text-gray-300">
+                    <TableRow key={child.id} className="bg-muted/50">
+                      <TableCell className="pl-12 text-muted-foreground">
                         └─ {child.name}
                       </TableCell>
                       <TableCell>
-                        <code className="text-xs bg-gray-200 dark:bg-gray-800 dark:text-gray-300 px-2 py-1 rounded">
+                        <code className="rounded bg-muted px-2 py-1 text-xs text-foreground">
                           {child.slug}
                         </code>
                       </TableCell>
@@ -200,18 +202,18 @@ export default function CategoriesPage() {
                             size="sm"
                             onClick={() => setDeleteId(child.id)}
                           >
-                            <Trash2 className="w-4 h-4 text-red-600" />
+                            <Trash2 className="w-4 h-4 text-destructive" />
                           </Button>
                         </div>
                       </TableCell>
                     </TableRow>
                   ))}
-                </>
+                </React.Fragment>
               ))}
             </TableBody>
           </Table>
         )}
-      </div>
+      </Card>
 
       {/* Delete Confirmation Dialog */}
       <AlertDialog open={!!deleteId} onOpenChange={() => setDeleteId(null)}>
@@ -224,7 +226,7 @@ export default function CategoriesPage() {
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Hủy</AlertDialogCancel>
-            <AlertDialogAction onClick={handleDelete} className="bg-red-600">
+            <AlertDialogAction onClick={handleDelete} className="bg-destructive text-white hover:bg-destructive/90">
               Xóa
             </AlertDialogAction>
           </AlertDialogFooter>

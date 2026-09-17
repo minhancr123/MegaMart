@@ -13,31 +13,30 @@ import type { ProductFormValues } from "@/components/admin/ProductForm";
 export default function CreateProductPage() {
     const router = useRouter();
     const [loading, setLoading] = useState(false);
-    const [createdProductId, setCreatedProductId] = useState<string | null>(null);
-    const [productCreated, setProductCreated] = useState(false);
 
     const handleSubmit = async (data: ProductFormValues) => {
         try {
             setLoading(true);
             const response = await createProduct(data);
-            
-            // Save product ID for image upload
-            if (response?.data?.id) {
-                setCreatedProductId(response.data.id);
-                setProductCreated(true);
+            const newId = response?.data?.id;
+
+            toast.success("Tạo sản phẩm thành công! Chuyển sang trang chỉnh sửa để thêm ảnh...");
+            // Sang trang Edit để upload ảnh / nhập thông số - khỏi ở lại trang
+            // create với nút submit gây nhầm lẫn (bấm nữa là trùng SP)
+            if (newId) {
+                router.push(`/admin/products/edit/${newId}`);
+            } else {
+                router.push("/admin/products");
             }
-            
-            toast.success("Tạo sản phẩm thành công! Bạn có thể upload ảnh ngay bây giờ.");
-        } catch (error) {
+        } catch (error: any) {
             console.error("Failed to create product", error);
-            toast.error("Có lỗi xảy ra khi tạo sản phẩm");
+            // Ưu tiên message rõ từ server (vd trùng slug/SKU)
+            const serverMessage =
+                error?.data?.message || error?.errormassage || error?.response?.data?.message;
+            toast.error(serverMessage || "Có lỗi xảy ra khi tạo sản phẩm");
         } finally {
             setLoading(false);
         }
-    };
-
-    const handleBack = () => {
-        router.push("/admin/products");
     };
 
     return (
@@ -49,25 +48,16 @@ export default function CreateProductPage() {
                     </Button>
                 </Link>
                 <div>
-                    <h1 className="text-3xl font-bold text-gray-900">Thêm sản phẩm mới</h1>
-                    <p className="text-gray-500 mt-1">
-                        {productCreated 
-                            ? "Sản phẩm đã được tạo! Bạn có thể upload ảnh hoặc quay lại danh sách." 
-                            : "Tạo sản phẩm mới cho cửa hàng của bạn"
-                        }
+                    <h1 className="text-2xl font-bold text-foreground">Thêm sản phẩm mới</h1>
+                    <p className="text-muted-foreground mt-1">
+                        Tạo sản phẩm mới cho cửa hàng của bạn
                     </p>
                 </div>
-                {productCreated && (
-                    <Button onClick={handleBack} variant="outline" className="ml-auto">
-                        Hoàn tất & Quay lại
-                    </Button>
-                )}
             </div>
 
-            <ProductForm 
-                onSubmit={handleSubmit} 
-                loading={loading} 
-                initialData={createdProductId ? { id: createdProductId } : undefined}
+            <ProductForm
+                onSubmit={handleSubmit}
+                loading={loading}
             />
         </div>
     );

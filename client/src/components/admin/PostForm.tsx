@@ -44,7 +44,7 @@ const postSchema = z.object({
   content: z.string().min(1, "Nội dung là bắt buộc"),
   type: z.enum(["NEWS", "EVENT"]),
   status: z.enum(["DRAFT", "PUBLISHED", "ARCHIVED"]),
-  imageUrl: z.string().optional(),
+  thumbnail: z.string().optional(),
   tags: z.string().optional(),
 });
 
@@ -55,7 +55,7 @@ interface PostFormProps {
 export default function PostForm({ initialData }: PostFormProps) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
-  const [imagePreview, setImagePreview] = useState<string>(initialData?.imageUrl || "");
+  const [imagePreview, setImagePreview] = useState<string>(initialData?.thumbnail || initialData?.imageUrl || "");
   const [uploadingImage, setUploadingImage] = useState(false);
   const [popularTags, setPopularTags] = useState<string[]>([]);
   const [selectedTags, setSelectedTags] = useState<string[]>(
@@ -88,7 +88,7 @@ export default function PostForm({ initialData }: PostFormProps) {
       content: initialData?.content || "",
       type: initialData?.type || "NEWS",
       status: initialData?.status || "DRAFT",
-      imageUrl: initialData?.imageUrl || "",
+      thumbnail: initialData?.thumbnail || initialData?.imageUrl || "",
       tags: "",
     },
   });
@@ -114,7 +114,7 @@ export default function PostForm({ initialData }: PostFormProps) {
       reader.onloadend = () => {
         const base64String = reader.result as string;
         setImagePreview(base64String);
-        form.setValue('imageUrl', base64String);
+        form.setValue('thumbnail', base64String);
         toast.success("Đã tải ảnh lên");
       };
       reader.readAsDataURL(file);
@@ -127,7 +127,7 @@ export default function PostForm({ initialData }: PostFormProps) {
 
   const handleRemoveImage = () => {
     setImagePreview("");
-    form.setValue('imageUrl', "");
+    form.setValue('thumbnail', "");
     if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
@@ -472,7 +472,7 @@ export default function PostForm({ initialData }: PostFormProps) {
               <CardContent className="pt-6">
                 <FormField
                   control={form.control}
-                  name="imageUrl"
+                  name="thumbnail"
                   render={() => (
                     <FormItem>
                       <FormLabel className="text-base font-semibold">Ảnh bìa</FormLabel>

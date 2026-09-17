@@ -8,11 +8,16 @@ import {
     TableHeader,
     TableRow,
 } from "@/components/ui/table";
-import { Edit, Plus, Trash2, Search, Loader2, Zap, Copy, FileSpreadsheet, Layers, ChevronDown } from "lucide-react";
+import { Edit, Plus, Trash2, Search, Zap, Copy, FileSpreadsheet, Layers, ChevronDown, PackageSearch } from "lucide-react";
+import { Card } from "@/components/ui/card";
+import { AdminPageHeader } from "@/components/admin/AdminPageHeader";
+import { AdminTableSkeleton } from "@/components/admin/AdminTableSkeleton";
+import { AdminEmptyState } from "@/components/admin/AdminEmptyState";
 import { Input } from "@/components/ui/input";
 import Link from "next/link";
-import { useState, useEffect, useCallback } from "react";
-import { fetchAdminProducts, deleteProduct } from "@/lib/adminApi";
+import { useRouter, useSearchParams } from "next/navigation";
+import { useState, useEffect, useCallback, useTransition } from "react";
+import { fetchAdminProductsPage, deleteProduct } from "@/lib/adminApi";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { ConfirmDeleteDialog } from "@/components/ConfirmDeleteDialog";
@@ -36,6 +41,8 @@ interface ProductCategory {
 interface ProductVariant {
     id: string;
     stock: number;
+    reservedQuantity?: number | null;
+    availableStock?: number | null;
     price: number;
 }
 
@@ -53,14 +60,23 @@ interface Product {
 }
 
 export default function ProductsPage() {
+    const router = useRouter();
+    const searchParams = useSearchParams();
+    const initialPage = parseInt(searchParams.get("page") || "1", 10) || 1;
+    const initialSearch = searchParams.get("search") || "";
+
     const [products, setProducts] = useState<Product[]>([]);
     const [loading, setLoading] = useState(true);
-    const [searchQuery, setSearchQuery] = useState("");
+    const [searchQuery, setSearchQuery] = useState(initialSearch);
     const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
     const [productToDelete, setProductToDelete] = useState<Product | null>(null);
     const [isDeleting, setIsDeleting] = useState(false);
-    const [currentPage, setCurrentPage] = useState(1);
+    const [currentPage, setCurrentPage] = useState(initialPage);
     const itemsPerPage = 10;
+    const [totalItems, setTotalItems] = useState(0);
+    const [serverTotalPages, setServerTotalPages] = useState(1);
+    // Search debounce 400ms để không bắn request theo từng ký tự
+    const [debouncedSearch, setDebouncedSearch] = useState(initialSearch);
     
     // New dialogs
     const [quickAddOpen, setQuickAddOpen] = useState(false);
@@ -69,22 +85,52 @@ export default function ProductsPage() {
     const [bulkImportOpen, setBulkImportOpen] = useState(false);
     const [templatesOpen, setTemplatesOpen] = useState(false);
 
+    // Debounce ô tìm kiếm: đổi từ khóa thì về trang 1
+    useEffect(() => {
+        const timer = setTimeout(() => {
+            setCurrentPage(1);
+            setDebouncedSearch(searchQuery);
+        }, 400);
+        return () => clearTimeout(timer);
+    }, [searchQuery]);
+
+    // Phân trang + tìm kiếm ở SERVER (shop có ~6000 SP, không đổ hết về client)
     const loadProducts = useCallback(async () => {
         try {
             setLoading(true);
-            const data = await fetchAdminProducts();
-            setProducts(data);
+            const result = await fetchAdminProductsPage({
+                page: currentPage,
+                limit: itemsPerPage,
+                search: debouncedSearch.trim() || undefined,
+            });
+            setProducts(result.items);
+            setTotalItems(result.total);
+            setServerTotalPages(result.totalPages);
         } catch (error: unknown) {
             console.error("Failed to load products", error);
             toast.error("Không thể tải danh sách sản phẩm");
         } finally {
             setLoading(false);
         }
-    }, []);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [currentPage, debouncedSearch]);
 
     useEffect(() => {
         loadProducts();
     }, [loadProducts]);
+
+    // Cập nhật query string URL mỗi khi page hoặc debouncedSearch thay đổi
+    useEffect(() => {
+        const params = new URLSearchParams();
+        if (currentPage > 1) params.set("page", currentPage.toString());
+        if (debouncedSearch.trim()) params.set("search", debouncedSearch.trim());
+
+        const queryString = params.toString();
+        const newUrl = queryString ? `/admin/products?${queryString}` : "/admin/products";
+        
+        // Dùng window.history.replaceState để tránh push rác vào browser history khi user đang gõ search
+        window.history.replaceState(null, "", newUrl);
+    }, [currentPage, debouncedSearch]);
 
     const handleDeleteClick = (product: Product) => {
         setProductToDelete(product);
@@ -99,7 +145,12 @@ export default function ProductsPage() {
             await deleteProduct(productToDelete.id);
             toast.success("Xóa sản phẩm thành công");
             setDeleteDialogOpen(false);
-            loadProducts(); // Reload products
+            // Xóa dòng cuối của trang thì lùi về trang trước cho khỏi trống
+            if (products.length <= 1 && currentPage > 1) {
+                setCurrentPage(currentPage - 1);
+            } else {
+                loadProducts(); // Reload products
+            }
         } catch (error: unknown) {
             console.error("Failed to delete product", error);
             toast.error("Không thể xóa sản phẩm");
@@ -114,41 +165,15 @@ export default function ProductsPage() {
         setCloneDialogOpen(true);
     };
 
-    const filteredProducts = products.filter(product =>
-        product.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        product.category?.name?.toLowerCase().includes(searchQuery.toLowerCase())
-    );
-
-    // Pagination calculations
-    const totalPages = Math.ceil(filteredProducts.length / itemsPerPage);
-    const startIndex = (currentPage - 1) * itemsPerPage;
-    const endIndex = startIndex + itemsPerPage;
-    const paginatedProducts = filteredProducts.slice(startIndex, endIndex);
-
-    // Reset to page 1 when search changes
-    useEffect(() => {
-        setCurrentPage(1);
-    }, [searchQuery]);
-
-    if (loading) {
-        return (
-            <div className="flex justify-center items-center min-h-[400px]">
-                <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
-            </div>
-        );
-    }
-
     return (
         <div className="space-y-6">
-            <div className="flex justify-between items-center">
-                <div>
-                    <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Sản phẩm</h1>
-                    <p className="text-gray-500 dark:text-gray-400 mt-1">Quản lý danh sách sản phẩm của bạn ({products.length})</p>
-                </div>
-                <div className="flex gap-2">
+            <AdminPageHeader
+                title="Sản phẩm"
+                description={`Quản lý danh sách sản phẩm của bạn (${totalItems})`}
+                actions={
                     <DropdownMenu>
                         <DropdownMenuTrigger asChild>
-                            <Button variant="outline" className="border-blue-200">
+                            <Button variant="outline">
                                 <Plus className="w-4 h-4 mr-2" />
                                 Thêm sản phẩm
                                 <ChevronDown className="w-4 h-4 ml-2" />
@@ -160,28 +185,28 @@ export default function ProductsPage() {
                                 Thêm nhanh
                             </DropdownMenuItem>
                             <DropdownMenuItem onClick={() => setTemplatesOpen(true)}>
-                                <Layers className="w-4 h-4 mr-2 text-purple-500" />
+                                <Layers className="w-4 h-4 mr-2 text-primary" />
                                 Từ template
                             </DropdownMenuItem>
                             <DropdownMenuItem onClick={() => setBulkImportOpen(true)}>
-                                <FileSpreadsheet className="w-4 h-4 mr-2 text-green-500" />
+                                <FileSpreadsheet className="w-4 h-4 mr-2 text-primary" />
                                 Import CSV
                             </DropdownMenuItem>
                             <DropdownMenuItem asChild>
                                 <Link href="/admin/products/create" className="cursor-pointer">
-                                    <Plus className="w-4 h-4 mr-2 text-blue-500" />
+                                    <Plus className="w-4 h-4 mr-2 text-primary" />
                                     Tạo đầy đủ
                                 </Link>
                             </DropdownMenuItem>
                         </DropdownMenuContent>
                     </DropdownMenu>
-                </div>
-            </div>
+                }
+            />
 
             {/* Filters */}
-            <div className="flex gap-4 bg-white dark:bg-gray-900 p-4 rounded-lg border border-gray-200 dark:border-gray-800 shadow-sm">
-                <div className="relative flex-1 max-w-sm">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 dark:text-gray-500" />
+            <Card className="gap-0 p-4">
+                <div className="relative w-full sm:max-w-sm">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                     <Input
                         placeholder="Tìm kiếm sản phẩm..."
                         className="pl-9"
@@ -189,14 +214,14 @@ export default function ProductsPage() {
                         onChange={(e) => setSearchQuery(e.target.value)}
                     />
                 </div>
-            </div>
+            </Card>
 
             {/* Table */}
-            <div className="bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-800 shadow-sm overflow-hidden">
+            <Card className="gap-0 overflow-hidden py-0">
                 <Table>
                     <TableHeader>
-                        <TableRow className="bg-gray-50 dark:bg-gray-800">
-                            <TableHead className="w-[100px]">Mã SP</TableHead>
+                        <TableRow className="bg-muted/50">
+                            <TableHead className="w-[200px]">Mã SP</TableHead>
                             <TableHead>Tên sản phẩm</TableHead>
                             <TableHead>Danh mục</TableHead>
                             <TableHead>Giá</TableHead>
@@ -206,21 +231,31 @@ export default function ProductsPage() {
                         </TableRow>
                     </TableHeader>
                     <TableBody>
-                        {paginatedProducts.length === 0 ? (
+                        {loading ? (
+                            <AdminTableSkeleton columns={7} />
+                        ) : products.length === 0 ? (
                             <TableRow>
-                                <TableCell colSpan={7} className="text-center py-8 text-gray-500 dark:text-gray-400">
-                                    Không tìm thấy sản phẩm nào
+                                <TableCell colSpan={7} className="p-0">
+                                    <AdminEmptyState
+                                        icon={PackageSearch}
+                                        title="Không tìm thấy sản phẩm nào"
+                                        description={searchQuery ? "Thử đổi từ khóa tìm kiếm khác." : "Bắt đầu bằng cách thêm sản phẩm đầu tiên."}
+                                    />
                                 </TableCell>
                             </TableRow>
                         ) : (
-                            paginatedProducts.map((product) => {
+                            products.map((product) => {
                                 const totalStock = product.variants?.reduce((sum: number, v: ProductVariant) => sum + v.stock, 0) || 0;
+                                const totalReserved = product.variants?.reduce((sum: number, v: ProductVariant) => sum + (v.reservedQuantity ?? 0), 0) || 0;
+                                const totalAvailable = Math.max(0, totalStock - totalReserved);
                                 const minPrice = product.variants?.[0]?.price || 0;
 
                                 return (
                                     <TableRow key={product.id}>
-                                        <TableCell className="font-medium text-xs text-gray-500 dark:text-gray-400">#{product.id.slice(-6)}</TableCell>
-                                        <TableCell className="font-medium text-gray-900 dark:text-white">
+                                        <TableCell className="font-mono text-xs text-muted-foreground select-all" title={product.id}>
+                                            {product.id}
+                                        </TableCell>
+                                        <TableCell className="font-medium text-foreground">
                                             <div className="flex items-center gap-2">
                                                 {product.images?.[0]?.url && (
                                                     <img src={product.images[0].url} alt="" className="w-8 h-8 rounded object-cover" />
@@ -231,12 +266,15 @@ export default function ProductsPage() {
                                         <TableCell>{product.category?.name || '---'}</TableCell>
                                         <TableCell>{new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(Number(minPrice))}</TableCell>
                                         <TableCell>
-                                            <span className={`px-2 py-1 rounded-full text-xs font-medium ${totalStock > 10 ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
-                                                {totalStock}
-                                            </span>
+                                            <div className="flex flex-col items-start gap-0.5">
+                                                <Badge variant={totalAvailable > 10 ? 'success' : 'destructive'} title={`Tồn thực tế: ${totalStock} • Đang giữ: ${totalReserved}`}>{totalAvailable} khả dụng</Badge>
+                                                {totalReserved > 0 && (
+                                                    <span className="text-xs text-muted-foreground">Tồn {totalStock} • Giữ {totalReserved}</span>
+                                                )}
+                                            </div>
                                         </TableCell>
                                         <TableCell>
-                                            <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">
+                                            <Badge variant="info">
                                                 Đang bán
                                             </Badge>
                                         </TableCell>
@@ -245,21 +283,23 @@ export default function ProductsPage() {
                                                 <Button
                                                     variant="ghost"
                                                     size="icon"
-                                                    className="h-8 w-8 text-purple-600 hover:text-purple-700 hover:bg-purple-50"
+                                                    className="h-8 w-8 text-primary hover:bg-primary/10 hover:text-primary"
                                                     onClick={() => handleCloneClick(product)}
                                                     title="Sao chép sản phẩm"
                                                 >
                                                     <Copy className="w-4 h-4" />
                                                 </Button>
-                                                <Link href={`/admin/products/edit/${product.id}`}>
-                                                    <Button variant="ghost" size="icon" className="h-8 w-8 text-blue-600 hover:text-blue-700 hover:bg-blue-50">
+                                                <Link href={`/admin/products/edit/${product.id}?from=${encodeURIComponent(
+                                                    (typeof window !== "undefined" ? window.location.search : "") || ""
+                                                )}`}>
+                                                    <Button variant="ghost" size="icon" className="h-8 w-8 text-primary hover:bg-primary/10 hover:text-primary">
                                                         <Edit className="w-4 h-4" />
                                                     </Button>
                                                 </Link>
                                                 <Button
                                                     variant="ghost"
                                                     size="icon"
-                                                    className="h-8 w-8 text-red-600 hover:text-red-700 hover:bg-red-50"
+                                                    className="h-8 w-8 text-destructive hover:bg-destructive/10 hover:text-destructive"
                                                     onClick={() => handleDeleteClick(product)}
                                                 >
                                                     <Trash2 className="w-4 h-4" />
@@ -272,15 +312,15 @@ export default function ProductsPage() {
                         )}
                     </TableBody>
                 </Table>
-            </div>
+            </Card>
 
             {/* Pagination */}
-            {totalPages > 1 && (
+            {!loading && serverTotalPages > 1 && (
                 <Pagination
                     currentPage={currentPage}
-                    totalPages={totalPages}
+                    totalPages={serverTotalPages}
                     onPageChange={setCurrentPage}
-                    totalItems={filteredProducts.length}
+                    totalItems={totalItems}
                     itemsPerPage={itemsPerPage}
                 />
             )}

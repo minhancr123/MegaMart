@@ -8,14 +8,20 @@ import {
     TableHeader,
     TableRow,
 } from "@/components/ui/table";
-import { Eye, Search, Filter, Loader2 } from "lucide-react";
+import { Eye, Search, Filter, PackageSearch } from "lucide-react";
 import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
-import { useState, useEffect } from "react";
+import { Card } from "@/components/ui/card";
+import { AdminPageHeader } from "@/components/admin/AdminPageHeader";
+import { AdminTableSkeleton } from "@/components/admin/AdminTableSkeleton";
+import { AdminEmptyState } from "@/components/admin/AdminEmptyState";
+import { OrderStatusBadge } from "@/components/admin/OrderStatusBadge";
+import { useState, useEffect, useRef, type MouseEvent } from "react";
 import { fetchAdminOrders } from "@/lib/adminApi";
 import { toast } from "sonner";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { Pagination } from "@/components/ui/pagination";
+import { paymentProviderName } from "@/lib/paymentLabels";
 
 interface OrderUser {
     id: string;
@@ -23,7 +29,7 @@ interface OrderUser {
 }
 
 interface OrderShippingAddress {
-    fullName: string;
+    fullName?: string;
 }
 
 interface OrderPayment {
@@ -36,34 +42,61 @@ interface Order {
     createdAt: string;
     total: number;
     status: string;
-    shippingAddress?: OrderShippingAddress;
+    shippingAddress?: OrderShippingAddress | string | null;
     user?: OrderUser;
     payments?: OrderPayment[];
 }
 
-const statusMap: Record<string, { label: string; color: string }> = {
-    PENDING: { label: "Chờ xử lý", color: "bg-yellow-100 text-yellow-800" },
-    CONFIRMED: { label: "Đã xác nhận", color: "bg-blue-100 text-blue-800" },
-    PROCESSING: { label: "Đang xử lý", color: "bg-indigo-100 text-indigo-800" },
-    SHIPPING: { label: "Đang giao hàng", color: "bg-orange-100 text-orange-800" },
-    DELIVERED: { label: "Đã giao", color: "bg-teal-100 text-teal-800" },
-    COMPLETED: { label: "Hoàn thành", color: "bg-green-100 text-green-800" },
-    PAID: { label: "Đã thanh toán", color: "bg-emerald-100 text-emerald-800" },
-    CANCELED: { label: "Đã hủy", color: "bg-red-100 text-red-800" },
-    FAILED: { label: "Thất bại", color: "bg-rose-100 text-rose-800" },
-    REFUNDED: { label: "Đã hoàn tiền", color: "bg-purple-100 text-purple-800" },
-};
-
 export default function OrdersPage() {
+    const router = useRouter();
     const [orders, setOrders] = useState<Order[]>([]);
     const [loading, setLoading] = useState(true);
     const [searchQuery, setSearchQuery] = useState("");
     const [currentPage, setCurrentPage] = useState(1);
+    const selectionOnMouseDown = useRef("");
     const itemsPerPage = 10;
 
     useEffect(() => {
+        document.body.style.pointerEvents = "";
         loadOrders();
+
+        return () => {
+            document.body.style.pointerEvents = "";
+        };
     }, []);
+
+    const getShippingName = (order: Order) => {
+        const shippingAddress = order.shippingAddress;
+        if (!shippingAddress) return "";
+        if (typeof shippingAddress === "string") {
+            try {
+                const parsed = JSON.parse(shippingAddress) as unknown;
+                if (parsed && typeof parsed === "object" && "fullName" in parsed) {
+                    return String((parsed as { fullName?: unknown }).fullName || "");
+                }
+                if (typeof parsed === "string") return parsed;
+            } catch {
+                return shippingAddress;
+            }
+            return "";
+        }
+        return shippingAddress.fullName || "";
+    };
+
+    const openOrderDetail = (event: MouseEvent, orderId: string) => {
+        // Chỉ bỏ qua khi thao tác vừa rồi tạo/đổi vùng bôi đen; selection cũ còn sót không được chặn click.
+        const currentSelection = window.getSelection()?.toString() || "";
+        const justSelected = !!currentSelection && currentSelection !== selectionOnMouseDown.current;
+        selectionOnMouseDown.current = "";
+        if (justSelected) return;
+        // Ctrl/Cmd + click mở tab mới; click thường đi cùng tab.
+        if (event.metaKey || event.ctrlKey) {
+            window.open(`/admin/orders/${orderId}`, "_blank", "noopener,noreferrer");
+            return;
+        }
+        if (event.shiftKey || event.altKey) return;
+        router.push(`/admin/orders/${orderId}`);
+    };
 
     const loadOrders = async () => {
         try {
@@ -78,16 +111,12 @@ export default function OrdersPage() {
         }
     };
 
-    const getStatusBadge = (status: string) => {
-        const config = statusMap[status] || { label: status, color: "bg-gray-100 text-gray-800" };
-        return <Badge className={`${config.color} border-none hover:${config.color}`}>{config.label}</Badge>;
-    };
-
-    const filteredOrders = orders.filter(order =>
-        order.code?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        order.shippingAddress?.fullName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        order.user?.name?.toLowerCase().includes(searchQuery.toLowerCase())
-    );
+    const filteredOrders = orders.filter(order => {
+        const shippingName = getShippingName(order);
+        return order.code?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+            shippingName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+            order.user?.name?.toLowerCase().includes(searchQuery.toLowerCase());
+    });
 
     // Pagination calculations
     const totalPages = Math.ceil(filteredOrders.length / itemsPerPage);
@@ -100,30 +129,22 @@ export default function OrdersPage() {
         setCurrentPage(1);
     }, [searchQuery]);
 
-    if (loading) {
-        return (
-            <div className="flex justify-center items-center min-h-[400px]">
-                <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
-            </div>
-        );
-    }
-
     return (
         <div className="space-y-6">
-            <div className="flex justify-between items-center">
-                <div>
-                    <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Đơn hàng</h1>
-                    <p className="text-gray-500 dark:text-gray-400 mt-1">Quản lý và theo dõi đơn hàng ({orders.length})</p>
-                </div>
-                <Button variant="outline" className="gap-2">
-                    <Filter className="w-4 h-4" /> Xuất báo cáo
-                </Button>
-            </div>
+            <AdminPageHeader
+                title="Đơn hàng"
+                description={`Quản lý và theo dõi đơn hàng (${orders.length})`}
+                actions={
+                    <Button variant="outline" className="gap-2" disabled>
+                        <Filter className="w-4 h-4" /> Xuất báo cáo
+                    </Button>
+                }
+            />
 
             {/* Filters */}
-            <div className="flex gap-4 bg-white dark:bg-gray-900 p-4 rounded-lg border border-gray-200 dark:border-gray-800 shadow-sm">
-                <div className="relative flex-1 max-w-sm">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 dark:text-gray-500" />
+            <Card className="gap-0 p-4">
+                <div className="relative w-full sm:max-w-sm">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                     <Input
                         placeholder="Tìm kiếm mã đơn, khách hàng..."
                         className="pl-9"
@@ -131,13 +152,13 @@ export default function OrdersPage() {
                         onChange={(e) => setSearchQuery(e.target.value)}
                     />
                 </div>
-            </div>
+            </Card>
 
             {/* Table */}
-            <div className="bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-800 shadow-sm overflow-hidden">
+            <Card className="gap-0 overflow-hidden py-0">
                 <Table>
                     <TableHeader>
-                        <TableRow className="bg-gray-50 dark:bg-gray-800">
+                        <TableRow className="bg-muted/50">
                             <TableHead>Mã đơn hàng</TableHead>
                             <TableHead>Khách hàng</TableHead>
                             <TableHead>Ngày đặt</TableHead>
@@ -148,34 +169,60 @@ export default function OrdersPage() {
                         </TableRow>
                     </TableHeader>
                     <TableBody>
-                        {paginatedOrders.length === 0 ? (
+                        {loading ? (
+                            <AdminTableSkeleton columns={7} />
+                        ) : paginatedOrders.length === 0 ? (
                             <TableRow>
-                                <TableCell colSpan={7} className="text-center py-8 text-gray-500 dark:text-gray-400">
-                                    Không tìm thấy đơn hàng nào
+                                <TableCell colSpan={7} className="p-0">
+                                    <AdminEmptyState
+                                        icon={PackageSearch}
+                                        title="Không tìm thấy đơn hàng nào"
+                                        description={searchQuery ? "Thử đổi từ khóa tìm kiếm khác." : "Chưa có đơn hàng nào được tạo."}
+                                    />
                                 </TableCell>
                             </TableRow>
                         ) : (
                             paginatedOrders.map((order) => (
-                                <TableRow key={order.id}>
-                                    <TableCell className="font-medium text-blue-600 dark:text-blue-400">#{order.code}</TableCell>
-                                    <TableCell className="font-medium text-gray-900 dark:text-white">
-                                        {order.shippingAddress?.fullName || order.user?.name || "Khách lẻ"}
+                                <TableRow
+                                    key={order.id}
+                                    className="cursor-pointer"
+                                    onMouseDown={() => {
+                                        selectionOnMouseDown.current = window.getSelection()?.toString() || "";
+                                    }}
+                                    onAuxClick={(event) => {
+                                        if (event.button === 1) {
+                                            window.open(`/admin/orders/${order.id}`, "_blank", "noopener,noreferrer");
+                                        }
+                                    }}
+                                    onClick={(event) => openOrderDetail(event, order.id)}
+                                >
+                                    <TableCell className="font-medium text-primary">
+                                        <Link
+                                            href={`/admin/orders/${order.id}`}
+                                            className="hover:underline"
+                                            onClick={(event) => event.stopPropagation()}
+                                        >
+                                            #{order.code}
+                                        </Link>
                                     </TableCell>
-                                    <TableCell className="dark:text-gray-300">{new Date(order.createdAt).toLocaleDateString('vi-VN')}</TableCell>
-                                    <TableCell className="font-bold text-red-600 dark:text-red-400">
+                                    <TableCell className="font-medium text-foreground">
+                                        {getShippingName(order) || order.user?.name || "Khách lẻ"}
+                                    </TableCell>
+                                    <TableCell className="text-muted-foreground">{new Date(order.createdAt).toLocaleDateString('vi-VN')}</TableCell>
+                                    <TableCell className="font-bold text-foreground">
                                         {new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(Number(order.total))}
                                     </TableCell>
-                                    <TableCell className="dark:text-gray-300">
-                                        {order.payments?.[0]?.provider === 'OTHER' ? 'COD' : order.payments?.[0]?.provider || 'N/A'}
+                                    <TableCell className="text-muted-foreground">
+                                        {paymentProviderName(order.payments?.[0]?.provider)}
                                     </TableCell>
-                                    <TableCell>{getStatusBadge(order.status)}</TableCell>
+                                    <TableCell><OrderStatusBadge status={order.status} /></TableCell>
                                     <TableCell className="text-right">
                                         <div className="flex justify-end gap-2">
-                                            <Link href={`/admin/orders/${order.id}`}>
-                                                <Button variant="ghost" size="sm" className="text-gray-600 dark:text-gray-300 hover:text-gray-700 dark:hover:text-white hover:bg-gray-50 dark:hover:bg-gray-800 cursor-pointer">
+                                            <Button asChild variant="ghost" size="sm" className="cursor-pointer text-primary hover:bg-primary/10 hover:text-primary">
+                                                <Link href={`/admin/orders/${order.id}`} onClick={(event) => event.stopPropagation()}>
                                                     <Eye className="w-4 h-4 mr-1" /> Xem
-                                                </Button>
-                                            </Link>
+                                                </Link>
+                                            </Button>
                                         </div>
                                     </TableCell>
                                 </TableRow>
@@ -183,10 +230,10 @@ export default function OrdersPage() {
                         )}
                     </TableBody>
                 </Table>
-            </div>
+            </Card>
 
             {/* Pagination */}
-            {totalPages > 1 && (
+            {!loading && totalPages > 1 && (
                 <Pagination
                     currentPage={currentPage}
                     totalPages={totalPages}

@@ -5,11 +5,15 @@ import { useParams, useRouter } from "next/navigation";
 import { fetchOrderById } from "@/lib/orderApi";
 import { updateOrderStatus } from "@/lib/adminApi";
 import { Card } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Loader2, Package, User, CreditCard, ArrowLeft, Truck, Edit } from "lucide-react";
+import { Loader2, Package, User, CreditCard, ArrowLeft, Truck, Edit, RefreshCw } from "lucide-react";
+import { Skeleton } from "@/components/ui/skeleton";
+import { AdminEmptyState } from "@/components/admin/AdminEmptyState";
+import { OrderStatusBadge } from "@/components/admin/OrderStatusBadge";
+import { GhnShipmentCard } from "@/components/admin/GhnShipmentCard";
 import { toast } from "sonner";
-import Image from "next/image";
+import { visibleAttributes, formatAttributeValue } from "@/lib/productAttributes";
+import { paymentProviderName } from "@/lib/paymentLabels";
 import {
   Dialog,
   DialogContent,
@@ -32,6 +36,7 @@ import { Input } from "@/components/ui/input";
 interface OrderUser {
     id: string;
     name: string;
+    email?: string;
 }
 
 interface OrderShippingAddress {
@@ -41,6 +46,10 @@ interface OrderShippingAddress {
     ward?: string;
     district?: string;
     province?: string;
+    provinceId?: number | null;
+    districtId?: number | null;
+    wardCode?: string | null;
+    note?: string | null;
 }
 
 interface OrderPayment {
@@ -54,13 +63,15 @@ interface OrderItem {
     id: string;
     quantity: number;
     price: number;
+    variantId?: string;
     variant?: {
         id: string;
         name: string;
+        attributes?: Record<string, unknown>;
         product?: {
             id: string;
             name: string;
-            images?: string[];
+            images?: Array<string | { url?: string | null }>;
         };
     };
 }
@@ -71,31 +82,28 @@ interface Order {
     createdAt: string;
     total: number;
     status: string;
-    shippingAddress?: OrderShippingAddress;
+    shippingAddress?: OrderShippingAddress | string | null;
     user?: OrderUser;
     payments?: OrderPayment[];
     items?: OrderItem[];
     note?: string;
+    shippingCarrier?: string | null;
+    shippingOrderCode?: string | null;
+    shippingStatus?: string | null;
+    shippingFeeReal?: number | null;
+    discountAmount?: number | null;
+    voucherCode?: string | null;
+    vatAmount?: number | null;
+    serials?: Array<{ id: string; variantId?: string | null; serial: string; status: string }>;
 }
-
-const statusConfig: Record<string, { label: string; color: string }> = {
-  PENDING: { label: "Chờ xử lý", color: "bg-yellow-100 text-yellow-800" },
-  CONFIRMED: { label: "Đã xác nhận", color: "bg-blue-100 text-blue-800" },
-  PROCESSING: { label: "Đang xử lý", color: "bg-indigo-100 text-indigo-800" },
-  SHIPPING: { label: "Đang giao hàng", color: "bg-orange-100 text-orange-800" },
-  DELIVERED: { label: "Đã giao", color: "bg-teal-100 text-teal-800" },
-  COMPLETED: { label: "Hoàn thành", color: "bg-green-100 text-green-800" },
-  PAID: { label: "Đã thanh toán", color: "bg-emerald-100 text-emerald-800" },
-  CANCELED: { label: "Đã hủy", color: "bg-red-100 text-red-800" },
-  FAILED: { label: "Thất bại", color: "bg-rose-100 text-rose-800" },
-  REFUNDED: { label: "Đã hoàn tiền", color: "bg-purple-100 text-purple-800" },
-};
 
 export default function AdminOrderDetailPage() {
   const params = useParams();
   const router = useRouter();
   const [order, setOrder] = useState<Order | null>(null);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [loadFailed, setLoadFailed] = useState(false);
   
   // Update Status Dialog
   const [statusDialogOpen, setStatusDialogOpen] = useState(false);
@@ -110,9 +118,25 @@ export default function AdminOrderDetailPage() {
     }
   }, [params.id]);
 
-  const loadOrder = async (orderId: string) => {
+  useEffect(() => {
+    if (!statusDialogOpen) {
+      document.body.style.pointerEvents = "";
+    }
+
+    return () => {
+      document.body.style.pointerEvents = "";
+    };
+  }, [statusDialogOpen]);
+
+  const loadOrder = async (orderId: string, options: { background?: boolean } = {}) => {
+    const background = options.background && !!order;
+    setLoadFailed(false);
     try {
-      setLoading(true);
+      if (background) {
+        setRefreshing(true);
+      } else {
+        setLoading(true);
+      }
       const res = await fetchOrderById(orderId);
       
       if ((res as Order)?.id) {
@@ -124,9 +148,14 @@ export default function AdminOrderDetailPage() {
       }
     } catch (err: unknown) {
       console.error("Load order error:", err);
+      setLoadFailed(true);
       toast.error("Không thể tải thông tin đơn hàng");
     } finally {
-      setLoading(false);
+      if (background) {
+        setRefreshing(false);
+      } else {
+        setLoading(false);
+      }
     }
   };
 
@@ -154,7 +183,8 @@ export default function AdminOrderDetailPage() {
       });
       toast.success("Cập nhật trạng thái thành công");
       setStatusDialogOpen(false);
-      await loadOrder(order.id); // Reload order
+      document.body.style.pointerEvents = "";
+      await loadOrder(order.id, { background: true }); // Reload order without unmounting dialogs
     } catch (error: unknown) {
       console.error("Failed to update status", error);
       const errorMessage = (error as { response?: { data?: { message?: string } } })?.response?.data?.message || "Không thể cập nhật trạng thái";
@@ -166,8 +196,18 @@ export default function AdminOrderDetailPage() {
 
   if (loading) {
     return (
-      <div className="flex justify-center items-center min-h-[400px]">
-        <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
+      <div className="space-y-6">
+        <Skeleton className="h-9 w-72" />
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+          <div className="space-y-6 lg:col-span-2">
+            <Skeleton className="h-80 w-full" />
+            <Skeleton className="h-40 w-full" />
+          </div>
+          <div className="space-y-6">
+            <Skeleton className="h-56 w-full" />
+            <Skeleton className="h-40 w-full" />
+          </div>
+        </div>
       </div>
     );
   }
@@ -175,34 +215,68 @@ export default function AdminOrderDetailPage() {
   if (!order) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
-        <Card className="p-8 text-center">
-          <Package className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-          <h2 className="text-xl font-bold text-gray-800 mb-2">Không tìm thấy đơn hàng</h2>
-          <Button onClick={() => router.push('/admin/orders')} className="mt-4">
-            <ArrowLeft className="h-4 w-4 mr-2" />
-            Quay về danh sách
-          </Button>
+        <Card className="w-full max-w-md">
+          <AdminEmptyState
+            icon={Package}
+            title="Không tìm thấy đơn hàng"
+            description={loadFailed ? "Không thể tải thông tin đơn hàng. Vui lòng thử lại." : "Đơn hàng có thể đã bị xóa hoặc đường dẫn không đúng."}
+            action={
+              <div className="mt-4 flex flex-wrap justify-center gap-2">
+                {loadFailed && params.id && (
+                  <Button onClick={() => loadOrder(params.id as string)}>
+                    <RefreshCw className="h-4 w-4 mr-2" />
+                    Thử lại
+                  </Button>
+                )}
+                <Button variant={loadFailed ? "outline" : "default"} onClick={() => router.push('/admin/orders')}>
+                  <ArrowLeft className="h-4 w-4 mr-2" />
+                  Quay về danh sách
+                </Button>
+              </div>
+            }
+          />
         </Card>
       </div>
     );
   }
 
-  const status = statusConfig[order.status] || statusConfig.PENDING;
-  const shippingAddr = order.shippingAddress || {};
+  const parseShippingAddress = (value: Order["shippingAddress"]): OrderShippingAddress => {
+    if (!value) return { fullName: "" };
+    if (typeof value === "string") {
+      try {
+        const parsed = JSON.parse(value) as unknown;
+        if (parsed && typeof parsed === "object") return parsed as OrderShippingAddress;
+        if (typeof parsed === "string") return { fullName: parsed, address: parsed };
+      } catch {
+        return { fullName: value, address: value };
+      }
+      return { fullName: "" };
+    }
+    return value;
+  };
+  const shippingAddr = parseShippingAddress(order.shippingAddress);
   const subtotal = order.items?.reduce((sum: number, item: OrderItem) => 
     sum + (Number(item.price) * item.quantity), 0) || 0;
+  const getProductImageUrl = (item: OrderItem) => {
+    const image = item.variant?.product?.images?.[0];
+    if (!image) return null;
+    return typeof image === "string" ? image : image.url || null;
+  };
 
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex justify-between items-start">
-        <div>
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+        <div className="min-w-0">
           <Button variant="ghost" onClick={() => router.push('/admin/orders')} className="mb-4 cursor-pointer">
             <ArrowLeft className="h-4 w-4 mr-2" />
             Quay lại danh sách
           </Button>
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Chi tiết đơn hàng #{order.code}</h1>
-          <p className="text-gray-500 dark:text-gray-400 mt-1">
+          <div className="flex flex-wrap items-center gap-2">
+            <h1 className="text-2xl font-bold text-foreground">Chi tiết đơn hàng #{order.code}</h1>
+            {refreshing && <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />}
+          </div>
+          <p className="mt-1 text-sm text-muted-foreground">
             Đặt ngày {new Date(order.createdAt).toLocaleDateString('vi-VN', {
               day: '2-digit',
               month: '2-digit',
@@ -212,8 +286,8 @@ export default function AdminOrderDetailPage() {
             })}
           </p>
         </div>
-        <div className="flex items-center gap-3">
-          <Badge className={`${status.color} text-base px-4 py-2`}>{status.label}</Badge>
+        <div className="flex shrink-0 flex-wrap items-center gap-3">
+          <OrderStatusBadge status={order.status} className="px-3 py-1 text-sm" />
           <Button onClick={handleOpenStatusDialog} className="gap-2 cursor-pointer">
             <Edit className="w-4 h-4" /> Cập nhật trạng thái
           </Button>
@@ -223,41 +297,61 @@ export default function AdminOrderDetailPage() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Products Section */}
         <div className="lg:col-span-2 space-y-6">
-          <Card className="p-6 dark:bg-gray-900 dark:border-gray-800">
+          <Card className="p-6">
             <div className="flex items-center gap-2 mb-6">
-              <Package className="h-5 w-5 text-blue-600 dark:text-blue-400" />
-              <h2 className="text-xl font-bold text-gray-900 dark:text-white">Chi tiết sản phẩm</h2>
+              <Package className="h-5 w-5 text-primary" />
+              <h2 className="text-xl font-bold text-foreground">Chi tiết sản phẩm</h2>
             </div>
             
             <div className="space-y-4">
               {order.items?.map((item: OrderItem) => (
-                <div key={item.id} className="flex gap-4 p-4 bg-gray-50 dark:bg-gray-800 rounded-lg border dark:border-gray-700">
-                  {item.variant?.product?.images?.[0] && (
-                    <div className="relative w-20 h-20 flex-shrink-0 bg-white dark:bg-gray-700 rounded overflow-hidden">
-                      <Image
-                        src={item.variant.product.images[0].url}
-                        alt={item.variant.product.name}
-                        fill
-                        className="object-cover"
+                <div key={item.id} className="flex gap-4 p-4 bg-muted/50 rounded-lg border">
+                  {getProductImageUrl(item) && (
+                    <div className="relative w-20 h-20 flex-shrink-0 bg-background rounded overflow-hidden">
+                      <img
+                        src={getProductImageUrl(item) || ""}
+                        alt={item.variant?.product?.name || "Sản phẩm"}
+                        className="h-full w-full object-cover"
                       />
                     </div>
                   )}
                   
                   <div className="flex-1">
-                    <h3 className="font-semibold text-gray-900 dark:text-white mb-1">
+                    <h3 className="font-semibold text-foreground mb-1">
                       {item.variant?.product?.name}
                     </h3>
-                    {item.variant?.attributes && (
-                      <div className="flex flex-wrap gap-1 mb-2">
-                        {Object.entries(item.variant.attributes as Record<string, string>).map(([key, val]) => (
-                          <span key={key} className="text-xs bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 px-2 py-1 rounded">
-                            {key}: {val}
-                          </span>
-                        ))}
+                    {item.variant?.attributes &&
+                      visibleAttributes(
+                        item.variant.attributes as Record<string, unknown>
+                      ).length > 0 && (
+                        <div className="flex flex-wrap gap-1 mb-2">
+                          {visibleAttributes(
+                            item.variant.attributes as Record<string, unknown>
+                          ).map(([key, val]) => (
+                            <span key={key} className="text-xs bg-primary/10 text-primary px-2 py-1 rounded">
+                              {key}: {formatAttributeValue(val)}
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                    <p className="text-sm text-muted-foreground">Số lượng: {item.quantity}</p>
+                    {(order.serials || []).filter((s: any) => s.variantId === item.variantId).length > 0 && (
+                      <div className="flex flex-wrap items-center gap-1 mt-1.5">
+                        <span className="text-[11px] text-muted-foreground">Serial:</span>
+                        {(order.serials || [])
+                          .filter((s: any) => s.variantId === item.variantId)
+                          .map((s: any) => (
+                            <span
+                              key={s.id}
+                              title={s.status === "SOLD" ? "Đã bán theo đơn này" : s.status}
+                              className="font-mono text-[11px] bg-muted px-1.5 py-0.5 rounded border"
+                            >
+                              {s.serial}
+                            </span>
+                          ))}
                       </div>
                     )}
-                    <p className="text-sm text-gray-600 dark:text-gray-400">Số lượng: {item.quantity}</p>
-                    <p className="text-sm text-gray-600 dark:text-gray-400">
+                    <p className="text-sm text-muted-foreground">
                       Đơn giá: {new Intl.NumberFormat('vi-VN', {
                         style: 'currency',
                         currency: 'VND'
@@ -266,8 +360,8 @@ export default function AdminOrderDetailPage() {
                   </div>
                   
                   <div className="text-right">
-                    <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Thành tiền</p>
-                    <p className="text-lg font-bold text-blue-600 dark:text-blue-400">
+                    <p className="text-xs text-muted-foreground mb-1">Thành tiền</p>
+                    <p className="text-lg font-bold text-primary">
                       {new Intl.NumberFormat('vi-VN', {
                         style: 'currency',
                         currency: 'VND'
@@ -279,33 +373,33 @@ export default function AdminOrderDetailPage() {
             </div>
 
             {/* Price Summary */}
-            <div className="mt-6 pt-6 border-t dark:border-gray-700 space-y-3">
+            <div className="mt-6 pt-6 border-t space-y-3">
               <div className="flex justify-between text-sm">
-                <span className="text-gray-600 dark:text-gray-400">Tạm tính:</span>
-                <span className="font-medium dark:text-gray-300">
+                <span className="text-muted-foreground">Tạm tính:</span>
+                <span className="font-medium text-foreground">
                   {new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(subtotal)}
                 </span>
               </div>
               
               {order.discountAmount && Number(order.discountAmount) > 0 && (
                 <div className="flex justify-between text-sm">
-                  <span className="text-gray-600 dark:text-gray-400">Giảm giá {order.voucherCode ? `(${order.voucherCode})` : ''}:</span>
-                  <span className="font-medium text-green-600 dark:text-green-400">
+                  <span className="text-muted-foreground">Giảm giá {order.voucherCode ? `(${order.voucherCode})` : ''}:</span>
+                  <span className="font-medium text-[var(--success)]">
                     -{new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(Number(order.discountAmount))}
                   </span>
                 </div>
               )}
               
               <div className="flex justify-between text-sm">
-                <span className="text-gray-600 dark:text-gray-400">Thuế VAT:</span>
-                <span className="font-medium dark:text-gray-300">
+                <span className="text-muted-foreground">Thuế VAT:</span>
+                <span className="font-medium text-foreground">
                   {new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(Number(order.vatAmount || 0))}
                 </span>
               </div>
               
-              <div className="flex justify-between font-bold text-lg pt-3 border-t dark:border-gray-700">
-                <span className="dark:text-white">Tổng cộng:</span>
-                <span className="text-blue-600 dark:text-blue-400 text-xl">
+              <div className="flex justify-between font-bold text-lg pt-3 border-t">
+                <span className="text-foreground font-medium">Tổng cộng:</span>
+                <span className="text-primary text-xl">
                   {new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(Number(order.total))}
                 </span>
               </div>
@@ -316,76 +410,88 @@ export default function AdminOrderDetailPage() {
         {/* Sidebar */}
         <div className="space-y-6">
           {/* Customer Info */}
-          <Card className="p-6 dark:bg-gray-900 dark:border-gray-800">
+          <Card className="p-6">
             <div className="flex items-center gap-2 mb-6">
-              <User className="h-5 w-5 text-blue-600 dark:text-blue-400" />
-              <h2 className="text-xl font-bold text-gray-900 dark:text-white">Thông tin khách hàng</h2>
+              <User className="h-5 w-5 text-primary" />
+              <h2 className="text-xl font-bold text-foreground">Thông tin khách hàng</h2>
             </div>
             
             <div className="space-y-4">
               <div>
-                <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Tên khách hàng</p>
-                <p className="font-semibold text-gray-900 dark:text-white">{order.user?.name || 'Khách lẻ'}</p>
+                <p className="text-xs text-muted-foreground mb-1">Tên khách hàng</p>
+                <p className="font-semibold text-foreground">{order.user?.name || 'Khách lẻ'}</p>
               </div>
               <div>
-                <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Email</p>
-                <p className="font-semibold text-gray-900 dark:text-white">{order.user?.email || 'N/A'}</p>
+                <p className="text-xs text-muted-foreground mb-1">Email</p>
+                <p className="font-semibold text-foreground">{order.user?.email || 'N/A'}</p>
               </div>
               <div>
-                <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Số điện thoại</p>
-                <p className="font-semibold text-gray-900 dark:text-white">{shippingAddr.phone || 'N/A'}</p>
+                <p className="text-xs text-muted-foreground mb-1">Số điện thoại</p>
+                <p className="font-semibold text-foreground">{shippingAddr.phone || 'N/A'}</p>
               </div>
             </div>
           </Card>
 
           {/* Shipping Info */}
-          <Card className="p-6 dark:bg-gray-900 dark:border-gray-800">
+          <Card className="p-6">
             <div className="flex items-center gap-2 mb-6">
-              <Truck className="h-5 w-5 text-green-600 dark:text-green-400" />
-              <h2 className="text-xl font-bold text-gray-900 dark:text-white">Thông tin giao hàng</h2>
+              <Truck className="h-5 w-5 text-[var(--success)]" />
+              <h2 className="text-xl font-bold text-foreground">Thông tin giao hàng</h2>
             </div>
             
             <div className="space-y-4">
               <div>
-                <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Người nhận</p>
-                <p className="font-semibold text-gray-900 dark:text-white">{shippingAddr.fullName || 'Chưa có'}</p>
+                <p className="text-xs text-muted-foreground mb-1">Người nhận</p>
+                <p className="font-semibold text-foreground">{shippingAddr.fullName || 'Chưa có'}</p>
               </div>
               <div>
-                <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Số điện thoại</p>
-                <p className="font-semibold text-gray-900 dark:text-white">{shippingAddr.phone || 'Chưa có'}</p>
+                <p className="text-xs text-muted-foreground mb-1">Số điện thoại</p>
+                <p className="font-semibold text-foreground">{shippingAddr.phone || 'Chưa có'}</p>
               </div>
               <div>
-                <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Địa chỉ</p>
-                <p className="font-semibold text-gray-900 dark:text-white leading-relaxed">
+                <p className="text-xs text-muted-foreground mb-1">Địa chỉ</p>
+                <p className="font-semibold text-foreground leading-relaxed">
                   {shippingAddr.address || 'Chưa có'}
                 </p>
               </div>
               {shippingAddr.note && (
-                <div className="pt-4 border-t dark:border-gray-700">
-                  <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Ghi chú</p>
-                  <p className="text-sm text-gray-900 dark:text-gray-300 italic">&ldquo;{shippingAddr.note}&rdquo;</p>
+                <div className="pt-4 border-t">
+                  <p className="text-xs text-muted-foreground mb-1">Ghi chú</p>
+                  <p className="text-sm text-foreground italic">&ldquo;{shippingAddr.note}&rdquo;</p>
                 </div>
               )}
             </div>
           </Card>
 
+          {/* GHN Shipment */}
+          <GhnShipmentCard
+            orderId={order.id}
+            orderCode={order.code}
+            orderStatus={order.status}
+            shippingAddress={shippingAddr}
+            shippingOrderCode={order.shippingOrderCode}
+            shippingStatus={order.shippingStatus}
+            shippingFeeReal={order.shippingFeeReal}
+            onChanged={() => loadOrder(order.id, { background: true })}
+          />
+
           {/* Payment Info */}
-          <Card className="p-6 dark:bg-gray-900 dark:border-gray-800">
+          <Card className="p-6">
             <div className="flex items-center gap-2 mb-6">
-              <CreditCard className="h-5 w-5 text-purple-600 dark:text-purple-400" />
-              <h2 className="text-xl font-bold text-gray-900 dark:text-white">Thanh toán</h2>
+              <CreditCard className="h-5 w-5 text-primary" />
+              <h2 className="text-xl font-bold text-foreground">Thanh toán</h2>
             </div>
             
             <div className="space-y-3">
               <div className="flex justify-between">
-                <span className="text-gray-600 dark:text-gray-400">Phương thức:</span>
-                <span className="font-semibold dark:text-gray-300">
-                  {order.payments?.[0]?.provider === 'OTHER' ? 'COD' : order.payments?.[0]?.provider || 'N/A'}
+                <span className="text-muted-foreground">Phương thức:</span>
+                <span className="font-semibold text-foreground">
+                  {paymentProviderName(order.payments?.[0]?.provider)}
                 </span>
               </div>
               <div className="flex justify-between">
-                <span className="text-gray-600 dark:text-gray-400">Trạng thái:</span>
-                <Badge className={status.color}>{status.label}</Badge>
+                <span className="text-muted-foreground">Trạng thái:</span>
+                <OrderStatusBadge status={order.status} />
               </div>
             </div>
           </Card>

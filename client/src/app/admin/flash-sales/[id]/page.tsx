@@ -390,7 +390,7 @@ export default function FlashSaleDetailPage() {
           </Button>
           <div>
             <h1 className="text-2xl font-bold">{flashSale.name}</h1>
-            <p className="text-gray-500 text-sm">
+            <p className="text-muted-500 text-sm">
               {new Date(flashSale.startTime).toLocaleString('vi-VN')} - {new Date(flashSale.endTime).toLocaleString('vi-VN')}
             </p>
           </div>
@@ -416,7 +416,7 @@ export default function FlashSaleDetailPage() {
           <div className="grid grid-cols-2 gap-4">
             <div>
               <Label>Mô tả</Label>
-              <p className="text-sm text-gray-600">{flashSale.description || "Không có mô tả"}</p>
+              <p className="text-sm text-muted-600">{flashSale.description || "Không có mô tả"}</p>
             </div>
             <div>
               <Label>Tổng sản phẩm</Label>
@@ -506,7 +506,7 @@ export default function FlashSaleDetailPage() {
 
                   {/* Selected Product Form */}
                   {selectedVariant && (
-                    <div className="border rounded-lg p-4 space-y-4 bg-gray-50">
+                    <div className="border rounded-lg p-4 space-y-4 bg-muted/50">
                       <h4 className="font-semibold">Sản phẩm đã chọn:</h4>
                       <div className="flex items-center gap-2">
                         {selectedVariant.product.images[0] && (
@@ -518,7 +518,7 @@ export default function FlashSaleDetailPage() {
                         )}
                         <div>
                           <p className="font-medium">{selectedVariant.product.name}</p>
-                          <p className="text-sm text-gray-500">SKU: {selectedVariant.sku}</p>
+                          <p className="text-sm text-muted-500">SKU: {selectedVariant.sku}</p>
                           <p className="text-sm">Giá gốc: {selectedVariant.price.toLocaleString('vi-VN')}đ</p>
                         </div>
                       </div>
@@ -543,7 +543,7 @@ export default function FlashSaleDetailPage() {
                               placeholder="20"
                               className="pr-8"
                             />
-                            <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500">%</span>
+                            <span className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-500">%</span>
                           </div>
                         </div>
                         <div>
@@ -574,7 +574,7 @@ export default function FlashSaleDetailPage() {
         </CardHeader>
         <CardContent>
           {(!flashSale.items || flashSale.items.length === 0) ? (
-            <div className="text-center py-8 text-gray-500">
+            <div className="text-center py-8 text-muted-500">
               Chưa có sản phẩm nào. Nhấn &quot;Thêm sản phẩm&quot; để bắt đầu.
             </div>
           ) : (
@@ -613,7 +613,7 @@ export default function FlashSaleDetailPage() {
                       </TableCell>
                       <TableCell>{item.variant?.sku || 'N/A'}</TableCell>
                       <TableCell>{originalPrice.toLocaleString('vi-VN')}đ</TableCell>
-                      <TableCell className="font-bold text-red-600">
+                      <TableCell className="font-bold text-primary">
                         {item.salePrice.toLocaleString('vi-VN')}đ
                       </TableCell>
                       <TableCell>
@@ -633,7 +633,7 @@ export default function FlashSaleDetailPage() {
                             onClick={() => handleOpenEditItem(item)}
                             title="Chỉnh sửa"
                           >
-                            <Edit className="w-4 h-4 text-blue-500" />
+                            <Edit className="w-4 h-4 text-primary500" />
                           </Button>
                           <Button
                             variant="ghost"
@@ -733,7 +733,7 @@ export default function FlashSaleDetailPage() {
           {editingItem && (
             <div className="space-y-4">
               {/* Product Info */}
-              <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
+              <div className="flex items-center gap-3 p-3 bg-muted/50 rounded-lg">
                 {editingItem.variant?.product?.images?.[0]?.url && (
                   <img
                     src={editingItem.variant.product.images[0].url}
@@ -743,8 +743,8 @@ export default function FlashSaleDetailPage() {
                 )}
                 <div>
                   <div className="font-medium">{editingItem.variant?.product?.name}</div>
-                  <div className="text-sm text-gray-500">SKU: {editingItem.variant?.sku}</div>
-                  <div className="text-sm text-gray-700 mt-1">
+                  <div className="text-sm text-muted-500">SKU: {editingItem.variant?.sku}</div>
+                  <div className="text-sm text-muted-700 mt-1">
                     Giá gốc: <span className="font-medium">{parseFloat(editingItem.variant?.price || 0).toLocaleString('vi-VN')}đ</span>
                   </div>
                 </div>
@@ -784,22 +784,22 @@ export default function FlashSaleDetailPage() {
                   onChange={(e) => setEditItemQuantity(e.target.value)}
                   placeholder="Nhập số lượng"
                 />
-                <p className="text-sm text-gray-500">
+                <p className="text-sm text-muted-500">
                   Đã bán: {editingItem.soldCount} sản phẩm
                 </p>
               </div>
 
               {/* Preview */}
               {editItemSalePrice && editItemDiscountPercent && (
-                <div className="p-3 bg-blue-50 rounded-lg">
-                  <div className="text-sm font-medium text-blue-900 mb-1">Xem trước:</div>
+                <div className="p-3 bg-primary/5 rounded-lg">
+                  <div className="text-sm font-medium text-primary900 mb-1">Xem trước:</div>
                   <div className="flex justify-between text-sm">
                     <span>Giá gốc:</span>
                     <span className="line-through">{parseFloat(editingItem.variant?.price || 0).toLocaleString('vi-VN')}đ</span>
                   </div>
                   <div className="flex justify-between text-sm mt-1">
                     <span>Giá sale:</span>
-                    <span className="font-bold text-red-600">{parseFloat(editItemSalePrice).toLocaleString('vi-VN')}đ</span>
+                    <span className="font-bold text-primary">{parseFloat(editItemSalePrice).toLocaleString('vi-VN')}đ</span>
                   </div>
                   <div className="flex justify-between text-sm mt-1">
                     <span>Giảm giá:</span>

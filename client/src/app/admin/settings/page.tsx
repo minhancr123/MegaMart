@@ -46,18 +46,20 @@ export default function SettingsPage() {
         try {
             setLoading(true);
             const data = await getSettings();
-            setStoreSettings({
-                storeName: data.storeName || "",
-                storeDescription: data.storeDescription || "",
-                email: data.email || "",
-                phone: data.phone || "",
-                address: data.address || ""
-            });
-            setConfigSettings({
-                maintenanceMode: data.maintenanceMode,
-                enableReviews: data.enableReviews,
-                enableRegistration: data.enableRegistration
-            });
+            if (data) {
+                setStoreSettings({
+                    storeName: data.storeName || "",
+                    storeDescription: data.storeDescription || "",
+                    email: data.email || "",
+                    phone: data.phone || "",
+                    address: data.address || ""
+                });
+                setConfigSettings({
+                    maintenanceMode: !!data.maintenanceMode,
+                    enableReviews: data.enableReviews !== undefined ? data.enableReviews : true,
+                    enableRegistration: data.enableRegistration !== undefined ? data.enableRegistration : true
+                });
+            }
         } catch (error) {
             console.error("Failed to load settings", error);
             toast.error("Không thể tải cài đặt");
@@ -95,7 +97,7 @@ export default function SettingsPage() {
     if (loading) {
         return (
             <div className="flex justify-center items-center min-h-[400px]">
-                <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
+                <Loader2 className="h-8 w-8 animate-spin text-primary" />
             </div>
         );
     }
@@ -103,8 +105,8 @@ export default function SettingsPage() {
     return (
         <div className="space-y-6">
             <div>
-                <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Cài đặt</h1>
-                <p className="text-gray-500 dark:text-gray-400 mt-1">Quản lý thông tin cửa hàng và cấu hình hệ thống</p>
+                <h1 className="text-2xl font-bold text-foreground">Cài đặt</h1>
+                <p className="mt-1 text-sm text-muted-foreground">Quản lý thông tin cửa hàng và cấu hình hệ thống</p>
             </div>
 
             <Tabs defaultValue="general" className="w-full">
@@ -193,7 +195,7 @@ export default function SettingsPage() {
                             <div className="flex items-center justify-between space-x-2">
                                 <div className="space-y-0.5">
                                     <Label className="text-base">Chế độ bảo trì</Label>
-                                    <p className="text-sm text-gray-500 dark:text-gray-400">
+                                    <p className="text-sm text-muted-foreground">
                                         Tạm thời đóng cửa website để bảo trì. Chỉ Admin mới có thể truy cập.
                                     </p>
                                 </div>
@@ -205,7 +207,7 @@ export default function SettingsPage() {
                             <div className="flex items-center justify-between space-x-2">
                                 <div className="space-y-0.5">
                                     <Label className="text-base">Cho phép đánh giá</Label>
-                                    <p className="text-sm text-gray-500 dark:text-gray-400">
+                                    <p className="text-sm text-muted-foreground">
                                         Cho phép khách hàng đánh giá sản phẩm.
                                     </p>
                                 </div>
@@ -217,7 +219,7 @@ export default function SettingsPage() {
                             <div className="flex items-center justify-between space-x-2">
                                 <div className="space-y-0.5">
                                     <Label className="text-base">Đăng ký thành viên</Label>
-                                    <p className="text-sm text-gray-500 dark:text-gray-400">
+                                    <p className="text-sm text-muted-foreground">
                                         Cho phép người dùng mới đăng ký tài khoản.
                                     </p>
                                 </div>

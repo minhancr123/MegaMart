@@ -92,13 +92,14 @@ const DataViewer = ({ data }: { data: any }) => {
   if (data === null || data === undefined) return <span className="text-gray-400">-</span>;
 
   if (typeof data === 'string') {
+    let parsed: unknown;
     try {
-      const parsed = JSON.parse(data);
-      if (typeof parsed === 'object' && parsed !== null) {
-        return <DataViewer data={parsed} />;
-      }
+      parsed = JSON.parse(data);
     } catch {
-      // Not JSON or parse failed
+      return <span>{data}</span>;
+    }
+    if (typeof parsed === 'object' && parsed !== null) {
+      return <DataViewer data={parsed} />;
     }
     return <span>{data}</span>;
   }
@@ -666,4 +667,3 @@ export default function AuditLogsPage() {
     </div>
   );
 }
-

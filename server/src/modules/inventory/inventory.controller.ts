@@ -3,6 +3,7 @@ import {
   Get,
   Post,
   Put,
+  Patch,
   Delete,
   Body,
   Param,
@@ -23,6 +24,23 @@ import {
   CreateStockMovementDto,
   QueryStockMovementDto,
 } from './dto/stock-movement.dto';
+import {
+  CreatePurchaseOrderDto,
+  QueryPurchaseOrderDto,
+  UpdateMovementQcDto,
+  CreatePalletDto,
+  UpdatePalletDto,
+  CreatePalletBoxDto,
+  UpdatePalletBoxDto,
+} from './dto/purchase-order.dto';
+import {
+  CreateLotDto,
+  UpdateLotDto,
+  QueryLotDto,
+  CreateSerialsDto,
+  UpdateSerialDto,
+  QuerySerialDto,
+} from './dto/lot.dto';
 import { JwtAuthGuard } from 'src/guards/jwt-auth.guard';
 import { AdminGuard } from 'src/guards/admin.guard';
 import { ApiTags, ApiBearerAuth, ApiOperation, ApiQuery } from '@nestjs/swagger';
@@ -180,5 +198,175 @@ export class InventoryController {
   @ApiOperation({ summary: 'Cancel stock movement' })
   async cancelStockMovement(@Param('id') id: string) {
     return this.inventoryService.cancelStockMovement(id);
+  }
+
+  @Patch('movements/:id/qc')
+  @ApiOperation({ summary: 'Ghi nhận kết quả QC phiếu nhập (đạt/lỗi, vị trí kệ, pallet)' })
+  async updateMovementQc(@Param('id') id: string, @Body() dto: UpdateMovementQcDto) {
+    return this.inventoryService.updateMovementQc(id, dto);
+  }
+
+  // ============== PURCHASE ORDER (Nấc 2) ==============
+
+  @Get('purchase-orders')
+  @ApiOperation({ summary: 'Danh sách Purchase Order' })
+  async findAllPurchaseOrders(@Query() query: QueryPurchaseOrderDto) {
+    return this.inventoryService.findAllPurchaseOrders(query);
+  }
+
+  @Get('purchase-orders/:id')
+  @ApiOperation({ summary: 'Chi tiết Purchase Order' })
+  async findPurchaseOrderById(@Param('id') id: string) {
+    return this.inventoryService.findPurchaseOrderById(id);
+  }
+
+  @Post('purchase-orders')
+  @ApiOperation({ summary: 'Tạo Purchase Order (nháp)' })
+  async createPurchaseOrder(@Body() dto: CreatePurchaseOrderDto, @Req() req: any) {
+    return this.inventoryService.createPurchaseOrder(dto, req.user?.userId || req.user?.sub);
+  }
+
+  @Put('purchase-orders/:id/send')
+  @ApiOperation({ summary: 'Gửi PO cho NCC (DRAFT -> SENT)' })
+  async sendPurchaseOrder(@Param('id') id: string) {
+    return this.inventoryService.sendPurchaseOrder(id);
+  }
+
+  @Post('purchase-orders/:id/send-email')
+  @ApiOperation({ summary: 'Gửi email PO cho NCC (cần cấu hình SMTP)' })
+  async sendPurchaseOrderEmail(@Param('id') id: string) {
+    return this.inventoryService.sendPurchaseOrderEmail(id);
+  }
+
+  @Put('purchase-orders/:id/shipment')
+  @ApiOperation({ summary: 'Admin đẩy tiến độ xe giao (0-100), share với NCC' })
+  async updateShipment(@Param('id') id: string, @Body() body: { progress: number }) {
+    return this.inventoryService.updateAdminShipment(id, body?.progress ?? 0);
+  }
+
+  @Put('purchase-orders/:id/cancel')
+  @ApiOperation({ summary: 'Hủy Purchase Order' })
+  async cancelPurchaseOrder(@Param('id') id: string) {
+    return this.inventoryService.cancelPurchaseOrder(id);
+  }
+
+  // ============== PALLET (Nấc 2, gọn nhẹ) ==============
+
+  @Get('pallets')
+  @ApiOperation({ summary: 'Danh sách pallet (lọc theo kho)' })
+  async findAllPallets(@Query('warehouseId') warehouseId?: string) {
+    return this.inventoryService.findAllPallets(warehouseId);
+  }
+
+  @Post('pallets')
+  @ApiOperation({ summary: 'Tạo pallet mới' })
+  async createPallet(@Body() dto: CreatePalletDto) {
+    return this.inventoryService.createPallet(dto);
+  }
+
+  @Put('pallets/:id')
+  @ApiOperation({ summary: 'Cập nhật pallet (vị trí/trạng thái/ghi chú)' })
+  async updatePallet(@Param('id') id: string, @Body() dto: UpdatePalletDto) {
+    return this.inventoryService.updatePallet(id, dto);
+  }
+
+  @Get('pallets/:id')
+  @ApiOperation({ summary: 'Chi tiết pallet kèm thùng theo tầng' })
+  async getPalletById(@Param('id') id: string) {
+    return this.inventoryService.getPalletById(id);
+  }
+
+  @Post('pallets/:id/boxes')
+  @ApiOperation({ summary: 'Thêm thùng vào pallet (chọn tầng)' })
+  async createPalletBox(@Param('id') id: string, @Body() dto: CreatePalletBoxDto, @Req() req: any) {
+    return this.inventoryService.createPalletBox(id, dto, req.user?.userId || req.user?.sub);
+  }
+
+  @Put('pallets/:id/boxes/:boxId')
+  @ApiOperation({ summary: 'Sửa thùng (tầng/SL/ghi chú/mặt hàng)' })
+  async updatePalletBox(
+    @Param('id') id: string,
+    @Param('boxId') boxId: string,
+    @Body() dto: UpdatePalletBoxDto,
+  ) {
+    return this.inventoryService.updatePalletBox(id, boxId, dto);
+  }
+
+  @Delete('pallets/:id/boxes/:boxId')
+  @ApiOperation({ summary: 'Xóa thùng khỏi pallet' })
+  async deletePalletBox(@Param('id') id: string, @Param('boxId') boxId: string, @Req() req: any) {
+    return this.inventoryService.deletePalletBox(id, boxId, req.user?.userId || req.user?.sub);
+  }
+
+  @Get('pallets/:id/history')
+  @ApiOperation({ summary: 'Lịch sử thao tác của pallet' })
+  async getPalletHistory(@Param('id') id: string, @Query('limit') limit?: string) {
+    return this.inventoryService.getPalletHistory(id, limit ? Number(limit) : 20);
+  }
+
+  @Post('pallets/transfer-box')
+  @ApiOperation({ summary: 'Di dời thùng sang pallet khác (cập nhật trực tiếp)' })
+  async transferPalletBox(
+    @Body() dto: { boxId: string; toPalletId: string; targetLevel: number },
+    @Req() req: any,
+  ) {
+    return this.inventoryService.transferPalletBox(
+      dto.boxId,
+      dto.toPalletId,
+      Number(dto.targetLevel),
+      req.user?.userId || req.user?.sub,
+    );
+  }
+
+  // ============== LOT (Nấc 3) ==============
+
+  @Get('lots/expiry-alerts')
+  @ApiOperation({ summary: 'Cảnh báo HSD: quá hạn còn tồn + sắp hết trong 30 ngày' })
+  async getExpiryAlerts() {
+    return this.inventoryService.getExpiryAlerts();
+  }
+
+  @Get('lots')
+  @ApiOperation({ summary: 'Danh sách lô hàng' })
+  async findAllLots(@Query() query: QueryLotDto) {
+    return this.inventoryService.findAllLots(query);
+  }
+
+  @Get('lots/:id')
+  @ApiOperation({ summary: 'Chi tiết lô + serial' })
+  async findLotById(@Param('id') id: string) {
+    return this.inventoryService.findLotById(id);
+  }
+
+  @Post('lots')
+  @ApiOperation({ summary: 'Tạo lô tay' })
+  async createLot(@Body() dto: CreateLotDto) {
+    return this.inventoryService.createLot(dto);
+  }
+
+  @Put('lots/:id')
+  @ApiOperation({ summary: 'Sửa lô (tồn/NSX/HSD/trạng thái)' })
+  async updateLot(@Param('id') id: string, @Body() dto: UpdateLotDto) {
+    return this.inventoryService.updateLot(id, dto);
+  }
+
+  // ============== SERIAL (Nấc 3) ==============
+
+  @Get('serials')
+  @ApiOperation({ summary: 'Tra cứu serial' })
+  async findAllSerials(@Query() query: QuerySerialDto) {
+    return this.inventoryService.findAllSerials(query);
+  }
+
+  @Post('serials')
+  @ApiOperation({ summary: 'Nạp serial hàng loạt (tối đa 500/lần)' })
+  async createSerials(@Body() dto: CreateSerialsDto) {
+    return this.inventoryService.createSerials(dto);
+  }
+
+  @Put('serials/:id')
+  @ApiOperation({ summary: 'Đổi trạng thái serial (bán/lỗi...)' })
+  async updateSerial(@Param('id') id: string, @Body() dto: UpdateSerialDto) {
+    return this.inventoryService.updateSerial(id, dto);
   }
 }

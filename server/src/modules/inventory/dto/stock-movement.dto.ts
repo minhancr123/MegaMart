@@ -11,6 +11,8 @@ export enum StockMovementType {
   RETURN = 'RETURN',
   DAMAGE = 'DAMAGE',
   SALE = 'SALE',
+  RESERVE = 'RESERVE',
+  RELEASE = 'RELEASE',
 }
 
 export enum StockMovementStatus {
@@ -41,6 +43,12 @@ export class StockMovementItemDto {
   @IsOptional()
   @IsString()
   notes?: string;
+
+  @ApiPropertyOptional({ description: 'Số lượng đặt theo PO (để đối chiếu)' })
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  orderedQty?: number;
 }
 
 // ============== CREATE STOCK MOVEMENT DTO ==============
@@ -68,6 +76,11 @@ export class CreateStockMovementDto {
   @IsOptional()
   @IsString()
   orderId?: string;
+
+  @ApiPropertyOptional({ description: 'ID purchase order (phiếu nhập theo PO)' })
+  @IsOptional()
+  @IsString()
+  purchaseOrderId?: string;
 
   @ApiPropertyOptional({ description: 'Ghi chú' })
   @IsOptional()

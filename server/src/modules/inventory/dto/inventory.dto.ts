@@ -167,6 +167,16 @@ export class QueryInventoryDto {
   @IsString()
   warehouseId?: string;
 
+  @ApiPropertyOptional({ description: 'Lọc theo 1 biến thể (card tồn kho trang sửa SP)' })
+  @IsOptional()
+  @IsString()
+  variantId?: string;
+
+  @ApiPropertyOptional({ description: 'Lọc theo 1 sản phẩm (mọi biến thể của nó)' })
+  @IsOptional()
+  @IsString()
+  productId?: string;
+
   @ApiPropertyOptional({ description: 'Lọc sản phẩm sắp hết' })
   @IsOptional()
   @IsBoolean()

@@ -14,7 +14,7 @@ export function OptimizedImage({
     src,
     alt,
     className,
-    fallback = '/placeholder.svg',
+    fallback = '/images/placeholder-product.svg',
     blurEffect = true,
     aspectRatio = 'auto',
     ...props
@@ -102,7 +102,7 @@ export function LazyImage({
     src,
     alt,
     className,
-    fallback = '/placeholder.svg',
+    fallback = '/images/placeholder-product.svg',
     aspectRatio = 'auto',
 }: LazyImageProps) {
     const [isLoaded, setIsLoaded] = useState(false);

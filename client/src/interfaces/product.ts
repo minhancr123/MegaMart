@@ -2,7 +2,10 @@ export interface Product {
   id: string;
   name: string;
   description?: string;
+  brand?: string;
   price: number;
+  /** URL ảnh minh họa xen trong mô tả; vị trí chèn là marker [DESCIMG:n]. */
+  descriptionImages?: string[];
   imageUrl?: string;
   soldCount?: number;
   variants?: Variant[];
@@ -12,15 +15,33 @@ export interface Product {
   updatedAt?: Date;
 }
 
+/** Một dòng trong bảng "Thông số kỹ thuật", crawler ghi vào Variant.attributes. */
+export interface SpecRow {
+  label: string;
+  value: string;
+  /** Nhóm thông số ("Tổng quan sản phẩm", "Cổng kết nối"…) - chỉ Điện Máy Chợ Lớn có. */
+  group?: string;
+}
+
 export interface VariantAttributes {
-  [key: string]: string;
+  /** Đặc điểm nổi bật, mỗi phần tử một dòng. */
+  specs?: string[];
+  /** Bảng thông số kỹ thuật lấy từ trang chi tiết của sàn nguồn. */
+  specsTable?: SpecRow[];
+  [key: string]: unknown;
 }
 
 export interface Variant {
   id: string;
   sku: string;
   price: number;
+  salePrice?: number | null;
+  discountPercent?: number | null;
   stock: number;
+  /** Tồn đang giữ cho đơn chưa xuất. Available = stock - reservedQuantity. */
+  reservedQuantity?: number | null;
+  availableStock?: number | null;
+  colors?: Array<{ hex?: string; name?: string; imageUrl?: string }> | null;
   attributes?: VariantAttributes;
 }
 
@@ -28,6 +49,7 @@ export interface ProductImage {
   id: string;
   url: string;
   isPrimary: boolean;
+  displayOrder?: number;
   alt?: string;
 }
 
@@ -102,9 +124,11 @@ export interface Post {
   content: string;
   type: string;
   status: string;
+  thumbnail?: string;
   imageUrl?: string;
   tags?: string[];
   createdAt: string;
+  publishedAt?: string;
   author?: PostAuthor;
 }
 
@@ -123,7 +147,7 @@ export interface PostCreateData {
   content: string;
   type: string;
   status: string;
-  imageUrl?: string;
+  thumbnail?: string;
   tags?: string[];
 }
 
@@ -133,7 +157,7 @@ export interface PostUpdateData {
   content?: string;
   type?: string;
   status?: string;
-  imageUrl?: string;
+  thumbnail?: string;
   tags?: string[];
 }
 
@@ -143,4 +167,3 @@ export interface PaginationMeta {
   limit: number;
   totalPages: number;
 }
-

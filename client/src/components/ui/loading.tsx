@@ -1,6 +1,6 @@
 'use client';
 
-import { ReactNode, useEffect, useState } from 'react';
+import { ReactNode } from 'react';
 import { Loader2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -17,24 +17,10 @@ export function LoadingWrapper({
     loading,
     children,
     skeleton,
-    minLoadTime = 300,
+    minLoadTime: _minLoadTime = 300,
     showSpinner = false,
 }: LoadingWrapperProps) {
-    const [showLoading, setShowLoading] = useState(loading);
-
-    useEffect(() => {
-        if (loading) {
-            setShowLoading(true);
-        } else {
-            // Ensure minimum display time
-            const timer = setTimeout(() => {
-                setShowLoading(false);
-            }, minLoadTime);
-            return () => clearTimeout(timer);
-        }
-    }, [loading, minLoadTime]);
-
-    if (showLoading) {
+    if (loading) {
         if (skeleton) {
             return <>{skeleton}</>;
         }
@@ -74,10 +60,10 @@ export function PageLoadingOverlay({ show }: { show: boolean }) {
                 >
                     <div className="flex flex-col items-center gap-4">
                         <div className="relative">
-                            <div className="w-16 h-16 border-4 border-indigo-100 rounded-full" />
-                            <div className="absolute inset-0 w-16 h-16 border-4 border-transparent border-t-indigo-600 rounded-full animate-spin" />
+                            <div className="w-16 h-16 border-4 border-primary/20 rounded-full" />
+                            <div className="absolute inset-0 w-16 h-16 border-4 border-transparent border-t-primary rounded-full animate-spin" />
                         </div>
-                        <span className="text-slate-600 text-sm font-medium">Đang tải...</span>
+                        <span className="text-muted-foreground text-sm font-medium animate-pulse">Đang tải...</span>
                     </div>
                 </motion.div>
             )}
@@ -110,7 +96,7 @@ export function LoadingButton({
     const baseClasses = 'inline-flex items-center justify-center gap-2 px-4 py-2 rounded-xl font-medium transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed';
 
     const variantClasses = {
-        primary: 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white hover:from-indigo-700 hover:to-purple-700 shadow-md hover:shadow-lg',
+        primary: 'bg-[#ff4d00] text-white hover:bg-[#d94100] shadow-md hover:shadow-lg',
         secondary: 'bg-slate-100 text-slate-900 hover:bg-slate-200',
         outline: 'border-2 border-slate-200 text-slate-700 hover:bg-slate-50 hover:border-slate-300',
         ghost: 'text-slate-600 hover:bg-slate-100 hover:text-slate-900',

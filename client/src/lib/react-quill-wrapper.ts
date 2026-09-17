@@ -4,6 +4,8 @@
 // Polyfill findDOMNode trước khi import React Quill
 if (typeof window !== 'undefined') {
     try {
+        // React Quill still expects the CommonJS ReactDOM namespace for this compatibility shim.
+        // eslint-disable-next-line @typescript-eslint/no-require-imports
         const ReactDOM = require('react-dom');
         
         if (!ReactDOM.findDOMNode) {

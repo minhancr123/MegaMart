@@ -6,6 +6,10 @@ import { jwtVerify } from 'jose';
 const protectedRoutes = ['/profile', '/checkout', '/orders'];
 // Routes that require ADMIN role
 const adminRoutes = ['/admin'];
+// Routes that require SUPPLIER role (cổng nhà cung cấp)
+const supplierRoutes = ['/supplier'];
+// Routes that require SHIPPER role (cổng nhân viên giao hàng)
+const shipperRoutes = ['/shipper'];
 // Routes that should redirect to home if already logged in
 const authRoutes = ['/auth'];
 
@@ -18,13 +22,17 @@ export async function middleware(request: NextRequest) {
 
   // Check if route is admin
   const isAdminRoute = adminRoutes.some(route => pathname.startsWith(route));
+  // Check if route is supplier portal
+  const isSupplierRoute = supplierRoutes.some(route => pathname.startsWith(route));
+  // Check if route is shipper portal
+  const isShipperRoute = shipperRoutes.some(route => pathname.startsWith(route));
   // Check if route is protected
   const isProtectedRoute = protectedRoutes.some(route => pathname.startsWith(route));
   // Check if route is auth page
   const isAuthRoute = authRoutes.some(route => pathname.startsWith(route));
 
-  // If no token and trying to access protected/admin routes
-  if (!token && (isProtectedRoute || isAdminRoute)) {
+  // If no token and trying to access protected/admin/supplier/shipper routes
+  if (!token && (isProtectedRoute || isAdminRoute || isSupplierRoute || isShipperRoute)) {
     const url = new URL('/auth', request.url);
     url.searchParams.set('callbackUrl', pathname);
     return NextResponse.redirect(url);
@@ -53,9 +61,25 @@ export async function middleware(request: NextRequest) {
         // Not an admin, redirect to home
         return NextResponse.redirect(new URL('/', request.url));
       }
-      
-      // If logged in and trying to access auth page, redirect to home
+
+      // Supplier portal: cho SUPPLIER (và ADMIN vào xem ké để hỗ trợ)
+      if (isSupplierRoute && payload.role !== 'SUPPLIER' && payload.role !== 'ADMIN') {
+        return NextResponse.redirect(new URL('/', request.url));
+      }
+
+      // Shipper portal: cho SHIPPER (và ADMIN vào xem ké để hỗ trợ)
+      if (isShipperRoute && payload.role !== 'SHIPPER' && payload.role !== 'ADMIN') {
+        return NextResponse.redirect(new URL('/', request.url));
+      }
+
+      // If logged in and trying to access auth page, redirect by role
       if (isAuthRoute) {
+        if (payload.role === 'SUPPLIER') {
+          return NextResponse.redirect(new URL('/supplier', request.url));
+        }
+        if (payload.role === 'SHIPPER') {
+          return NextResponse.redirect(new URL('/shipper', request.url));
+        }
         return NextResponse.redirect(new URL('/', request.url));
       }
       

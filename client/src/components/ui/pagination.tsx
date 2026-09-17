@@ -68,17 +68,19 @@ export function Pagination({
   const startItem = totalItems ? (currentPage - 1) * (itemsPerPage || 10) + 1 : 0;
   const endItem = totalItems ? Math.min(currentPage * (itemsPerPage || 10), totalItems) : 0;
 
+  if (totalPages <= 0) return null;
+
   return (
-    <div className="flex items-center justify-between px-2 py-4">
+    <div className="flex flex-col items-center justify-between gap-3 px-2 py-4 sm:flex-row">
       {/* Info text */}
-      {totalItems && (
-        <div className="text-sm text-gray-600">
-          Hiển thị <span className="font-medium">{startItem}</span> đến{" "}
-          <span className="font-medium">{endItem}</span> trong tổng số{" "}
-          <span className="font-medium">{totalItems}</span> kết quả
+      {typeof totalItems === "number" && totalItems > 0 ? (
+        <div className="text-sm text-muted-foreground">
+          Hiển thị <span className="font-medium text-foreground">{startItem}</span> đến{" "}
+          <span className="font-medium text-foreground">{endItem}</span> trong tổng số{" "}
+          <span className="font-medium text-foreground">{totalItems}</span> kết quả
         </div>
-      )}
-      
+      ) : null}
+
       {/* Pagination controls */}
       <div className="flex items-center gap-2">
         {/* First page */}
@@ -86,6 +88,7 @@ export function Pagination({
           variant="outline"
           size="icon"
           onClick={() => onPageChange(1)}
+          aria-label="Trang đầu"
           disabled={currentPage === 1}
           className="h-8 w-8"
         >
@@ -97,6 +100,7 @@ export function Pagination({
           variant="outline"
           size="icon"
           onClick={() => onPageChange(currentPage - 1)}
+          aria-label="Trang trước"
           disabled={currentPage === 1}
           className="h-8 w-8"
         >
@@ -107,7 +111,7 @@ export function Pagination({
         <div className="flex items-center gap-1">
           {getPageNumbers().map((page, index) => (
             page === '...' ? (
-              <span key={`ellipsis-${index}`} className="px-2 text-gray-400">
+              <span key={`ellipsis-${index}`} className="px-2 text-muted-foreground">
                 ...
               </span>
             ) : (
@@ -116,11 +120,8 @@ export function Pagination({
                 variant={currentPage === page ? "default" : "outline"}
                 size="sm"
                 onClick={() => onPageChange(page as number)}
-                className={`h-8 w-8 ${
-                  currentPage === page 
-                    ? "bg-blue-600 hover:bg-blue-700 text-white" 
-                    : "hover:bg-gray-100"
-                }`}
+                aria-current={currentPage === page ? "page" : undefined}
+                className="h-8 w-8"
               >
                 {page}
               </Button>
@@ -133,6 +134,7 @@ export function Pagination({
           variant="outline"
           size="icon"
           onClick={() => onPageChange(currentPage + 1)}
+          aria-label="Trang sau"
           disabled={currentPage === totalPages}
           className="h-8 w-8"
         >
@@ -144,6 +146,7 @@ export function Pagination({
           variant="outline"
           size="icon"
           onClick={() => onPageChange(totalPages)}
+          aria-label="Trang cuối"
           disabled={currentPage === totalPages}
           className="h-8 w-8"
         >

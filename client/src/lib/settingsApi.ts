@@ -26,11 +26,11 @@ export interface UpdateSettingsDto {
 }
 
 export const getSettings = async (): Promise<Settings> => {
-  const response = await axiosClient.get("/settings");
-  return response.data;
+  const response: any = await axiosClient.get("/settings");
+  return response?.data ?? response;
 };
 
 export const updateSettings = async (data: UpdateSettingsDto): Promise<Settings> => {
-  const response = await axiosClient.put("/settings", data);
-  return response.data;
+  const response: any = await axiosClient.put("/settings", data);
+  return response?.data ?? response;
 };

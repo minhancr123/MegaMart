@@ -8,7 +8,7 @@ export function Skeleton({ className }: SkeletonProps) {
   return (
     <div
       className={cn(
-        "animate-pulse rounded-lg bg-slate-200/80",
+        "animate-pulse rounded-lg bg-muted",
         className
       )}
     />
@@ -18,7 +18,7 @@ export function Skeleton({ className }: SkeletonProps) {
 // Product Card Skeleton
 export function ProductCardSkeleton() {
   return (
-    <div className="bg-white dark:bg-gray-900 rounded-2xl border border-slate-200 dark:border-gray-800 overflow-hidden">
+    <div className="rounded-2xl border bg-card overflow-hidden">
       {/* Image */}
       <Skeleton className="aspect-square w-full" />
 
@@ -100,7 +100,7 @@ export function CategoriesGridSkeleton({ count = 6 }: { count?: number }) {
 // Table Row Skeleton
 export function TableRowSkeleton({ columns = 5 }: { columns?: number }) {
   return (
-    <tr className="border-b border-slate-100">
+    <tr className="border-b border-border">
       {[...Array(columns)].map((_, i) => (
         <td key={i} className="p-4">
           <Skeleton className="h-5 w-full" />
@@ -113,7 +113,7 @@ export function TableRowSkeleton({ columns = 5 }: { columns?: number }) {
 // Card Skeleton
 export function CardSkeleton() {
   return (
-    <div className="bg-white dark:bg-gray-900 rounded-2xl border border-slate-200 dark:border-gray-800 p-6 space-y-4">
+    <div className="rounded-2xl border bg-card p-6 space-y-4">
       <div className="flex items-center gap-4">
         <Skeleton className="h-12 w-12 rounded-xl" />
         <div className="flex-1 space-y-2">
@@ -168,7 +168,7 @@ export function ButtonSkeleton({ size = 'md' }: { size?: 'sm' | 'md' | 'lg' }) {
 // Flash Sale Card Skeleton
 export function FlashSaleCardSkeleton() {
   return (
-    <div className="bg-white dark:bg-gray-900 rounded-2xl border border-slate-200 dark:border-gray-800 p-4 space-y-3">
+    <div className="rounded-2xl border bg-card p-4 space-y-3">
       <Skeleton className="aspect-square w-full rounded-xl" />
       <Skeleton className="h-4 w-3/4" />
       <div className="flex items-center gap-2">
@@ -183,7 +183,7 @@ export function FlashSaleCardSkeleton() {
 // News Card Skeleton
 export function NewsCardSkeleton() {
   return (
-    <div className="bg-white dark:bg-gray-900 rounded-2xl border border-slate-200 dark:border-gray-800 overflow-hidden">
+    <div className="rounded-2xl border bg-card overflow-hidden">
       <Skeleton className="aspect-video w-full" />
       <div className="p-4 space-y-2">
         <Skeleton className="h-4 w-24" />

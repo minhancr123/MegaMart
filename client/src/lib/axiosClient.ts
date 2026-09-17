@@ -1,4 +1,5 @@
 import axios from "axios";
+import { useAuthStore } from "@/store/authStore";
 
 const axiosClient = axios.create({
     baseURL: `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001"}/api`,
@@ -12,22 +13,29 @@ const axiosClient = axios.create({
 axiosClient.interceptors.request.use((config) => {
     // ✅ Only access localStorage in browser (not on server)
     if (typeof window !== 'undefined') {
-        const storedData = localStorage.getItem('auth-storage');
-        console.log('Auth storage data:', storedData ? 'Found' : 'Not found');
+        let token: string | null = null;
 
+        // 1. Thử lấy từ auth-storage của zustand
+        const storedData = localStorage.getItem('auth-storage');
         if (storedData) {
             try {
                 const parsedData = JSON.parse(storedData);
-                const token = parsedData?.state?.token;
-                console.log('Token extracted:', token ? 'Yes' : 'No');
-
-                if (token) {
-                    config.headers.Authorization = `Bearer ${token}`;
-                    console.log('Authorization header set');
-                }
+                token = parsedData?.state?.token || parsedData?.token || null;
             } catch (error) {
-                console.error('Error parsing auth token:', error);
+                console.error('Error parsing auth-storage token:', error);
             }
+        }
+
+        // 2. Fallback lấy từ document.cookie ('token=...')
+        if (!token && typeof document !== 'undefined') {
+            const match = document.cookie.match(/(?:^|;\s*)token=([^;]+)/);
+            if (match) {
+                token = decodeURIComponent(match[1]);
+            }
+        }
+
+        if (token) {
+            config.headers.Authorization = `Bearer ${token}`;
         }
     }
     return config;
@@ -80,11 +88,19 @@ axiosClient.interceptors.response.use((response) => {
         // ✅ Handle 401 Unauthorized - Token hết hạn
         // Không redirect tự động - để component xử lý
         if (status === 401 && typeof window !== 'undefined') {
-            console.warn('Token expired or invalid. Silently clearing auth...');
-            
-            // Clear auth storage
-            localStorage.removeItem('auth-storage');
-            // Không redirect - để user tiếp tục browse như guest
+            const requestUrl = String(error.config?.url || '');
+            const sentSessionToken = Boolean(error.config?.headers?.Authorization);
+            const isAuthEndpoint = requestUrl.includes('/auth/');
+            // Chỉ logout khi request có gửi token phiên làm việc; API login/xác thực lỗi không được đá user.
+            if (sentSessionToken && !isAuthEndpoint) {
+                console.warn('Session token expired or invalid. Clearing auth state...');
+                try {
+                    useAuthStore.getState().logout();
+                } catch (error) {
+                    console.error('Error clearing auth state:', error);
+                }
+                localStorage.removeItem('auth-storage');
+            }
         }
 
         return Promise.reject({ status, errormassage, data: error.response.data })

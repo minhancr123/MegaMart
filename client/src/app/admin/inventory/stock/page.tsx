@@ -27,11 +27,13 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Pagination } from "@/components/ui/pagination";
 import { Package, Search, AlertTriangle } from "lucide-react";
-import { 
-  inventoryApi, 
+import {
+  inventoryApi,
   WarehouseInventory,
   Warehouse,
 } from "@/lib/inventoryApi";
+import { getWarehouseRegion, regionBadgeClass } from "@/lib/warehouseRegion";
+import { visibleAttributes, formatAttributeValue } from "@/lib/productAttributes";
 import { toast } from "sonner";
 import { useSearchParams } from "next/navigation";
 
@@ -96,8 +98,8 @@ export default function StockPage() {
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Tồn kho</h1>
-          <p className="text-gray-500 dark:text-gray-400 mt-1">Theo dõi số lượng tồn kho theo từng kho</p>
+          <h1 className="text-2xl font-bold text-foreground">Tồn kho</h1>
+          <p className="text-muted-foreground mt-1">Theo dõi số lượng tồn kho theo từng kho</p>
         </div>
       </div>
 
@@ -174,7 +176,7 @@ export default function StockPage() {
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
             </div>
           ) : inventory.length === 0 ? (
-            <div className="text-center py-8 text-gray-500 dark:text-gray-400">
+            <div className="text-center py-8 text-muted-foreground">
               Không có dữ liệu tồn kho
             </div>
           ) : (
@@ -185,7 +187,9 @@ export default function StockPage() {
                     <TableHead>Sản phẩm</TableHead>
                     <TableHead>SKU</TableHead>
                     <TableHead>Kho</TableHead>
+                    <TableHead>Miền</TableHead>
                     <TableHead>Vị trí</TableHead>
+                    <TableHead>Pallet</TableHead>
                     <TableHead className="text-center">Tồn kho</TableHead>
                     <TableHead className="text-center">Tối thiểu</TableHead>
                     <TableHead className="text-right">Giá trị</TableHead>
@@ -207,16 +211,23 @@ export default function StockPage() {
                             <p className="font-medium line-clamp-1 dark:text-white">
                               {item.variant?.product?.name || "N/A"}
                             </p>
-                            {item.variant?.attributes && (
-                              <p className="text-sm text-gray-500 dark:text-gray-400">
-                                {Object.values(item.variant.attributes as Record<string, string>).join(" / ")}
-                              </p>
-                            )}
+                            {item.variant?.attributes &&
+                              visibleAttributes(
+                                item.variant.attributes as Record<string, unknown>
+                              ).length > 0 && (
+                                <p className="text-sm text-muted-foreground">
+                                  {visibleAttributes(
+                                    item.variant.attributes as Record<string, unknown>
+                                  )
+                                    .map(([, v]) => formatAttributeValue(v))
+                                    .join(" / ")}
+                                </p>
+                              )}
                           </div>
                         </div>
                       </TableCell>
                       <TableCell>
-                        <code className="bg-gray-100 px-2 py-1 rounded text-sm">
+                        <code className="bg-muted px-2 py-1 rounded text-sm">
                           {item.variant?.sku}
                         </code>
                       </TableCell>
@@ -226,9 +237,30 @@ export default function StockPage() {
                         </Badge>
                       </TableCell>
                       <TableCell>
-                        <span className="text-sm text-gray-500 dark:text-gray-400">
+                        {(() => {
+                          const region = getWarehouseRegion(item.warehouse);
+                          return (
+                            <span
+                              className={`inline-block text-[11px] font-semibold px-2 py-0.5 rounded-full border ${regionBadgeClass(region.tone)}`}
+                            >
+                              {region.label}
+                            </span>
+                          );
+                        })()}
+                      </TableCell>
+                      <TableCell>
+                        <span className="text-sm text-muted-foreground">
                           {item.location || "-"}
                         </span>
+                      </TableCell>
+                      <TableCell>
+                        {item.pallet?.code ? (
+                          <span className="font-mono text-xs text-teal-700 dark:text-teal-300">
+                            {item.pallet.code}
+                          </span>
+                        ) : (
+                          <span className="text-sm text-muted-foreground">-</span>
+                        )}
                       </TableCell>
                       <TableCell className="text-center">
                         <div className="flex items-center justify-center gap-2">
@@ -240,7 +272,7 @@ export default function StockPage() {
                           </span>
                         </div>
                       </TableCell>
-                      <TableCell className="text-center text-gray-500 dark:text-gray-400">
+                      <TableCell className="text-center text-muted-foreground">
                         {item.minQuantity}
                       </TableCell>
                       <TableCell className="text-right font-medium dark:text-white">

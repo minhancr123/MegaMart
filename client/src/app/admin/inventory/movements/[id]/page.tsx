@@ -29,19 +29,23 @@ import {
   Calendar,
   FileText,
 } from "lucide-react";
-import { 
-  inventoryApi, 
+import {
+  inventoryApi,
   StockMovement,
   StockMovementStatus,
+  StockMovementType,
   stockMovementTypeLabels,
 } from "@/lib/inventoryApi";
 import { toast } from "sonner";
+import { visibleAttributes, formatAttributeValue } from "@/lib/productAttributes";
+import MovementQcCard from "@/components/admin/MovementQcCard";
 
 export default function MovementDetailPage() {
   const params = useParams();
   const router = useRouter();
   const [movement, setMovement] = useState<StockMovement | null>(null);
   const [loading, setLoading] = useState(true);
+  const [reloadTick, setReloadTick] = useState(0);
 
   useEffect(() => {
     const fetchMovement = async () => {
@@ -70,7 +74,7 @@ export default function MovementDetailPage() {
     if (params.id) {
       fetchMovement();
     }
-  }, [params.id]);
+  }, [params.id, reloadTick]);
 
   const handleComplete = async () => {
     if (!confirm("Xác nhận hoàn thành phiếu này? Tồn kho sẽ được cập nhật.")) return;
@@ -131,7 +135,7 @@ export default function MovementDetailPage() {
       <div className="container mx-auto py-8">
         <Card>
           <CardContent className="text-center py-12">
-            <p className="text-gray-500 mb-4">Không tìm thấy phiếu kho</p>
+            <p className="text-muted-foreground mb-4">Không tìm thấy phiếu kho</p>
             <Link href="/admin/inventory/movements">
               <Button>
                 <ArrowLeft className="w-4 h-4 mr-2" />
@@ -145,7 +149,7 @@ export default function MovementDetailPage() {
   }
 
   return (
-    <div className="container mx-auto py-6 space-y-6">
+    <div className="space-y-6 space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">
@@ -156,7 +160,7 @@ export default function MovementDetailPage() {
           </Link>
           <div>
             <h1 className="text-2xl font-bold">Chi tiết phiếu kho</h1>
-            <p className="text-gray-500">
+            <p className="text-muted-foreground">
               {movement.code} - {stockMovementTypeLabels[movement.type]}
             </p>
           </div>
@@ -185,40 +189,40 @@ export default function MovementDetailPage() {
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="flex items-start gap-3">
-              <FileText className="w-5 h-5 text-gray-500 mt-0.5" />
+              <FileText className="w-5 h-5 text-muted-foreground mt-0.5" />
               <div>
-                <p className="text-sm text-gray-500">Mã phiếu</p>
+                <p className="text-sm text-muted-foreground">Mã phiếu</p>
                 <p className="font-medium">{movement.code}</p>
               </div>
             </div>
             <div className="flex items-start gap-3">
-              <Package className="w-5 h-5 text-gray-500 mt-0.5" />
+              <Package className="w-5 h-5 text-muted-foreground mt-0.5" />
               <div>
-                <p className="text-sm text-gray-500">Loại phiếu</p>
+                <p className="text-sm text-muted-foreground">Loại phiếu</p>
                 <p className="font-medium">{stockMovementTypeLabels[movement.type]}</p>
               </div>
             </div>
             <div className="flex items-start gap-3">
-              <CheckCircle className="w-5 h-5 text-gray-500 mt-0.5" />
+              <CheckCircle className="w-5 h-5 text-muted-foreground mt-0.5" />
               <div>
-                <p className="text-sm text-gray-500">Trạng thái</p>
+                <p className="text-sm text-muted-foreground">Trạng thái</p>
                 <div className="mt-1">
                   {getStatusBadge(movement.status)}
                 </div>
               </div>
             </div>
             <div className="flex items-start gap-3">
-              <Calendar className="w-5 h-5 text-gray-500 mt-0.5" />
+              <Calendar className="w-5 h-5 text-muted-foreground mt-0.5" />
               <div>
-                <p className="text-sm text-gray-500">Ngày tạo</p>
+                <p className="text-sm text-muted-foreground">Ngày tạo</p>
                 <p className="font-medium">{formatDate(movement.createdAt)}</p>
               </div>
             </div>
             {movement.notes && (
               <div className="flex items-start gap-3">
-                <FileText className="w-5 h-5 text-gray-500 mt-0.5" />
+                <FileText className="w-5 h-5 text-muted-foreground mt-0.5" />
                 <div>
-                  <p className="text-sm text-gray-500">Ghi chú</p>
+                  <p className="text-sm text-muted-foreground">Ghi chú</p>
                   <p className="font-medium">{movement.notes}</p>
                 </div>
               </div>
@@ -232,34 +236,34 @@ export default function MovementDetailPage() {
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="flex items-start gap-3">
-              <Warehouse className="w-5 h-5 text-gray-500 mt-0.5" />
+              <Warehouse className="w-5 h-5 text-muted-foreground mt-0.5" />
               <div>
-                <p className="text-sm text-gray-500">Kho hàng</p>
+                <p className="text-sm text-muted-foreground">Kho hàng</p>
                 <p className="font-medium">
                   {movement.warehouse?.name || 'N/A'}
                   {movement.warehouse?.code && (
-                    <span className="text-xs text-gray-500 ml-2">({movement.warehouse.code})</span>
+                    <span className="text-xs text-muted-foreground ml-2">({movement.warehouse.code})</span>
                   )}
                 </p>
               </div>
             </div>
             {movement.supplier && (
               <div className="flex items-start gap-3">
-                <User className="w-5 h-5 text-gray-500 mt-0.5" />
+                <User className="w-5 h-5 text-muted-foreground mt-0.5" />
                 <div>
-                  <p className="text-sm text-gray-500">Nhà cung cấp</p>
+                  <p className="text-sm text-muted-foreground">Nhà cung cấp</p>
                   <p className="font-medium">{movement.supplier.name}</p>
                   {movement.supplier.phone && (
-                    <p className="text-sm text-gray-500">{movement.supplier.phone}</p>
+                    <p className="text-sm text-muted-foreground">{movement.supplier.phone}</p>
                   )}
                 </div>
               </div>
             )}
             {movement.toWarehouseId && (
               <div className="flex items-start gap-3">
-                <Warehouse className="w-5 h-5 text-gray-500 mt-0.5" />
+                <Warehouse className="w-5 h-5 text-muted-foreground mt-0.5" />
                 <div>
-                  <p className="text-sm text-gray-500">Kho đích</p>
+                  <p className="text-sm text-muted-foreground">Kho đích</p>
                   <p className="font-medium">{movement.toWarehouseId}</p>
                 </div>
               </div>
@@ -267,8 +271,8 @@ export default function MovementDetailPage() {
             {movement.totalAmount !== undefined && movement.totalAmount > 0 && (
               <div className="flex items-start gap-3 pt-4 border-t">
                 <div className="w-full">
-                  <p className="text-sm text-gray-500">Tổng tiền</p>
-                  <p className="text-xl font-bold text-blue-600">
+                  <p className="text-sm text-muted-foreground">Tổng tiền</p>
+                  <p className="text-xl font-bold text-primary">
                     {formatCurrency(movement.totalAmount)}
                   </p>
                 </div>
@@ -277,6 +281,11 @@ export default function MovementDetailPage() {
           </CardContent>
         </Card>
       </div>
+
+      {/* QC nhập kho (chỉ phiếu IMPORT) */}
+      {movement.type === StockMovementType.IMPORT && (
+        <MovementQcCard movement={movement} onSaved={() => setReloadTick((t) => t + 1)} />
+      )}
 
       {/* Items Table */}
       <Card>
@@ -313,25 +322,30 @@ export default function MovementDetailPage() {
                       <div>
                         <p className="font-medium">{item.variant?.product?.name}</p>
                         {item.notes && (
-                          <p className="text-xs text-gray-500">{item.notes}</p>
+                          <p className="text-xs text-muted-foreground">{item.notes}</p>
                         )}
                       </div>
                     </div>
                   </TableCell>
                   <TableCell>
-                    <code className="bg-gray-100 px-2 py-1 rounded text-xs">
+                    <code className="bg-muted px-2 py-1 rounded text-xs">
                       {item.variant?.sku}
                     </code>
                   </TableCell>
                   <TableCell>
                     <div className="flex flex-wrap gap-1">
-                      {item.variant?.attributes && typeof item.variant.attributes === 'object' ? (
-                        Object.entries(item.variant.attributes).map(([key, value]) => (
-                          <Badge key={key} variant="outline" className="text-xs">
-                            {value as string}
-                          </Badge>
-                        ))
-                      ) : '-'}
+                      {item.variant?.attributes &&
+                      visibleAttributes(item.variant.attributes as Record<string, unknown>).length > 0 ? (
+                        visibleAttributes(item.variant.attributes as Record<string, unknown>).map(
+                          ([key, value]) => (
+                            <Badge key={key} variant="outline" className="text-xs">
+                              {formatAttributeValue(value)}
+                            </Badge>
+                          )
+                        )
+                      ) : (
+                        '-'
+                      )}
                     </div>
                   </TableCell>
                   <TableCell className="text-center font-medium">
@@ -356,7 +370,7 @@ export default function MovementDetailPage() {
               ))}
               {(!movement.items || movement.items.length === 0) && (
                 <TableRow>
-                  <TableCell colSpan={6} className="text-center text-gray-500 py-8">
+                  <TableCell colSpan={6} className="text-center text-muted-foreground py-8">
                     Không có sản phẩm nào
                   </TableCell>
                 </TableRow>

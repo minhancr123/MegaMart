@@ -180,8 +180,8 @@ export default function MovementsPage() {
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Phiếu Nhập/Xuất kho</h1>
-          <p className="text-gray-500 dark:text-gray-400 mt-1">Quản lý các phiếu nhập, xuất, chuyển kho</p>
+          <h1 className="text-2xl font-bold text-foreground">Phiếu Nhập/Xuất kho</h1>
+          <p className="text-muted-foreground mt-1">Quản lý các phiếu nhập, xuất, chuyển kho</p>
         </div>
         <Link href="/admin/inventory/movements/new">
           <Button className="gap-2">
@@ -274,9 +274,9 @@ export default function MovementsPage() {
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
             </div>
           ) : movements.length === 0 ? (
-            <div className="text-center py-8 text-gray-500 dark:text-gray-400">
+            <div className="text-center py-8 text-muted-foreground">
               Chưa có phiếu kho nào.
-              <Link href="/admin/inventory/movements/new" className="text-blue-600 dark:text-blue-400 ml-1">
+              <Link href="/admin/inventory/movements/new" className="text-primary ml-1">
                 Tạo phiếu mới
               </Link>
             </div>
@@ -300,7 +300,7 @@ export default function MovementsPage() {
                   {movements.map((movement) => (
                     <TableRow key={movement.id}>
                       <TableCell>
-                        <code className="bg-gray-100 px-2 py-1 rounded text-sm font-medium">
+                        <code className="bg-muted px-2 py-1 rounded text-sm font-medium">
                           {movement.code}
                         </code>
                       </TableCell>
@@ -317,7 +317,7 @@ export default function MovementsPage() {
                           {movement.warehouse?.code || movement.warehouse?.name}
                         </Badge>
                       </TableCell>
-                      <TableCell className="text-sm text-gray-500 dark:text-gray-400">
+                      <TableCell className="text-sm text-muted-foreground">
                         {movement.supplier?.name || movement.toWarehouseId || "-"}
                       </TableCell>
                       <TableCell className="text-center">
@@ -358,7 +358,7 @@ export default function MovementsPage() {
                               <Button
                                 variant="ghost"
                                 size="icon"
-                                className="text-red-600"
+                                className="text-primary"
                                 onClick={() => handleCancel(movement.id)}
                                 title="Hủy"
                               >

@@ -128,8 +128,8 @@ export default function SuppliersPage() {
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Nhà cung cấp</h1>
-          <p className="text-gray-500 dark:text-gray-400 mt-1">Quản lý danh sách nhà cung cấp hàng hóa</p>
+          <h1 className="text-2xl font-bold text-foreground">Nhà cung cấp</h1>
+          <p className="text-muted-foreground mt-1">Quản lý danh sách nhà cung cấp hàng hóa</p>
         </div>
         <Dialog open={dialogOpen} onOpenChange={(open) => {
           setDialogOpen(open);
@@ -274,7 +274,7 @@ export default function SuppliersPage() {
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
             </div>
           ) : suppliers.length === 0 ? (
-            <div className="text-center py-8 text-gray-500 dark:text-gray-400">
+            <div className="text-center py-8 text-muted-foreground">
               Chưa có nhà cung cấp nào. Hãy thêm nhà cung cấp đầu tiên!
             </div>
           ) : (
@@ -294,7 +294,7 @@ export default function SuppliersPage() {
                 {suppliers.map((supplier) => (
                   <TableRow key={supplier.id}>
                     <TableCell>
-                      <code className="bg-gray-100 px-2 py-1 rounded text-sm">
+                      <code className="bg-muted px-2 py-1 rounded text-sm">
                         {supplier.code}
                       </code>
                     </TableCell>
@@ -302,7 +302,7 @@ export default function SuppliersPage() {
                       <div>
                         <p className="font-medium dark:text-white">{supplier.name}</p>
                         {supplier.address && (
-                          <p className="text-sm text-gray-500 dark:text-gray-400 truncate max-w-[200px]">
+                          <p className="text-sm text-muted-foreground truncate max-w-[200px]">
                             {supplier.address}
                           </p>
                         )}
@@ -311,7 +311,7 @@ export default function SuppliersPage() {
                     <TableCell>
                       <div className="text-sm">
                         <p className="dark:text-white">{supplier.contactName || "-"}</p>
-                        <p className="text-gray-500 dark:text-gray-400">{supplier.email || ""}</p>
+                        <p className="text-muted-foreground">{supplier.email || ""}</p>
                       </div>
                     </TableCell>
                     <TableCell className="dark:text-gray-300">{supplier.phone || "-"}</TableCell>
@@ -337,7 +337,7 @@ export default function SuppliersPage() {
                         <Button
                           variant="ghost"
                           size="icon"
-                          className="text-red-600 hover:text-red-700"
+                          className="text-primary hover:text-red-700"
                           onClick={() => handleDelete(supplier.id)}
                         >
                           <Trash2 className="w-4 h-4" />

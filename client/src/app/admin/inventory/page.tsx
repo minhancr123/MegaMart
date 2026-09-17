@@ -19,6 +19,9 @@ import {
   ArrowDownRight,
   TrendingUp,
   Plus,
+  FileText,
+  Layers,
+  CalendarClock,
 } from "lucide-react";
 import { 
   inventoryApi, 
@@ -31,19 +34,27 @@ export default function InventoryPage() {
   const [warehouses, setWarehouses] = useState<WarehouseType[]>([]);
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [stats, setStats] = useState<{ totalItems: number; lowStockCount: number; totalValue: number } | null>(null);
+  const [expiry, setExpiry] = useState<{ expiredCount: number; expiringCount: number } | null>(null);
   const [loading, setLoading] = useState(true);
 
   const fetchData = async () => {
     try {
       setLoading(true);
-      const [warehousesRes, suppliersRes, statsRes] = await Promise.all([
+      const [warehousesRes, suppliersRes, statsRes, expiryRes] = await Promise.all([
         inventoryApi.getWarehouses(true),
         inventoryApi.getSuppliers(true),
         inventoryApi.getStats(),
+        inventoryApi.getExpiryAlerts().catch(() => null),
       ]);
       setWarehouses(warehousesRes.data || []);
       setSuppliers(suppliersRes.data || []);
-      setStats(statsRes.data);
+      // getStats trả object trần {totalItems,...} (interceptor không bọc
+      // thêm .data) nên fallback trực tiếp response khi thiếu .data.
+      setStats((statsRes as any)?.data ?? statsRes);
+      if (expiryRes) {
+        const payload = (expiryRes as any)?.data ?? expiryRes;
+        setExpiry({ expiredCount: payload?.expiredCount ?? 0, expiringCount: payload?.expiringCount ?? 0 });
+      }
     } catch (error) {
       toast.error("Không thể tải dữ liệu kho");
       setWarehouses([]);
@@ -73,8 +84,8 @@ export default function InventoryPage() {
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Quản lý Kho</h1>
-          <p className="text-gray-500 dark:text-gray-400 mt-1">Theo dõi tồn kho, nhập xuất và nhà cung cấp</p>
+          <h1 className="text-2xl font-bold text-foreground">Quản lý Kho</h1>
+          <p className="text-muted-foreground mt-1">Theo dõi tồn kho, nhập xuất và nhà cung cấp</p>
         </div>
         <div className="flex gap-2">
           <Link href="/admin/inventory/movements/new">
@@ -108,7 +119,7 @@ export default function InventoryPage() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-yellow-600">{stats?.lowStockCount || 0}</div>
-            <Link href="/admin/inventory/stock?lowStock=true" className="text-xs text-blue-600 hover:underline">
+            <Link href="/admin/inventory/stock?lowStock=true" className="text-xs text-primary hover:underline">
               Xem chi tiết →
             </Link>
           </CardContent>
@@ -141,13 +152,35 @@ export default function InventoryPage() {
         </Card>
       </div>
 
+      {/* Banner cảnh báo HSD */}
+      {(expiry?.expiredCount ?? 0) > 0 && (
+        <Link href="/admin/inventory/lots?expiry=expired">
+          <div className="rounded-2xl border border-red-200 bg-red-50 dark:bg-red-950/30 dark:border-red-800 px-4 py-3 flex items-center gap-2.5 hover:shadow-md transition-shadow">
+            <AlertTriangle className="w-5 h-5 text-red-600 shrink-0" />
+            <p className="text-sm text-red-700 dark:text-red-300">
+              <strong>{expiry?.expiredCount} lô đã quá HSD</strong> mà vẫn còn tồn. Bấm để xử lý.
+            </p>
+          </div>
+        </Link>
+      )}
+      {(expiry?.expiredCount ?? 0) === 0 && (expiry?.expiringCount ?? 0) > 0 && (
+        <Link href="/admin/inventory/lots?expiry=expiring">
+          <div className="rounded-2xl border border-amber-200 bg-amber-50 dark:bg-amber-950/30 dark:border-amber-800 px-4 py-3 flex items-center gap-2.5 hover:shadow-md transition-shadow">
+            <AlertTriangle className="w-5 h-5 text-amber-600 shrink-0" />
+            <p className="text-sm text-amber-700 dark:text-amber-300">
+              <strong>{expiry?.expiringCount} lô sắp hết HSD</strong> trong 30 ngày tới.
+            </p>
+          </div>
+        </Link>
+      )}
+
       {/* Quick Links */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         <Link href="/admin/inventory/stock">
           <Card className="hover:shadow-md transition-shadow cursor-pointer">
             <CardHeader>
               <CardTitle className="text-lg flex items-center gap-2">
-                <Package className="w-5 h-5 text-blue-600" />
+                <Package className="w-5 h-5 text-primary" />
                 Tồn kho
               </CardTitle>
               <CardDescription>Xem và quản lý tồn kho</CardDescription>
@@ -190,6 +223,42 @@ export default function InventoryPage() {
             </CardHeader>
           </Card>
         </Link>
+
+        <Link href="/admin/inventory/purchase-orders">
+          <Card className="hover:shadow-md transition-shadow cursor-pointer">
+            <CardHeader>
+              <CardTitle className="text-lg flex items-center gap-2">
+                <FileText className="w-5 h-5 text-blue-600" />
+                Đơn đặt hàng (PO)
+              </CardTitle>
+              <CardDescription>Đặt hàng NCC, nhận theo PO</CardDescription>
+            </CardHeader>
+          </Card>
+        </Link>
+
+        <Link href="/admin/inventory/pallets">
+          <Card className="hover:shadow-md transition-shadow cursor-pointer">
+            <CardHeader>
+              <CardTitle className="text-lg flex items-center gap-2">
+                <Layers className="w-5 h-5 text-teal-600" />
+                Pallet
+              </CardTitle>
+              <CardDescription>Quản lý pallet trong kho</CardDescription>
+            </CardHeader>
+          </Card>
+        </Link>
+
+        <Link href="/admin/inventory/lots">
+          <Card className="hover:shadow-md transition-shadow cursor-pointer">
+            <CardHeader>
+              <CardTitle className="text-lg flex items-center gap-2">
+                <CalendarClock className="w-5 h-5 text-rose-600" />
+                Lô & HSD
+              </CardTitle>
+              <CardDescription>Lô hàng, hạn dùng, serial</CardDescription>
+            </CardHeader>
+          </Card>
+        </Link>
       </div>
 
       {/* Warehouses List */}
@@ -205,30 +274,30 @@ export default function InventoryPage() {
         </CardHeader>
         <CardContent>
           {warehouses.length === 0 ? (
-            <div className="text-center py-8 text-gray-500 dark:text-gray-400">
+            <div className="text-center py-8 text-muted-foreground">
               Chưa có kho hàng nào. 
-              <Link href="/admin/inventory/warehouses" className="text-blue-600 dark:text-blue-400 ml-1">Tạo kho mới</Link>
+              <Link href="/admin/inventory/warehouses" className="text-primary ml-1">Tạo kho mới</Link>
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {warehouses.slice(0, 6).map((warehouse) => (
                 <div 
                   key={warehouse.id}
-                  className="p-4 border rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
+                  className="p-4 border rounded-lg hover:bg-muted/50 dark:hover:bg-gray-800 transition-colors"
                 >
                   <div className="flex justify-between items-start mb-2">
                     <div>
                       <h3 className="font-semibold dark:text-white">{warehouse.name}</h3>
-                      <p className="text-sm text-gray-500 dark:text-gray-400">{warehouse.code}</p>
+                      <p className="text-sm text-muted-foreground">{warehouse.code}</p>
                     </div>
                     <Badge variant={warehouse.isActive ? "default" : "secondary"}>
                       {warehouse.isActive ? "Hoạt động" : "Tạm ngưng"}
                     </Badge>
                   </div>
                   {warehouse.address && (
-                    <p className="text-sm text-gray-600 dark:text-gray-300 mb-2">{warehouse.address}</p>
+                    <p className="text-sm text-muted-foreground dark:text-gray-300 mb-2">{warehouse.address}</p>
                   )}
-                  <div className="flex gap-4 text-sm text-gray-500 dark:text-gray-400">
+                  <div className="flex gap-4 text-sm text-muted-foreground">
                     <span>{warehouse._count?.inventories || 0} sản phẩm</span>
                     <span>{warehouse._count?.stockMovements || 0} phiếu kho</span>
                   </div>
@@ -252,9 +321,9 @@ export default function InventoryPage() {
         </CardHeader>
         <CardContent>
           {suppliers.length === 0 ? (
-            <div className="text-center py-8 text-gray-500 dark:text-gray-400">
+            <div className="text-center py-8 text-muted-foreground">
               Chưa có nhà cung cấp nào.
-              <Link href="/admin/inventory/suppliers" className="text-blue-600 dark:text-blue-400 ml-1">Thêm nhà cung cấp</Link>
+              <Link href="/admin/inventory/suppliers" className="text-primary ml-1">Thêm nhà cung cấp</Link>
             </div>
           ) : (
             <div className="space-y-3">
@@ -265,7 +334,7 @@ export default function InventoryPage() {
                 >
                   <div>
                     <h4 className="font-medium dark:text-white">{supplier.name}</h4>
-                    <p className="text-sm text-gray-500 dark:text-gray-400">
+                    <p className="text-sm text-muted-foreground">
                       {supplier.code} • {supplier.phone || supplier.email || 'Chưa có liên hệ'}
                     </p>
                   </div>

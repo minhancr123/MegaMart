@@ -56,6 +56,7 @@ interface MovementItem {
   sku: string;
   productName: string;
   quantity: number;
+  orderedQty?: number;
   unitPrice?: number;
   notes?: string;
 }
@@ -81,8 +82,10 @@ export default function NewMovementPage() {
     warehouseId: "",
     supplierId: "",
     toWarehouseId: "",
+    purchaseOrderId: "",
     notes: "",
   });
+  const [openPOs, setOpenPOs] = useState<any[]>([]);
   const [items, setItems] = useState<MovementItem[]>([]);
   const [variantSearch, setVariantSearch] = useState("");
   const [searchResults, setSearchResults] = useState<VariantSearchResult[]>([]);
@@ -111,6 +114,67 @@ export default function NewMovementPage() {
     };
     fetchData();
   }, []);
+
+  // PO đang mở (SENT/PARTIAL) để nhập hàng theo PO
+  useEffect(() => {
+    if (formData.type !== StockMovementType.IMPORT) return;
+    (async () => {
+      try {
+        const [sent, partial]: any[] = await Promise.all([
+          inventoryApi.getPurchaseOrders({ status: "SENT", limit: 50 }),
+          inventoryApi.getPurchaseOrders({ status: "PARTIAL", limit: 50 }),
+        ]);
+        const toList = (r: any) => (Array.isArray(r) ? r : (r?.data?.data ?? r?.data ?? []));
+        setOpenPOs([...toList(sent), ...toList(partial)]);
+      } catch {
+        setOpenPOs([]);
+      }
+    })();
+  }, [formData.type]);
+
+  // Đọc ?purchaseOrderId= để tạo phiếu nhập thẳng từ PO
+  useEffect(() => {
+    const poId = new URLSearchParams(window.location.search).get("purchaseOrderId");
+    if (poId) applyPurchaseOrder(poId);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const applyPurchaseOrder = async (poId: string) => {
+    try {
+      const res: any = await inventoryApi.getPurchaseOrder(poId);
+      const po = res?.data ?? res;
+      if (!po?.id) {
+        toast.error("Không tải được PO");
+        return;
+      }
+      setFormData((prev) => ({
+        ...prev,
+        type: StockMovementType.IMPORT,
+        warehouseId: po.warehouseId || prev.warehouseId,
+        supplierId: po.supplierId || prev.supplierId,
+        purchaseOrderId: po.id,
+      }));
+      setItems(
+        (po.items || [])
+          .map((it: any) => {
+            const remaining = Math.max(0, (it.orderedQty || 0) - (it.receivedQty || 0));
+            if (remaining <= 0) return null;
+            return {
+              variantId: it.variantId,
+              sku: it.variant?.sku || "",
+              productName: it.variant?.product?.name || "",
+              quantity: remaining,
+              orderedQty: it.orderedQty,
+              unitPrice: it.unitPrice ?? undefined,
+            };
+          })
+          .filter(Boolean) as MovementItem[]
+      );
+      toast.success(`Đã nạp ${po.code} (${po.status === "PARTIAL" ? "nhập tiếp phần còn thiếu" : "nhập mới"})`);
+    } catch {
+      toast.error("Không tải được PO");
+    }
+  };
 
   // Search variants when search term changes
   useEffect(() => {
@@ -224,10 +288,15 @@ export default function NewMovementPage() {
         warehouseId: formData.warehouseId,
         supplierId: formData.supplierId || undefined,
         toWarehouseId: formData.toWarehouseId || undefined,
+        purchaseOrderId:
+          formData.type === StockMovementType.IMPORT && formData.purchaseOrderId
+            ? formData.purchaseOrderId
+            : undefined,
         notes: formData.notes || undefined,
         items: items.map(item => ({
           variantId: item.variantId,
           quantity: item.quantity,
+          orderedQty: item.orderedQty,
           unitPrice: item.unitPrice,
           notes: item.notes,
         })),
@@ -267,8 +336,8 @@ export default function NewMovementPage() {
           <ArrowLeft className="w-5 h-5" />
         </Button>
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Tạo phiếu kho mới</h1>
-          <p className="text-gray-500 mt-1">Nhập xuất, chuyển kho hoặc điều chỉnh tồn kho</p>
+          <h1 className="text-2xl font-bold text-foreground">Tạo phiếu kho mới</h1>
+          <p className="text-muted-foreground mt-1">Nhập xuất, chuyển kho hoặc điều chỉnh tồn kho</p>
         </div>
       </div>
 
@@ -284,11 +353,12 @@ export default function NewMovementPage() {
                 <Label>Loại phiếu *</Label>
                 <Select
                   value={formData.type}
-                  onValueChange={(value) => setFormData({ 
-                    ...formData, 
+                  onValueChange={(value) => setFormData({
+                    ...formData,
                     type: value as StockMovementType,
                     supplierId: "",
                     toWarehouseId: "",
+                    purchaseOrderId: "",
                   })}
                 >
                   <SelectTrigger>
@@ -296,7 +366,10 @@ export default function NewMovementPage() {
                   </SelectTrigger>
                   <SelectContent>
                     {Object.entries(stockMovementTypeLabels)
-                      .filter(([key]) => key !== StockMovementType.SALE)
+                      // Ẩn SALE (tự sinh khi bán hàng) và TRANSFER_IN (trùng IMPORT,
+                      // dùng sai sẽ làm phình tổng tồn). Chuyển kho chỉ cần
+                      // "Chuyển kho đi" + chọn kho nhận.
+                      .filter(([key]) => key !== StockMovementType.SALE && key !== StockMovementType.TRANSFER_IN)
                       .map(([key, label]) => (
                         <SelectItem key={key} value={key}>{label}</SelectItem>
                       ))
@@ -304,6 +377,34 @@ export default function NewMovementPage() {
                   </SelectContent>
                 </Select>
               </div>
+
+              {formData.type === StockMovementType.IMPORT && (
+                <div className="space-y-2">
+                  <Label>Theo đơn đặt hàng (PO)</Label>
+                  <Select
+                    value={formData.purchaseOrderId || "none"}
+                    onValueChange={(value) => {
+                      if (value === "none") {
+                        setFormData({ ...formData, purchaseOrderId: "" });
+                      } else {
+                        applyPurchaseOrder(value);
+                      }
+                    }}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Không theo PO (nhập lẻ)" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">Không theo PO (nhập lẻ)</SelectItem>
+                      {openPOs.map((po: any) => (
+                        <SelectItem key={po.id} value={po.id}>
+                          {po.code} · {po.supplier?.name || ""} · {po.status === "PARTIAL" ? "nhập tiếp" : "mới"}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
 
               <div className="space-y-2">
                 <Label>Kho hàng *</Label>
@@ -388,11 +489,11 @@ export default function NewMovementPage() {
             </CardHeader>
             <CardContent className="space-y-2">
               <div className="flex justify-between">
-                <span className="text-gray-500">Số lượng sản phẩm:</span>
+                <span className="text-muted-foreground">Số lượng sản phẩm:</span>
                 <span className="font-medium">{items.length}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-gray-500">Tổng số lượng:</span>
+                <span className="text-muted-foreground">Tổng số lượng:</span>
                 <span className="font-medium">{items.reduce((sum, i) => sum + i.quantity, 0)}</span>
               </div>
               {showUnitPrice && (
@@ -419,7 +520,7 @@ export default function NewMovementPage() {
             </CardHeader>
             <CardContent className="space-y-4">
               {/* Add Item Form */}
-              <div className="p-4 border rounded-lg bg-gray-50 space-y-4">
+              <div className="p-4 border rounded-lg bg-muted/50 space-y-4">
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   {/* Product Search */}
                   <div className="space-y-1 md:col-span-2">
@@ -432,9 +533,9 @@ export default function NewMovementPage() {
                           className="w-full justify-between font-normal"
                         >
                           {selectedVariant ? (
-                            <span className="flex items-center gap-2">
-                              <code className="bg-blue-50 px-1.5 py-0.5 rounded text-xs">{selectedVariant.sku}</code>
-                              <span className="text-sm">{selectedVariant.productName}</span>
+                            <span className="flex min-w-0 flex-1 items-center gap-2">
+                              <code className="shrink-0 bg-primary/5 px-1.5 py-0.5 rounded text-xs max-w-[45%] truncate">{selectedVariant.sku}</code>
+                              <span className="truncate text-sm">{selectedVariant.productName}</span>
                             </span>
                           ) : (
                             "Tìm kiếm sản phẩm..."
@@ -472,9 +573,9 @@ export default function NewMovementPage() {
                                         className="w-10 h-10 object-cover rounded"
                                       />
                                     )}
-                                    <div className="flex-1">
-                                      <div className="font-medium">{variant.productName}</div>
-                                      <div className="text-xs text-gray-500">
+                                    <div className="flex-1 min-w-0">
+                                      <div className="font-medium truncate">{variant.productName}</div>
+                                      <div className="text-xs text-muted-foreground truncate">
                                         SKU: {variant.sku} | Tồn kho: {variant.stock} | Giá: {new Intl.NumberFormat('vi-VN').format(variant.price)}đ
                                       </div>
                                     </div>
@@ -515,7 +616,7 @@ export default function NewMovementPage() {
                       <Input
                         value={new Intl.NumberFormat('vi-VN').format(selectedVariant.price) + 'đ'}
                         disabled
-                        className="bg-gray-100"
+                        className="bg-muted"
                       />
                     </div>
                   </div>
@@ -529,7 +630,7 @@ export default function NewMovementPage() {
 
               {/* Items List */}
               {items.length === 0 ? (
-                <div className="text-center py-8 text-gray-500">
+                <div className="text-center py-8 text-muted-foreground">
                   Chưa có sản phẩm nào. Hãy thêm sản phẩm vào phiếu.
                 </div>
               ) : (
@@ -550,7 +651,7 @@ export default function NewMovementPage() {
                       <TableRow key={index}>
                         <TableCell>{index + 1}</TableCell>
                         <TableCell>
-                          <code className="bg-gray-100 px-2 py-1 rounded text-sm">
+                          <code className="bg-muted px-2 py-1 rounded text-sm">
                             {item.sku}
                           </code>
                         </TableCell>
@@ -570,7 +671,7 @@ export default function NewMovementPage() {
                           <Button
                             variant="ghost"
                             size="icon"
-                            className="text-red-600"
+                            className="text-primary"
                             onClick={() => handleRemoveItem(index)}
                           >
                             <Trash2 className="w-4 h-4" />

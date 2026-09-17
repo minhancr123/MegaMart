@@ -27,7 +27,8 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Pencil, Trash2, Warehouse as WarehouseIcon } from "lucide-react";
+import Link from "next/link";
+import { Plus, Pencil, Trash2, Eye, Warehouse as WarehouseIcon } from "lucide-react";
 import { inventoryApi, Warehouse, CreateWarehouseDto } from "@/lib/inventoryApi";
 import { toast } from "sonner";
 
@@ -117,8 +118,8 @@ export default function WarehousesPage() {
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Quản lý Kho hàng</h1>
-          <p className="text-gray-500 dark:text-gray-400 mt-1">Quản lý các chi nhánh kho trong hệ thống</p>
+          <h1 className="text-2xl font-bold text-foreground">Quản lý Kho hàng</h1>
+          <p className="text-muted-foreground mt-1">Quản lý các chi nhánh kho trong hệ thống</p>
         </div>
         <Dialog open={dialogOpen} onOpenChange={(open) => {
           setDialogOpen(open);
@@ -217,7 +218,7 @@ export default function WarehousesPage() {
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
             </div>
           ) : warehouses.length === 0 ? (
-            <div className="text-center py-8 text-gray-500 dark:text-gray-400">
+            <div className="text-center py-8 text-muted-foreground">
               Chưa có kho nào. Hãy tạo kho đầu tiên!
             </div>
           ) : (
@@ -237,11 +238,18 @@ export default function WarehousesPage() {
                 {warehouses.map((warehouse) => (
                   <TableRow key={warehouse.id}>
                     <TableCell>
-                      <code className="bg-gray-100 px-2 py-1 rounded text-sm">
+                      <code className="bg-muted px-2 py-1 rounded text-sm">
                         {warehouse.code}
                       </code>
                     </TableCell>
-                    <TableCell className="font-medium">{warehouse.name}</TableCell>
+                    <TableCell className="font-medium">
+                      <Link
+                        href={`/admin/inventory/warehouses/${warehouse.id}`}
+                        className="text-primary hover:underline"
+                      >
+                        {warehouse.name}
+                      </Link>
+                    </TableCell>
                     <TableCell className="max-w-[200px] truncate">
                       {warehouse.address || "-"}
                     </TableCell>
@@ -258,6 +266,11 @@ export default function WarehousesPage() {
                     </TableCell>
                     <TableCell className="text-right">
                       <div className="flex justify-end gap-2">
+                        <Link href={`/admin/inventory/warehouses/${warehouse.id}`}>
+                          <Button variant="ghost" size="icon" title="Xem chi tiết kho">
+                            <Eye className="w-4 h-4" />
+                          </Button>
+                        </Link>
                         <Button
                           variant="ghost"
                           size="icon"
@@ -268,7 +281,7 @@ export default function WarehousesPage() {
                         <Button
                           variant="ghost"
                           size="icon"
-                          className="text-red-600 hover:text-red-700"
+                          className="text-primary hover:text-red-700"
                           onClick={() => handleDelete(warehouse.id)}
                         >
                           <Trash2 className="w-4 h-4" />

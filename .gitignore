@@ -24,6 +24,7 @@
 # misc
 .DS_Store
 *.pem
+GHN - Express.pdf
 
 # debug
 npm-debug.log*
@@ -56,3 +57,6 @@ next-env.d.ts
 
 # Prisma
 **/prisma/migrations/*_migration.sql
+
+# graft's local graph cache — regenerable, not committed (run `graft build`).
+/graft/

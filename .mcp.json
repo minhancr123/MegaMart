@@ -1,0 +1,13 @@
+{
+  "mcpServers": {
+    "graft": {
+      "command": "graft",
+      "args": [
+        "mcp"
+      ]
+    },
+    "playwright": {
+      "command": "playwright-mcp"
+    }
+  }
+}

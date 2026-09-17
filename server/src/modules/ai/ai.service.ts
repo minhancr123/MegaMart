@@ -29,10 +29,12 @@ export class AiService {
       const { GoogleGenerativeAI } = await import('@google/generative-ai');
       
       this.genAI = new GoogleGenerativeAI(apiKey);
-      // Use gemini-2.5-flash (same as your working backend)
-      this.model = this.genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
+      // Model ID qua env (default gemini-3.6-flash) — 2.5-flash đã bị Google
+      // ngừng cho key mới, đổi env là xong không cần sửa code.
+      const modelName = process.env.GEMINI_TEXT_MODEL || 'gemini-3.6-flash';
+      this.model = this.genAI.getGenerativeModel({ model: modelName });
       
-      this.logger.log('🤖 AI Service initialized with Gemini 2.5 Flash');
+      this.logger.log(`🤖 AI Service initialized with ${modelName}`);
     } catch (error) {
       this.logger.error('Failed to initialize AI:', error.message);
     }
@@ -181,7 +183,7 @@ ${categoryList}
     try {
       const products = await this.prisma.product.findMany({
         where: {
-          isActive: true,
+          deletedAt: null,
           OR: [
             { name: { contains: query, mode: 'insensitive' } },
             { description: { contains: query, mode: 'insensitive' } },
@@ -190,13 +192,23 @@ ${categoryList}
         select: {
           id: true,
           name: true,
-          price: true,
           slug: true,
+          variants: {
+            take: 1,
+            orderBy: { price: 'asc' },
+            select: { price: true, salePrice: true },
+          },
         },
         take: limit,
       });
 
-      return products;
+      return products.map((product) => ({
+        id: product.id,
+        name: product.name,
+        slug: product.slug,
+        price: product.variants[0]?.price != null ? Number(product.variants[0].price) : null,
+        salePrice: product.variants[0]?.salePrice != null ? Number(product.variants[0].salePrice) : null,
+      }));
     } catch (error) {
       this.logger.error('Search products error:', error.message);
       return [];

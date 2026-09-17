@@ -27,8 +27,8 @@ export const VALID_TRANSITIONS: Record<OrderStatus, OrderStatus[]> = {
   // Đã thanh toán (legacy) -> Xác nhận
   [OrderStatus.PAID]: [OrderStatus.CONFIRMED],
   
-  // Thất bại -> Có thể thử lại (tạo đơn mới) hoặc hủy
-  [OrderStatus.FAILED]: [OrderStatus.PENDING, OrderStatus.CANCELED],
+  // Thất bại (giao thất bại/thất lạc/hư hỏng) -> Có thể thử lại, hủy, hoặc hoàn tiền
+  [OrderStatus.FAILED]: [OrderStatus.PENDING, OrderStatus.CANCELED, OrderStatus.REFUNDED],
   
   // Terminal states - không thể chuyển đi đâu nữa
   [OrderStatus.REFUNDED]: [],
@@ -43,6 +43,38 @@ export const REQUIRE_STOCK_RESTORE = [
   OrderStatus.REFUNDED,
   OrderStatus.FAILED
 ];
+
+/**
+ * Đơn ở các trạng thái này vẫn đang GIỮ hàng (reservation còn hiệu lực,
+ * On Hand chưa trừ). Hủy/thất bại từ đây -> chỉ xả reserved.
+ */
+export const PRE_FULFILLMENT_STATUSES = [
+  OrderStatus.PENDING,
+  OrderStatus.CONFIRMED,
+  OrderStatus.PROCESSING,
+  OrderStatus.PAID,
+];
+
+/**
+ * Hủy/thất bại khi đơn chưa xuất kho -> chỉ giải phóng reserved,
+ * KHÔNG cộng On Hand (vì lúc tạo đơn chưa từng trừ On Hand).
+ */
+export function shouldReleaseReservation(fromStatus: OrderStatus, toStatus: OrderStatus): boolean {
+  const isTerminal = toStatus === OrderStatus.CANCELED || toStatus === OrderStatus.FAILED;
+  return isTerminal && (PRE_FULFILLMENT_STATUSES as readonly OrderStatus[]).includes(fromStatus);
+}
+
+/**
+ * Hủy/thất bại sau khi đã xuất kho, hoặc hoàn tiền -> cộng lại On Hand.
+ * Đơn đã FAILED thì reservation đã được xử lý ở bước vào FAILED nên
+ * FAILED -> CANCELED không động đến kho nữa (tránh cộng trùng 2 lần).
+ */
+export function shouldRestoreOnHand(fromStatus: OrderStatus, toStatus: OrderStatus): boolean {
+  if (fromStatus === OrderStatus.FAILED) return false;
+  if (toStatus === OrderStatus.REFUNDED) return true;
+  const isTerminal = toStatus === OrderStatus.CANCELED || toStatus === OrderStatus.FAILED;
+  return isTerminal && !(PRE_FULFILLMENT_STATUSES as readonly OrderStatus[]).includes(fromStatus);
+}
 
 /**
  * Statuses that prevent order modification

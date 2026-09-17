@@ -1,7 +1,9 @@
-import { Controller, Post, Get, Body, Param, Query, Req, HttpException, HttpStatus } from '@nestjs/common';
+import { Controller, Post, Get, Body, Param, Query, Req, Res, HttpException, HttpStatus } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
 import { PaymentService } from './payment.service';
 import type { Request } from 'express';
+import * as crypto from 'crypto';
+import { SkipThrottle } from '@nestjs/throttler';
 
 @ApiTags('payment')
 @Controller('payment')
@@ -68,32 +70,96 @@ export class PaymentController {
     }
   }
 
+  @SkipThrottle()
   @Post('webhook')
   @ApiOperation({ summary: 'Handle bank transfer webhook' })
-  @ApiResponse({ status: 200, description: 'Webhook processed successfully' })
-  async handleWebhook(@Body() data: any) {
+  @ApiResponse({ status: 200, description: 'Webhook received successfully' })
+  async handleWebhook(@Body() data: any, @Req() req: Request, @Res() res: any) {
+    const startTime = Date.now();
+
     try {
-      // Log webhook data for debugging
-      console.log('Received webhook data:', JSON.stringify(data, null, 2));
+      // 1. Xác thực request từ SePay - hỗ trợ 2 cách (ưu tiên HMAC-SHA256):
+      //  a) HMAC-SHA256: header x-sepay-signature + x-sepay-timestamp, ký bằng SEPAY_WEBHOOK_SECRET
+      //  b) API Key: header "Authorization: Apikey <SEPAY_API_KEY>"
+      const secret = process.env.SEPAY_WEBHOOK_SECRET;
+      const signature = (req.headers['x-sepay-signature'] || '') as string;
+      const timestamp = (req.headers['x-sepay-timestamp'] || '') as string;
+      const authHeader = (req.headers['authorization'] || '') as string;
+      const apiKey = process.env.SEPAY_API_KEY;
 
-      // Handle standard webhook structure (e.g. from SePay, Casso, or custom)
-      // Expected structure varies but usually contains content (description) and amount
-      const result = await this.paymentService.processBankTransferWebhook(data);
+      if (secret && signature) {
+        const payload = JSON.stringify(data);
+        const expected = 'sha256=' + crypto.createHmac('sha256', secret)
+          .update(timestamp + '.' + payload)
+          .digest('hex');
 
-      return {
-        success: true,
-        message: 'Webhook processed',
-        data: result
-      };
+        if (signature !== expected) {
+          console.warn('[Webhook] Invalid SePay webhook signature! Received:', signature, 'Expected:', expected);
+          return res.status(HttpStatus.UNAUTHORIZED).json({
+            success: false,
+            message: 'Invalid signature'
+          });
+        }
+      } else if (apiKey && authHeader) {
+        const expectedAuth = `Apikey ${apiKey}`;
+        const valid =
+          authHeader.length === expectedAuth.length &&
+          crypto.timingSafeEqual(Buffer.from(authHeader), Buffer.from(expectedAuth));
+
+        if (!valid) {
+          console.warn('[Webhook] Invalid SePay API key!');
+          return res.status(HttpStatus.UNAUTHORIZED).json({
+            success: false,
+            message: 'Unauthorized'
+          });
+        }
+      }
+
+      // Log webhook data for debugging (truncated for large payloads)
+      const logData = JSON.stringify(data);
+      console.log('[Webhook] Received:', logData.length > 500 ? logData.substring(0, 500) + '...' : logData);
+
+      // EARLY RESPONSE PATTERN: Respond 200 OK immediately (< 100ms)
+      // Process asynchronously in background to meet SePay's 5-second timeout requirement
+      // NOTE: SePay only counts success with EXACT body {"success": true} - no extra fields
+      res.status(HttpStatus.OK).json({
+        success: true
+      });
+
+      // Async processing (fire-and-forget)
+      this.processWebhookAsync(data).catch(err => {
+        console.error('[Webhook] Async processing failed:', err);
+      });
+
     } catch (error) {
-      console.error('Webhook processing error:', error);
-      // Always return 200 to webhook sender to acknowledge receipt, unless it's a critical system failure
-      // (Some services retry if not 200)
-      return {
-        success: false,
-        message: 'Webhook processing failed',
-        error: error.message
-      };
+      const duration = Date.now() - startTime;
+      console.error(`[Webhook] Error after ${duration}ms:`, error);
+
+      // Only send error response if headers not sent yet
+      if (!res.headersSent) {
+        if (error instanceof HttpException) {
+          return res.status(error.getStatus()).json({
+            success: false,
+            message: error.message
+          });
+        }
+        return res.status(HttpStatus.INTERNAL_SERVER_ERROR).json({
+          success: false,
+          message: 'Webhook processing failed',
+          error: error.message
+        });
+      }
+    }
+  }
+
+  // Async webhook processing - runs after HTTP response sent
+  private async processWebhookAsync(data: any): Promise<void> {
+    try {
+      await this.paymentService.processBankTransferWebhook(data);
+      console.log('[Webhook] Async processing completed successfully');
+    } catch (error) {
+      console.error('[Webhook] Async processing error:', error);
+      // Could add to dead letter queue or retry mechanism here
     }
   }
 

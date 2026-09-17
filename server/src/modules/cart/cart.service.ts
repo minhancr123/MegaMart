@@ -61,7 +61,8 @@ export class CartService {
           ...item,
           variant: {
             ...item.variant,
-            price: formatPrice(item.variant.price)
+            price: formatPrice(item.variant.price),
+            salePrice: item.variant.salePrice ? formatPrice(item.variant.salePrice) : null,
           }
         }))
       };

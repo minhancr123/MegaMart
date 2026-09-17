@@ -1,5 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsNotEmpty, IsString, IsOptional, IsObject, IsNumber, IsEnum } from 'class-validator';
+import { IsNotEmpty, IsString, IsOptional, IsObject, IsNumber, IsEnum, Min } from 'class-validator';
 import { PaymentProvider } from '@prisma/client';
 
 export class ShippingAddressDto {
@@ -22,6 +22,19 @@ export class ShippingAddressDto {
   @IsString()
   @IsOptional()
   note?: string;
+
+  @ApiProperty({ description: 'Mã tỉnh GHN', required: false })
+  @IsOptional()
+  provinceId?: number;
+
+  @ApiProperty({ description: 'Mã quận/huyện GHN', required: false })
+  @IsOptional()
+  districtId?: number;
+
+  @ApiProperty({ description: 'Mã phường/xã GHN', required: false })
+  @IsOptional()
+  @IsString()
+  wardCode?: string;
 }
 
 export class OrderTotalsDto {
@@ -41,6 +54,11 @@ export class OrderTotalsDto {
   @IsNumber()
   @IsOptional()
   discount?: number;
+
+  @ApiProperty({ required: false, description: 'Phí vận chuyển GHN (VND)' })
+  @IsNumber()
+  @IsOptional()
+  shippingFee?: number;
 }
 
 export class CreateOrderDto {
@@ -73,4 +91,10 @@ export class CreateOrderDto {
   @IsString()
   @IsOptional()
   userId?: string;
+
+  @ApiProperty({ required: false, description: 'Số tiền muốn trừ từ ví MegaMart (VND)' })
+  @IsNumber()
+  @IsOptional()
+  @Min(0)
+  useWalletAmount?: number;
 }

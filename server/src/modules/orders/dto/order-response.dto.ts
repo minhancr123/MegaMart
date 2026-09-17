@@ -28,6 +28,22 @@ export class OrderResponseDto {
   @ApiProperty()
   userId: string;
 
+  @ApiProperty({ required: false })
+  user?: { id: string; name: string | null; email: string } | null;
+
+  @ApiProperty({ required: false })
+  assignedShipperId?: string | null;
+
+  @ApiProperty({ required: false })
+  assignedShipper?: {
+    id: string;
+    name: string | null;
+    phone: string | null;
+    vehiclePlate: string | null;
+    avatarUrl: string | null;
+    isActive?: boolean;
+  } | null;
+
   @ApiProperty({ enum: OrderStatus })
   status: OrderStatus;
 
@@ -46,6 +62,21 @@ export class OrderResponseDto {
   @ApiProperty()
   shippingFee: number;
 
+  @ApiProperty({ required: false })
+  shippingCarrier?: string | null;
+
+  @ApiProperty({ required: false })
+  shippingOrderCode?: string | null;
+
+  @ApiProperty({ required: false })
+  shippingStatus?: string | null;
+
+  @ApiProperty({ required: false })
+  expectedDeliveryDate?: Date | null;
+
+  @ApiProperty({ required: false })
+  shippingFeeReal?: number | null;
+
   @ApiProperty()
   shippingAddress: any;
 
@@ -63,4 +94,7 @@ export class OrderResponseDto {
 
   @ApiProperty({ required: false })
   payments?: any[];
+
+  @ApiProperty({ required: false, description: 'Serial đã gán cho đơn (tra bảo hành)' })
+  serials?: any[];
 }

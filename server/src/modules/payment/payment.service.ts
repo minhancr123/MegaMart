@@ -1,7 +1,8 @@
-import { Injectable, HttpException, HttpStatus } from '@nestjs/common';
+import { Injectable, HttpException, HttpStatus, Inject, forwardRef } from '@nestjs/common';
 import { PrismaService } from 'src/prismaClient/prisma.service';
 import { ConfigService } from '@nestjs/config';
 import { PaymentProvider, PaymentStatus, OrderStatus } from '@prisma/client';
+import { LoyaltyService } from '../loyalty/loyalty.service';
 import * as crypto from 'crypto';
 import * as querystring from 'qs';
 
@@ -14,13 +15,19 @@ export class PaymentService {
 
   constructor(
     private readonly prisma: PrismaService,
-    private readonly configService: ConfigService
+    private readonly configService: ConfigService,
+    @Inject(forwardRef(() => LoyaltyService)) private readonly loyaltyService: LoyaltyService,
   ) {
     // VNPay configuration
     this.vnpayUrl = this.configService.get('VNPAY_URL') || 'https://sandbox.vnpayment.vn/paymentv2/vpcpay.html';
     this.vnpayTmnCode = this.configService.get('VNPAY_TMN_CODE') || '';
     this.vnpayHashSecret = this.configService.get('VNPAY_HASH_SECRET') || '';
     this.vnpayReturnUrl = this.configService.get('VNPAY_RETURN_URL') || 'http://localhost:3000/payment/vnpay-return';
+  }
+
+  // Helper: Get Prisma client optimized for webhook (direct connection, bypass Accelerate)
+  private getWebhookClient() {
+    return this.prisma.direct;
   }
 
   // Create payment URL for VNPay
@@ -172,6 +179,7 @@ export class PaymentService {
 
   // Handle Bank Transfer Webhook (Generic)
   async processBankTransferWebhook(data: any): Promise<any> {
+    const startTime = Date.now();
     // 1. Normalize Input
     // Support multiple formats:
     // Case A: { content: "...", amount: 100000, ... } (Simple/Custom)
@@ -191,40 +199,52 @@ export class PaymentService {
 
     const results: any[] = [];
 
+    // Use direct Prisma client (bypass Accelerate) for low-latency webhook processing
+    const prisma = this.getWebhookClient();
+
     for (const tx of transactions) {
       try {
         // Extract content and amount
-        // Handle various field names (description, content, amount, value, etc.)
+        // Handle various field names (description, content, remark, transferAmount, amount, value, etc.)
         const content = tx.description || tx.content || tx.remark || "";
-        const amount = Number(tx.amount || tx.value || 0);
+        const amount = Number(tx.transferAmount || tx.amount || tx.value || 0);
 
         if (!content) continue;
 
         // 2. Find Order Code in Content
-        // Regex to find "ORD-[A-Z0-9-]+"
-        const match = content.match(/ORD-[A-Z0-9-]+/i);
+        // Match both "ORD-XXXX-XXXX" and "ORDXXXX"
+        const match = content.match(/ORD[-_]?[A-Z0-9-]+/i);
 
         if (!match) {
-          console.log('No order code found in content:', content);
+          console.log('[Webhook] No order code found in content:', content);
           continue;
         }
 
-        const orderCode = match[0].toUpperCase();
-        console.log('Found order code:', orderCode);
+        const rawCode = match[0].toUpperCase();
+        console.log('[Webhook] Found order code in content:', rawCode);
 
-        const order = await this.prisma.order.findUnique({
-          where: { code: orderCode },
-          include: { payments: true }
+        // Try direct match, or stripped match - use direct client, no unnecessary include
+        let order = await prisma.order.findFirst({
+          where: {
+            OR: [
+              { code: rawCode },
+              { code: rawCode.replace(/[-_]/g, '') },
+              { code: { contains: rawCode.replace('ORD', '').replace(/[-_]/g, '') } }
+            ]
+          }
+          // REMOVED: include: { payments: true } - not needed for webhook processing
         });
 
         if (!order) {
-          console.log('Order not found:', orderCode);
+          console.log('[Webhook] Order not found:', rawCode);
           continue;
         }
 
+        const orderCode = order.code;
+
         // 3. Verify Order Status
         if (order.status === OrderStatus.PAID || order.status === OrderStatus.COMPLETED || order.status === OrderStatus.CANCELED) {
-          console.log('Order already finalized:', order.status);
+          console.log('[Webhook] Order already finalized:', order.status);
           continue;
         }
 
@@ -232,20 +252,20 @@ export class PaymentService {
         // Note: order.total is BigInt.
         const orderTotal = Number(order.total);
         if (amount < orderTotal) {
-          console.log(`Insufficient amount. Received: ${amount}, Expected: ${orderTotal}`);
+          console.log(`[Webhook] Insufficient amount. Received: ${amount}, Expected: ${orderTotal}`);
           // Optional: Mark as partially paid or log warning
           continue;
         }
 
-        // 5. Update Order
-        await this.prisma.$transaction([
+        // 5. Update Order - use direct client for transaction
+        await prisma.$transaction([
           // Update Order Status
-          this.prisma.order.update({
+          prisma.order.update({
             where: { id: order.id },
             data: { status: OrderStatus.PAID }
           }),
           // Update Payment Status
-          this.prisma.payment.updateMany({
+          prisma.payment.updateMany({
             where: { orderId: order.id },
             data: {
               status: PaymentStatus.PAID,
@@ -253,24 +273,29 @@ export class PaymentService {
             }
           }),
           // Create History
-          this.prisma.orderStatusHistory.create({
-            data: {
-              orderId: order.id,
-              fromStatus: order.status,
-              toStatus: OrderStatus.PAID,
-              reason: `Auto-confirmed by Webhook (Amount: ${amount})`,
-              changedBy: 'SYSTEM'
-            }
-          })
-        ]);
+            prisma.orderStatusHistory.create({
+              data: {
+                orderId: order.id,
+                fromStatus: order.status,
+                toStatus: OrderStatus.PAID,
+                reason: `Auto-confirmed by Webhook (Amount: ${amount})`,
+                changedBy: 'SYSTEM'
+              }
+            })
+          ]);
 
-        results.push({ orderCode, status: 'UPDATED_TO_PAID' });
+          // Tích điểm loyalty sau khi đơn hàng chuyển sang PAID
+          await this.loyaltyService.awardOrderPoints(order.id, prisma).catch(() => null);
+
+          results.push({ orderCode, status: 'UPDATED_TO_PAID' });
 
       } catch (err) {
-        console.error('Error processing transaction:', err);
+        console.error('[Webhook] Error processing transaction:', err);
       }
     }
 
+    const duration = Date.now() - startTime;
+    console.log(`[Webhook] Processing completed in ${duration}ms, results: ${results.length}`);
     return results;
   }
 

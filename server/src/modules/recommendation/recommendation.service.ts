@@ -1,5 +1,5 @@
-import { Injectable } from '@nestjs/common';
-import { PrismaService } from '../../prismaClient/prisma.service';
+import { Injectable } from "@nestjs/common";
+import { PrismaService } from "../../prismaClient/prisma.service";
 
 /**
  * Đọc gợi ý cá nhân do job recommendation-refresh tính sẵn.
@@ -10,14 +10,14 @@ export class RecommendationService {
   constructor(private readonly prisma: PrismaService) {}
 
   async listForUser(userId: string, take = 20) {
-    if (!userId) throw new Error('listForUser: thiếu userId');
+    if (!userId) throw new Error("listForUser: thiếu userId");
     const rows = await this.prisma.userRecommendation.findMany({
       where: {
         userId,
         // Ẩn sp đã xóa mềm sau khi job chạy (deletedAt set sau).
         product: { deletedAt: null },
       },
-      orderBy: [{ score: 'desc' }, { updatedAt: 'desc' }],
+      orderBy: [{ score: "desc" }, { updatedAt: "desc" }],
       take: Math.min(Math.max(take, 1), 50),
       select: {
         productId: true,
@@ -31,7 +31,7 @@ export class RecommendationService {
             slug: true,
             brand: true,
             variants: {
-              orderBy: { price: 'asc' },
+              orderBy: { price: "asc" },
               take: 1,
               select: { price: true, salePrice: true },
             },
@@ -53,19 +53,19 @@ export class RecommendationService {
         reason: r.reason,
         refreshedAt: r.updatedAt,
         product: {
-          id: r.product!.id,
-          name: r.product!.name,
-          slug: r.product!.slug,
-          brand: r.product!.brand,
+          id: r.product.id,
+          name: r.product.name,
+          slug: r.product.slug,
+          brand: r.product.brand,
           price:
-            r.product!.variants[0]?.price != null
-              ? Number(r.product!.variants[0].price)
+            r.product.variants[0]?.price != null
+              ? Number(r.product.variants[0].price)
               : null,
           salePrice:
-            r.product!.variants[0]?.salePrice != null
-              ? Number(r.product!.variants[0].salePrice)
+            r.product.variants[0]?.salePrice != null
+              ? Number(r.product.variants[0].salePrice)
               : null,
-          image: r.product!.images[0]?.url ?? null,
+          image: r.product.images[0]?.url ?? null,
         },
       }));
   }

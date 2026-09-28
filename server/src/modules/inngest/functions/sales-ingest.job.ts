@@ -1,10 +1,14 @@
-import { Injectable, Logger } from '@nestjs/common';
-import { PrismaService } from '../../../prismaClient/prisma.service';
-import { SALE_ORDER_STATUSES, aggregateDaySales, utcDayStart } from './job-guards';
-import { inngest } from '../inngest.client';
-import { InngestRegistryService } from '../inngest-registry.service';
-import { isJobEnabled } from '../job-flags';
-import { getJobRuntime } from '../agent-job-runtime';
+import { Injectable, Logger } from "@nestjs/common";
+import { PrismaService } from "../../../prismaClient/prisma.service";
+import {
+  SALE_ORDER_STATUSES,
+  aggregateDaySales,
+  utcDayStart,
+} from "./job-guards";
+import { inngest } from "../inngest.client";
+import { InngestRegistryService } from "../inngest-registry.service";
+import { isJobEnabled } from "../job-flags";
+import { getJobRuntime } from "../agent-job-runtime";
 
 /** Số ngày trailing recompute mỗi lần chạy (tự backfill + tự sửa số liệu muộn). */
 const TRAILING_DAYS = 30;
@@ -24,7 +28,7 @@ export class SalesIngestJob {
     private readonly prisma: PrismaService,
     registry: InngestRegistryService,
   ) {
-    if (isJobEnabled('JOB_SALES_INGEST')) {
+    if (isJobEnabled("JOB_SALES_INGEST")) {
       registry.register(this.buildFunction());
     }
   }
@@ -32,21 +36,21 @@ export class SalesIngestJob {
   private buildFunction() {
     return inngest.createFunction(
       {
-        id: 'sales-ingest',
-        name: 'Sales Ingest (daily)',
+        id: "sales-ingest",
+        name: "Sales Ingest (daily)",
         retries: 2,
         // 1 run tại 1 thời điểm: tránh 2 run đè nhau createMany trùng unique.
         concurrency: { limit: 1 },
-        triggers: [{ cron: '0 18 * * *' }],
+        triggers: [{ cron: "0 18 * * *" }],
       },
       async ({ step }) => {
-        const runtime = await getJobRuntime(this.prisma, 'sales-ingest');
+        const runtime = await getJobRuntime(this.prisma, "sales-ingest");
         if (!runtime.enabled) {
-          this.logger.log('⏸️ sales-ingest đang tắt — bỏ qua kỳ này.');
+          this.logger.log("⏸️ sales-ingest đang tắt — bỏ qua kỳ này.");
           return { skipped: true };
         }
 
-        const written = await step.run('compute-30d', async () => {
+        const written = await step.run("compute-30d", async () => {
           // Chỉ ingest ngày đã kết thúc trọn vẹn (bỏ hôm nay còn dở).
           const todayStart = utcDayStart(new Date());
           const windowStart = new Date(

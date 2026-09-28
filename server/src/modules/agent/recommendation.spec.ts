@@ -1,22 +1,34 @@
-import { FakeListChatModel } from '@langchain/core/utils/testing';
-import { RecommendationService } from './recommendation.workflow';
+import { FakeListChatModel } from "@langchain/core/utils/testing";
+import { RecommendationService } from "./recommendation.workflow";
 import type {
   BehaviorSignals,
   RankCandidate,
-} from './nodes/recommendation.nodes';
+} from "./nodes/recommendation.nodes";
 
 const SIGNALS: BehaviorSignals = {
-  topCategories: [{ name: 'Điện thoại', count: 5 }],
-  topBrands: [{ name: 'MegaPhone', count: 4 }],
-  wishlistIds: ['p-wish'],
+  topCategories: [{ name: "Điện thoại", count: 5 }],
+  topBrands: [{ name: "MegaPhone", count: 4 }],
+  wishlistIds: ["p-wish"],
   highRatedIds: [],
   recentViewIds: [],
-  purchasedIds: ['p-bought'],
+  purchasedIds: ["p-bought"],
 };
 
 const CANDIDATES: RankCandidate[] = [
-  { productId: 'p-1', name: 'Phone A', brand: 'MegaPhone', category: 'Điện thoại', soldCount: 100 },
-  { productId: 'p-2', name: 'Phone B', brand: 'MegaPhone', category: 'Điện thoại', soldCount: 50 },
+  {
+    productId: "p-1",
+    name: "Phone A",
+    brand: "MegaPhone",
+    category: "Điện thoại",
+    soldCount: 100,
+  },
+  {
+    productId: "p-2",
+    name: "Phone B",
+    brand: "MegaPhone",
+    category: "Điện thoại",
+    soldCount: 50,
+  },
 ];
 
 function buildService() {
@@ -25,11 +37,11 @@ function buildService() {
   return new RecommendationService(config, prisma);
 }
 
-describe('RecommendationService', () => {
-  it('rank top sản phẩm từ candidates', async () => {
+describe("RecommendationService", () => {
+  it("rank top sản phẩm từ candidates", async () => {
     const models = {
       profiler: new FakeListChatModel({
-        responses: ['Thích điện thoại MegaPhone.'],
+        responses: ["Thích điện thoại MegaPhone."],
       }),
       ranker: new FakeListChatModel({
         responses: [
@@ -41,6 +53,6 @@ describe('RecommendationService', () => {
     const res = await buildService().runRecommend(SIGNALS, CANDIDATES, models);
 
     expect(res.rankings).toHaveLength(2);
-    expect(res.rankings[0].productId).toBe('p-1');
+    expect(res.rankings[0].productId).toBe("p-1");
   });
 });

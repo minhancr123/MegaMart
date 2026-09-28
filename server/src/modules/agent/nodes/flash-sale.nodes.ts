@@ -1,7 +1,7 @@
-import { ChatPromptTemplate } from '@langchain/core/prompts';
-import { z } from 'zod';
-import type { BaseChatModel } from '@langchain/core/language_models/chat_models';
-import { structured } from '../agent-llm';
+import { ChatPromptTemplate } from "@langchain/core/prompts";
+import { z } from "zod";
+import type { BaseChatModel } from "@langchain/core/language_models/chat_models";
+import { structured } from "../agent-llm";
 
 /** Ứng viên do job lọc sẵn (JSON-safe). */
 export interface SaleCandidate {
@@ -15,12 +15,12 @@ export interface SaleCandidate {
 
 const analystPrompt = ChatPromptTemplate.fromMessages([
   [
-    'system',
+    "system",
     `Bạn là chuyên gia phân tích tồn kho sàn TMĐT MegaMart. Từ danh sách variant tồn cao + bán chậm, chọn TỐI ĐA 5 variant làm flash sale.
 Mỗi pick: discountPct NGUYÊN trong [5..25] (tồn càng cao, ế càng lâu thì % càng cao), quantity = min(available, 50).
 Ưu tiên: available lớn nhất, sold30d = 0. Trả đúng schema.`,
   ],
-  ['human', 'CANDIDATES (JSON):\n{candidates}'],
+  ["human", "CANDIDATES (JSON):\n{candidates}"],
 ]);
 
 const AnalystSchema = z.object({
@@ -30,10 +30,10 @@ const AnalystSchema = z.object({
   // đã đủ để loại item xấu.
   picks: z.array(
     z.object({
-      variantId: z.string().catch(''),
+      variantId: z.string().catch(""),
       discountPct: z.number().int().catch(10),
       quantity: z.number().int().catch(10),
-      reason: z.string().catch(''),
+      reason: z.string().catch(""),
     }),
   ),
 });
@@ -41,43 +41,43 @@ export type SalePicks = z.infer<typeof AnalystSchema>;
 
 const copywriterPrompt = ChatPromptTemplate.fromMessages([
   [
-    'system',
+    "system",
     `Bạn là copywriter marketing MegaMart. Đặt tên chiến dịch flash sale (ngắn, kích cầu, tiếng Việt, KHÔNG thêm tiền tố [DRAFT] — job tự thêm) + tagline 1 câu + mô tả 2-3 câu. Không gen ảnh. Trả đúng schema.`,
   ],
-  ['human', 'PICKS (JSON):\n{picks}'],
+  ["human", "PICKS (JSON):\n{picks}"],
 ]);
 
 const CopySchema = z.object({
-  name: z.string().catch(''),
-  tagline: z.string().catch(''),
-  description: z.string().catch(''),
+  name: z.string().catch(""),
+  tagline: z.string().catch(""),
+  description: z.string().catch(""),
 });
 export type SaleCopy = z.infer<typeof CopySchema>;
 
 const reviewerPrompt = ChatPromptTemplate.fromMessages([
   [
-    'system',
+    "system",
     `Bạn là kiểm duyệt flash sale MegaMart. Duyệt toàn bộ hoặc từ chối từng item.
 Từ chối item nếu: discountPct ngoài [5..25], salePrice (= price*(1-pct)) dưới 1000đ, quantity > available, variantId không có trong candidates.
 Trả đúng schema (approvedItems là mảng variantId được duyệt).`,
   ],
   [
-    'human',
-    'PICKS (JSON):\n{picks}\n\nCOPY (JSON):\n{copy}\n\nCANDIDATES (JSON):\n{candidates}',
+    "human",
+    "PICKS (JSON):\n{picks}\n\nCOPY (JSON):\n{copy}\n\nCANDIDATES (JSON):\n{candidates}",
   ],
 ]);
 
 export const ReviewSchema = z.object({
-  approvedItems: z.array(z.string().catch('')).catch([]),
+  approvedItems: z.array(z.string().catch("")).catch([]),
   rejectedItems: z
     .array(
       z.object({
-        variantId: z.string().catch(''),
-        reason: z.string().catch(''),
+        variantId: z.string().catch(""),
+        reason: z.string().catch(""),
       }),
     )
     .catch([]),
-  notes: z.string().catch(''),
+  notes: z.string().catch(""),
 });
 export type SaleReview = z.infer<typeof ReviewSchema>;
 

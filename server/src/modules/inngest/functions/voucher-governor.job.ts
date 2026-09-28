@@ -1,13 +1,17 @@
-import { Injectable, Logger } from '@nestjs/common';
-import { AuditAction, AuditEntity, AuditLogService } from '../../audit-log/audit-log.service';
-import { PrismaService } from '../../../prismaClient/prisma.service';
-import { VoucherGovernorService } from '../../agent/voucher-governor.workflow';
-import type { VoucherSummary } from '../../agent/nodes/voucher-governor.nodes';
-import { daysToExpiry, isExpired } from './job-guards';
-import { inngest } from '../inngest.client';
-import { InngestRegistryService } from '../inngest-registry.service';
-import { getJobRuntime } from '../agent-job-runtime';
-import { isJobEnabled } from '../job-flags';
+import { Injectable, Logger } from "@nestjs/common";
+import {
+  AuditAction,
+  AuditEntity,
+  AuditLogService,
+} from "../../audit-log/audit-log.service";
+import { PrismaService } from "../../../prismaClient/prisma.service";
+import { VoucherGovernorService } from "../../agent/voucher-governor.workflow";
+import type { VoucherSummary } from "../../agent/nodes/voucher-governor.nodes";
+import { daysToExpiry, isExpired } from "./job-guards";
+import { inngest } from "../inngest.client";
+import { InngestRegistryService } from "../inngest-registry.service";
+import { getJobRuntime } from "../agent-job-runtime";
+import { isJobEnabled } from "../job-flags";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -27,7 +31,7 @@ export class VoucherGovernorJob {
     registry: InngestRegistryService,
   ) {
     // Công tắc env: tắt thì không đăng ký (cron không bắn). Đổi env phải restart.
-    if (isJobEnabled('JOB_VOUCHER_GOVERNANCE')) {
+    if (isJobEnabled("JOB_VOUCHER_GOVERNANCE")) {
       registry.register(this.buildFunction());
     }
   }
@@ -35,24 +39,24 @@ export class VoucherGovernorJob {
   private buildFunction() {
     return inngest.createFunction(
       {
-        id: 'voucher-governance',
-        name: 'Voucher Governance (daily)',
+        id: "voucher-governance",
+        name: "Voucher Governance (daily)",
         retries: 2,
         // 1 run tại 1 thời điểm: chống trigger đè gây trùng unique/audit đôi.
         concurrency: { limit: 1 },
-        triggers: [{ cron: '45 20 * * *' }],
+        triggers: [{ cron: "45 20 * * *" }],
       },
       async ({ step }) => {
         // Step 0 — công tắc runtime (env boot + UI admin): tắt thì thoát
         // ngay, 0 token. Đổi trên UI có hiệu lực ngay kỳ cron tới.
-        const runtime = await getJobRuntime(this.prisma, 'voucher-governance');
+        const runtime = await getJobRuntime(this.prisma, "voucher-governance");
         if (!runtime.enabled) {
-          this.logger.log('⏸️ voucher-governance đang tắt — bỏ qua kỳ này.');
+          this.logger.log("⏸️ voucher-governance đang tắt — bỏ qua kỳ này.");
           return { skipped: true };
         }
         // Step 1 — snapshot voucher active + tín hiệu lạm dụng (JSON-safe).
         const summaries = await step.run(
-          'fetch-active-vouchers',
+          "fetch-active-vouchers",
           async (): Promise<VoucherSummary[]> => {
             const now = new Date();
             const vouchers = await this.prisma.voucher.findMany({
@@ -72,7 +76,7 @@ export class VoucherGovernorJob {
               },
             });
             const usage = await this.prisma.voucherUsage.groupBy({
-              by: ['voucherId', 'userId'],
+              by: ["voucherId", "userId"],
               // Chỉ quét voucher đang active (bảng history phình theo thời gian).
               where: { voucherId: { in: vouchers.map((v) => v.id) } },
               _count: { _all: true },
@@ -83,7 +87,10 @@ export class VoucherGovernorJob {
             const limitOf = new Map(
               vouchers.map((v) => [v.code, v.usagePerUser]),
             );
-            const byVoucher = new Map<string, { userId: string; count: number }[]>();
+            const byVoucher = new Map<
+              string,
+              { userId: string; count: number }[]
+            >();
             for (const u of usage) {
               const code = idToCode.get(u.voucherId);
               if (!code) continue;
@@ -110,8 +117,7 @@ export class VoucherGovernorJob {
               ageDays: Math.floor(
                 (now.getTime() - v.createdAt.getTime()) / DAY_MS,
               ),
-              exhausted:
-                v.usageLimit != null && v.usedCount >= v.usageLimit,
+              exhausted: v.usageLimit != null && v.usedCount >= v.usageLimit,
               abusers: byVoucher.get(v.code) ?? [],
             }));
           },
@@ -122,18 +128,16 @@ export class VoucherGovernorJob {
         }
 
         // Step 2 — crew kiểm toán (3 LLM calls).
-        const verdict = await step.run('run-crew', () =>
+        const verdict = await step.run("run-crew", () =>
           this.governor.runGovernance(summaries),
         );
 
         // Step 3 — thi hành phần an toàn + ghi đề xuất.
-        const applied = await step.run('apply', async () => {
+        const applied = await step.run("apply", async () => {
           const now = new Date();
           // Lưới an toàn bằng code: chỉ tắt voucher HẾT HẠN hoặc HẾT QUOTA,
           // bất kể LLM đề xuất gì.
-          const candidates = new Map(
-            summaries.map((s) => [s.code, s]),
-          );
+          const candidates = new Map(summaries.map((s) => [s.code, s]));
           const safeCodes = verdict.approvedAuto
             .map((a) => a.code)
             .filter((code) => {
@@ -150,7 +154,7 @@ export class VoucherGovernorJob {
             autoDeactivated = r.count;
           }
           const actionable = verdict.proposals.filter(
-            (x) => x.action !== 'none',
+            (x) => x.action !== "none",
           );
           for (const p of actionable) {
             await this.audit.log(
@@ -159,12 +163,12 @@ export class VoucherGovernorJob {
               undefined,
               p.code,
               {
-                actor: 'system:agent-crew',
-                source: 'voucher-governance',
+                actor: "system:agent-crew",
+                source: "voucher-governance",
                 action: p.action,
                 params: p.params,
                 reason: p.reason,
-                status: 'PENDING_ADMIN_REVIEW',
+                status: "PENDING_ADMIN_REVIEW",
               },
             );
           }

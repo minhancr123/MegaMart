@@ -1,6 +1,6 @@
-import type { PrismaService } from '../../prismaClient/prisma.service';
-import { AGENT_JOBS } from './agent-jobs.meta';
-import { isJobEnabled } from './job-flags';
+import type { PrismaService } from "../../prismaClient/prisma.service";
+import { AGENT_JOBS } from "./agent-jobs.meta";
+import { isJobEnabled } from "./job-flags";
 
 export interface JobRuntime {
   /** Chạy hay bỏ qua kỳ này = công tắc boot (env) AND công tắc UI (DB). */
@@ -39,7 +39,10 @@ export async function getJobRuntime(
   const row = await prisma.agentJobConfig.findUnique({ where: { jobId } });
   return {
     enabled: envOn && (row?.enabled ?? true),
-    batchSize: clampBatch(row?.batchSize ?? meta.defaultBatch, meta.defaultBatch),
+    batchSize: clampBatch(
+      row?.batchSize ?? meta.defaultBatch,
+      meta.defaultBatch,
+    ),
     envOn,
   };
 }

@@ -1,9 +1,9 @@
-import { All, Controller, Req, Res } from '@nestjs/common';
-import { SkipThrottle } from '@nestjs/throttler';
-import { serve } from 'inngest/express';
-import type { Request, Response } from 'express';
-import { inngest } from './inngest.client';
-import { InngestRegistryService } from './inngest-registry.service';
+import { All, Controller, Req, Res } from "@nestjs/common";
+import { SkipThrottle } from "@nestjs/throttler";
+import { serve } from "inngest/express";
+import type { Request, Response } from "express";
+import { inngest } from "./inngest.client";
+import { InngestRegistryService } from "./inngest-registry.service";
 
 /**
  * Endpoint duy nhất cho Inngest: GET/POST/PUT /api/inngest
@@ -15,7 +15,7 @@ import { InngestRegistryService } from './inngest-registry.service';
  * - Trỏ CLI dev: npx inngest-cli dev -u http://localhost:3001/api/inngest
  */
 @SkipThrottle()
-@Controller('inngest')
+@Controller("inngest")
 export class InngestController {
   private handler: ReturnType<typeof serve> | null = null;
 

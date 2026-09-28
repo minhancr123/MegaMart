@@ -1,15 +1,15 @@
-import { FakeListChatModel } from '@langchain/core/utils/testing';
-import { LoyaltyNurtureService } from './loyalty.workflow';
-import type { NurtureCandidate } from './nodes/loyalty.nodes';
+import { FakeListChatModel } from "@langchain/core/utils/testing";
+import { LoyaltyNurtureService } from "./loyalty.workflow";
+import type { NurtureCandidate } from "./nodes/loyalty.nodes";
 
 const CANDIDATE: NurtureCandidate = {
-  userId: 'u-1',
-  name: 'An',
-  segment: 'NEAR_TIER',
+  userId: "u-1",
+  name: "An",
+  segment: "NEAR_TIER",
   totalSpent: 48000000,
   points: 4800,
-  currentTier: 'Bạc',
-  nextTier: 'Vàng',
+  currentTier: "Bạc",
+  nextTier: "Vàng",
   progressPct: 96,
   daysSinceLastOrder: 5,
 };
@@ -20,8 +20,8 @@ function buildService() {
   return new LoyaltyNurtureService(config, prisma);
 }
 
-describe('LoyaltyNurtureService', () => {
-  it('soạn ưu đãi trong trần ngân sách và được duyệt', async () => {
+describe("LoyaltyNurtureService", () => {
+  it("soạn ưu đãi trong trần ngân sách và được duyệt", async () => {
     const models = {
       segmenter: new FakeListChatModel({
         responses: [

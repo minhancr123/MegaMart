@@ -1,9 +1,9 @@
-import { Injectable, Logger } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
-import { Annotation, END, START, StateGraph } from '@langchain/langgraph';
-import type { BaseChatModel } from '@langchain/core/language_models/chat_models';
-import { PrismaService } from '../../prismaClient/prisma.service';
-import { buildSmartModel } from './agent-llm';
+import { Injectable, Logger } from "@nestjs/common";
+import { ConfigService } from "@nestjs/config";
+import { Annotation, END, START, StateGraph } from "@langchain/langgraph";
+import type { BaseChatModel } from "@langchain/core/language_models/chat_models";
+import { PrismaService } from "../../prismaClient/prisma.service";
+import { buildSmartModel } from "./agent-llm";
 import {
   createLoyaltyCopywriter,
   createLoyaltyReviewer,
@@ -12,7 +12,7 @@ import {
   type NurtureContent,
   type NurtureReview,
   type SegmentVerdict,
-} from './nodes/loyalty.nodes';
+} from "./nodes/loyalty.nodes";
 
 const LoyaltyAnnotation = Annotation.Root({
   candidate: Annotation<NurtureCandidate>,
@@ -23,7 +23,9 @@ const LoyaltyAnnotation = Annotation.Root({
 
 export type LoyaltyModels =
   | BaseChatModel
-  | Partial<Record<'segmenter' | 'copywriter' | 'reviewer', BaseChatModel>> & { default?: BaseChatModel };
+  | (Partial<Record<"segmenter" | "copywriter" | "reviewer", BaseChatModel>> & {
+      default?: BaseChatModel;
+    });
 
 export interface NurturePlan {
   candidate: NurtureCandidate;
@@ -49,36 +51,36 @@ export class LoyaltyNurtureService {
 
   buildGraph(models?: LoyaltyModels) {
     const single =
-      models && typeof (models as BaseChatModel)?.invoke === 'function'
+      models && typeof (models as BaseChatModel)?.invoke === "function"
         ? (models as BaseChatModel)
         : undefined;
     const roles = single ? undefined : (models as LoyaltyModels);
     const pick = (
-      role: 'segmenter' | 'copywriter' | 'reviewer',
+      role: "segmenter" | "copywriter" | "reviewer",
     ): BaseChatModel =>
       single ??
       (roles as Record<string, BaseChatModel | undefined>)?.[role] ??
       (roles as { default?: BaseChatModel })?.default ??
       buildSmartModel(this.config);
 
-    const segmenter = createLoyaltySegmenter(pick('segmenter'));
-    const copywriter = createLoyaltyCopywriter(pick('copywriter'));
-    const reviewer = createLoyaltyReviewer(pick('reviewer'));
+    const segmenter = createLoyaltySegmenter(pick("segmenter"));
+    const copywriter = createLoyaltyCopywriter(pick("copywriter"));
+    const reviewer = createLoyaltyReviewer(pick("reviewer"));
 
     return new StateGraph(LoyaltyAnnotation)
-      .addNode('segmenter', async (s) => ({
+      .addNode("segmenter", async (s) => ({
         segment: await segmenter(s.candidate),
       }))
-      .addNode('copywriter', async (s) => ({
+      .addNode("copywriter", async (s) => ({
         content: await copywriter(s.segment!, s.candidate),
       }))
-      .addNode('reviewer', async (s) => ({
+      .addNode("reviewer", async (s) => ({
         review: await reviewer(s.content!, s.candidate),
       }))
-      .addEdge(START, 'segmenter')
-      .addEdge('segmenter', 'copywriter')
-      .addEdge('copywriter', 'reviewer')
-      .addEdge('reviewer', END)
+      .addEdge(START, "segmenter")
+      .addEdge("segmenter", "copywriter")
+      .addEdge("copywriter", "reviewer")
+      .addEdge("reviewer", END)
       .compile();
   }
 
@@ -94,14 +96,14 @@ export class LoyaltyNurtureService {
     });
     const approved = finalState.review?.approved ?? false;
     this.logger.log(
-      `💎 Nurture ${candidate.userId} [${finalState.segment?.segment}]: ${approved ? 'APPROVED' : 'REJECTED'}`,
+      `💎 Nurture ${candidate.userId} [${finalState.segment?.segment}]: ${approved ? "APPROVED" : "REJECTED"}`,
     );
     return {
       candidate,
       segment: finalState.segment!,
       content: finalState.content,
       approved,
-      reason: finalState.review?.reason ?? '',
+      reason: finalState.review?.reason ?? "",
     };
   }
 }

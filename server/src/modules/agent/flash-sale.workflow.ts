@@ -1,9 +1,9 @@
-import { Injectable, Logger } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
-import { Annotation, END, START, StateGraph } from '@langchain/langgraph';
-import type { BaseChatModel } from '@langchain/core/language_models/chat_models';
-import { PrismaService } from '../../prismaClient/prisma.service';
-import { buildSmartModel } from './agent-llm';
+import { Injectable, Logger } from "@nestjs/common";
+import { ConfigService } from "@nestjs/config";
+import { Annotation, END, START, StateGraph } from "@langchain/langgraph";
+import type { BaseChatModel } from "@langchain/core/language_models/chat_models";
+import { PrismaService } from "../../prismaClient/prisma.service";
+import { buildSmartModel } from "./agent-llm";
 import {
   createSaleAnalyst,
   createSaleCopywriter,
@@ -12,7 +12,7 @@ import {
   type SaleCopy,
   type SalePicks,
   type SaleReview,
-} from './nodes/flash-sale.nodes';
+} from "./nodes/flash-sale.nodes";
 
 const SaleAnnotation = Annotation.Root({
   candidates: Annotation<SaleCandidate[]>,
@@ -23,7 +23,9 @@ const SaleAnnotation = Annotation.Root({
 
 export type SaleModels =
   | BaseChatModel
-  | Partial<Record<'analyst' | 'copywriter' | 'reviewer', BaseChatModel>> & { default?: BaseChatModel };
+  | (Partial<Record<"analyst" | "copywriter" | "reviewer", BaseChatModel>> & {
+      default?: BaseChatModel;
+    });
 
 export interface SalePlan {
   copy: SaleCopy;
@@ -48,36 +50,34 @@ export class FlashSaleCampaignService {
 
   buildGraph(models?: SaleModels) {
     const single =
-      models && typeof (models as BaseChatModel)?.invoke === 'function'
+      models && typeof (models as BaseChatModel)?.invoke === "function"
         ? (models as BaseChatModel)
         : undefined;
     const roles = single ? undefined : (models as SaleModels);
-    const pick = (
-      role: 'analyst' | 'copywriter' | 'reviewer',
-    ): BaseChatModel =>
+    const pick = (role: "analyst" | "copywriter" | "reviewer"): BaseChatModel =>
       single ??
       (roles as Record<string, BaseChatModel | undefined>)?.[role] ??
       (roles as { default?: BaseChatModel })?.default ??
       buildSmartModel(this.config);
 
-    const analyst = createSaleAnalyst(pick('analyst'));
-    const copywriter = createSaleCopywriter(pick('copywriter'));
-    const reviewer = createSaleReviewer(pick('reviewer'));
+    const analyst = createSaleAnalyst(pick("analyst"));
+    const copywriter = createSaleCopywriter(pick("copywriter"));
+    const reviewer = createSaleReviewer(pick("reviewer"));
 
     return new StateGraph(SaleAnnotation)
-      .addNode('analyst', async (s) => ({
+      .addNode("analyst", async (s) => ({
         picks: await analyst(s.candidates),
       }))
-      .addNode('copywriter', async (s) => ({
+      .addNode("copywriter", async (s) => ({
         copy: await copywriter(s.picks!),
       }))
-      .addNode('reviewer', async (s) => ({
+      .addNode("reviewer", async (s) => ({
         review: await reviewer(s.picks!, s.copy!, s.candidates),
       }))
-      .addEdge(START, 'analyst')
-      .addEdge('analyst', 'copywriter')
-      .addEdge('copywriter', 'reviewer')
-      .addEdge('reviewer', END)
+      .addEdge(START, "analyst")
+      .addEdge("analyst", "copywriter")
+      .addEdge("copywriter", "reviewer")
+      .addEdge("reviewer", END)
       .compile();
   }
 

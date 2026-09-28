@@ -1,4 +1,4 @@
-import { Inngest } from 'inngest';
+import { Inngest } from "inngest";
 
 /**
  * Inngest client dùng chung cho mọi durable function của MegaMart.
@@ -7,4 +7,4 @@ import { Inngest } from 'inngest';
  * - Inngest Cloud: SDK tự đọc INNGEST_EVENT_KEY / INNGEST_SIGNING_KEY từ env.
  *   Lấy key tại https://app.inngest.com → project → Keys.
  */
-export const inngest = new Inngest({ id: 'megamart' });
+export const inngest = new Inngest({ id: "megamart" });

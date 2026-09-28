@@ -1,4 +1,4 @@
-import type { ProductEnrichmentState } from '../agent.state';
+import type { ProductEnrichmentState } from "../agent.state";
 
 export interface DesignerDeps {
   /** Công tắc chính: false (mặc định) thì node thoát ngay, không tốn tiền gen ảnh. */
@@ -30,7 +30,7 @@ export function createDesignerNode(deps: DesignerDeps) {
       const prompt =
         `Product photography cho sàn TMĐT, phong cách studio chuyên nghiệp, nền trắng sáng, ` +
         `ánh sáng mềm, góc chụp 3/4. Sản phẩm: ${state.productName}. ` +
-        `Đặc điểm: ${(state.normalizedSpecs || '').slice(0, 500)}. ` +
+        `Đặc điểm: ${(state.normalizedSpecs || "").slice(0, 500)}. ` +
         `Không chữ, không logo, không watermark, tỉ lệ vuông.`;
 
       const buffer = await deps.generateImage(prompt);

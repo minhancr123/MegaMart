@@ -1,11 +1,11 @@
-import { ChatPromptTemplate } from '@langchain/core/prompts';
-import type { BaseChatModel } from '@langchain/core/language_models/chat_models';
-import type { ProductEnrichmentState } from '../agent.state';
-import { messageText } from './researcher.node';
+import { ChatPromptTemplate } from "@langchain/core/prompts";
+import type { BaseChatModel } from "@langchain/core/language_models/chat_models";
+import type { ProductEnrichmentState } from "../agent.state";
+import { messageText } from "./researcher.node";
 
 const writerPrompt = ChatPromptTemplate.fromMessages([
   [
-    'system',
+    "system",
     `Bạn là copywriter marketing cho sàn TMĐT MegaMart.
 Viết mô tả sản phẩm bằng tiếng Việt, định dạng markdown, gồm:
 - Tiêu đề H2 nổi bật (không lặp y nguyên tên sản phẩm)
@@ -17,7 +17,7 @@ Nếu có nhận xét trả về từ kiểm duyệt, phải sửa đúng các �
 Trả về CHỈ bài mô tả markdown, không thêm lời dẫn.`,
   ],
   [
-    'human',
+    "human",
     `Sản phẩm: {productName}
 Thương hiệu: {brand}
 
@@ -33,8 +33,8 @@ SPECS CHUẨN:
  */
 export function stripCodeFences(md: string): string {
   return md
-    .replace(/^```(?:markdown|md)?\s*\n?/i, '')
-    .replace(/\n?```\s*$/, '')
+    .replace(/^```(?:markdown|md)?\s*\n?/i, "")
+    .replace(/\n?```\s*$/, "")
     .trim();
 }
 
@@ -51,18 +51,20 @@ export function createWriterNode(model: BaseChatModel) {
   ): Promise<Partial<ProductEnrichmentState>> => {
     const res = await chain.invoke({
       productName: state.productName,
-      brand: state.brand || 'Không rõ',
-      specs: state.normalizedSpecs || '(trống)',
+      brand: state.brand || "Không rõ",
+      specs: state.normalizedSpecs || "(trống)",
       revisionNote: state.reviewFeedback
         ? `BẢN TRƯỚC BỊ TRẢ VỀ VỚI NHẬN XÉT:\n${state.reviewFeedback}\nHãy viết lại, khắc phục đúng các điểm trên. Trả về CHỈ markdown thuần, KHÔNG bọc trong fence \`\`\`.`
-        : '',
+        : "",
     });
     return {
       draft: stripCodeFences(messageText(res.content)),
-      status: 'reviewing' as const,
+      status: "reviewing" as const,
       // Đếm số lần viết lại thực tế: chỉ tăng khi có feedback (tức là bị trả về).
       // Bản gốc retryCount=0 → tối đa 2 bản sửa (retryCount=2) rồi graph dừng.
-      retryCount: state.reviewFeedback ? state.retryCount + 1 : state.retryCount,
+      retryCount: state.reviewFeedback
+        ? state.retryCount + 1
+        : state.retryCount,
     };
   };
 }

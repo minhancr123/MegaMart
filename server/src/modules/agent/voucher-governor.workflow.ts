@@ -1,9 +1,9 @@
-import { Injectable, Logger } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
-import { Annotation, END, START, StateGraph } from '@langchain/langgraph';
-import type { BaseChatModel } from '@langchain/core/language_models/chat_models';
-import { PrismaService } from '../../prismaClient/prisma.service';
-import { buildSmartModel } from './agent-llm';
+import { Injectable, Logger } from "@nestjs/common";
+import { ConfigService } from "@nestjs/config";
+import { Annotation, END, START, StateGraph } from "@langchain/langgraph";
+import type { BaseChatModel } from "@langchain/core/language_models/chat_models";
+import { PrismaService } from "../../prismaClient/prisma.service";
+import { buildSmartModel } from "./agent-llm";
 import {
   createVoucherAuditor,
   createVoucherOptimizer,
@@ -12,7 +12,7 @@ import {
   type VoucherFindings,
   type VoucherSummary,
   type VoucherVerdict,
-} from './nodes/voucher-governor.nodes';
+} from "./nodes/voucher-governor.nodes";
 
 const GovAnnotation = Annotation.Root({
   summaries: Annotation<VoucherSummary[]>,
@@ -23,7 +23,9 @@ const GovAnnotation = Annotation.Root({
 
 export type GovernorModels =
   | BaseChatModel
-  | Partial<Record<'auditor' | 'optimizer' | 'reviewer', BaseChatModel>> & { default?: BaseChatModel };
+  | (Partial<Record<"auditor" | "optimizer" | "reviewer", BaseChatModel>> & {
+      default?: BaseChatModel;
+    });
 
 /**
  * Crew kiểm toán voucher: auditor → optimizer → reviewer (tuyến tính).
@@ -41,34 +43,34 @@ export class VoucherGovernorService {
 
   buildGraph(models?: GovernorModels) {
     const single =
-      models && typeof (models as BaseChatModel)?.invoke === 'function'
+      models && typeof (models as BaseChatModel)?.invoke === "function"
         ? (models as BaseChatModel)
         : undefined;
     const roles = single ? undefined : (models as GovernorModels);
-    const pick = (
-      role: 'auditor' | 'optimizer' | 'reviewer',
-    ): BaseChatModel =>
+    const pick = (role: "auditor" | "optimizer" | "reviewer"): BaseChatModel =>
       single ??
       (roles as Record<string, BaseChatModel | undefined>)?.[role] ??
       (roles as { default?: BaseChatModel })?.default ??
       buildSmartModel(this.config);
 
-    const auditor = createVoucherAuditor(pick('auditor'));
-    const optimizer = createVoucherOptimizer(pick('optimizer'));
-    const reviewer = createVoucherReviewer(pick('reviewer'));
+    const auditor = createVoucherAuditor(pick("auditor"));
+    const optimizer = createVoucherOptimizer(pick("optimizer"));
+    const reviewer = createVoucherReviewer(pick("reviewer"));
 
     return new StateGraph(GovAnnotation)
-      .addNode('auditor', async (s) => ({ findings: await auditor(s.summaries) }))
-      .addNode('optimizer', async (s) => ({
+      .addNode("auditor", async (s) => ({
+        findings: await auditor(s.summaries),
+      }))
+      .addNode("optimizer", async (s) => ({
         actions: await optimizer(s.findings!, s.summaries),
       }))
-      .addNode('reviewer', async (s) => ({
+      .addNode("reviewer", async (s) => ({
         verdict: await reviewer(s.actions!),
       }))
-      .addEdge(START, 'auditor')
-      .addEdge('auditor', 'optimizer')
-      .addEdge('optimizer', 'reviewer')
-      .addEdge('reviewer', END)
+      .addEdge(START, "auditor")
+      .addEdge("auditor", "optimizer")
+      .addEdge("optimizer", "reviewer")
+      .addEdge("reviewer", END)
       .compile();
   }
 

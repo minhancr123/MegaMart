@@ -11,8 +11,8 @@
  */
 export function isJobEnabled(key: string, defaultOn = true): boolean {
   const raw = process.env[key];
-  if (raw === undefined || raw === null || String(raw).trim() === '') {
+  if (raw === undefined || raw === null || String(raw).trim() === "") {
     return defaultOn;
   }
-  return ['1', 'true', 'yes', 'on'].includes(String(raw).trim().toLowerCase());
+  return ["1", "true", "yes", "on"].includes(String(raw).trim().toLowerCase());
 }

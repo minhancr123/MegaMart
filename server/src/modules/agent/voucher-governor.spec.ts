@@ -1,11 +1,11 @@
-import { FakeListChatModel } from '@langchain/core/utils/testing';
-import { VoucherGovernorService } from './voucher-governor.workflow';
-import type { VoucherSummary } from './nodes/voucher-governor.nodes';
+import { FakeListChatModel } from "@langchain/core/utils/testing";
+import { VoucherGovernorService } from "./voucher-governor.workflow";
+import type { VoucherSummary } from "./nodes/voucher-governor.nodes";
 
 const SUMMARIES: VoucherSummary[] = [
   {
-    code: 'HET-HAN',
-    type: 'FIXED',
+    code: "HET-HAN",
+    type: "FIXED",
     value: 20000,
     maxDiscount: null,
     minOrderValue: 100000,
@@ -19,8 +19,8 @@ const SUMMARIES: VoucherSummary[] = [
     abusers: [],
   },
   {
-    code: 'NGON',
-    type: 'PERCENT',
+    code: "NGON",
+    type: "PERCENT",
     value: 10,
     maxDiscount: 50000,
     minOrderValue: 300000,
@@ -41,8 +41,8 @@ function buildService() {
   return new VoucherGovernorService(config, prisma);
 }
 
-describe('VoucherGovernorService', () => {
-  it('phân loại đúng + chỉ auto-deactivate voucher hết hạn', async () => {
+describe("VoucherGovernorService", () => {
+  it("phân loại đúng + chỉ auto-deactivate voucher hết hạn", async () => {
     const models = {
       auditor: new FakeListChatModel({
         responses: [
@@ -64,7 +64,7 @@ describe('VoucherGovernorService', () => {
     const verdict = await buildService().runGovernance(SUMMARIES, models);
 
     expect(verdict.approvedAuto).toEqual([
-      { code: 'HET-HAN', action: 'deactivate' },
+      { code: "HET-HAN", action: "deactivate" },
     ]);
     expect(verdict.proposals).toEqual([]);
   });

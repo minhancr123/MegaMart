@@ -1,11 +1,15 @@
-import { Injectable, Logger } from '@nestjs/common';
-import { AuditAction, AuditEntity, AuditLogService } from '../../audit-log/audit-log.service';
-import { PrismaService } from '../../../prismaClient/prisma.service';
-import { AgentWorkflowService } from '../../agent/agent-workflow.service';
-import { inngest } from '../inngest.client';
-import { InngestRegistryService } from '../inngest-registry.service';
-import { getJobRuntime } from '../agent-job-runtime';
-import { isJobEnabled } from '../job-flags';
+import { Injectable, Logger } from "@nestjs/common";
+import {
+  AuditAction,
+  AuditEntity,
+  AuditLogService,
+} from "../../audit-log/audit-log.service";
+import { PrismaService } from "../../../prismaClient/prisma.service";
+import { AgentWorkflowService } from "../../agent/agent-workflow.service";
+import { inngest } from "../inngest.client";
+import { InngestRegistryService } from "../inngest-registry.service";
+import { getJobRuntime } from "../agent-job-runtime";
+import { isJobEnabled } from "../job-flags";
 
 /** Số sản phẩm xử lý mỗi lần cron chạy (giữ nhỏ để tránh rate-limit Gemini free ~15 RPM). */
 
@@ -38,7 +42,7 @@ export class ProductEnrichmentJob {
     registry: InngestRegistryService,
   ) {
     // Công tắc env: tắt thì không đăng ký (cron không bắn). Đổi env phải restart.
-    if (isJobEnabled('JOB_PRODUCT_ENRICHMENT')) {
+    if (isJobEnabled("JOB_PRODUCT_ENRICHMENT")) {
       registry.register(this.buildFunction());
     }
   }
@@ -46,30 +50,30 @@ export class ProductEnrichmentJob {
   private buildFunction() {
     return inngest.createFunction(
       {
-        id: 'product-enrichment',
-        name: 'Product Enrichment (hourly)',
+        id: "product-enrichment",
+        name: "Product Enrichment (hourly)",
         retries: 2, // retry cả function nếu step ném lỗi chưa bắt (ví dụ 429 Gemini)
         // 1 run tại 1 thời điểm: chống trigger đè gây trùng unique/audit đôi.
         concurrency: { limit: 1 },
         // Chạy 04:00 hàng ngày (đủ cho làm giàu nội dung; chạy hourly ngốn ~360 calls/ngày).
         // Muốn thưa hơn: đổi '0 4 * * *' → '0 4 * * 1' (sáng T2 hàng tuần).
-        triggers: [{ cron: '0 21 * * *' }],
+        triggers: [{ cron: "0 21 * * *" }],
       },
       async ({ step }) => {
         // Step 0 — công tắc runtime (env boot + UI admin): tắt thì thoát
         // ngay, 0 token. Đổi trên UI có hiệu lực ngay kỳ cron tới.
-        const runtime = await getJobRuntime(this.prisma, 'product-enrichment');
+        const runtime = await getJobRuntime(this.prisma, "product-enrichment");
         if (!runtime.enabled) {
-          this.logger.log('⏸️ product-enrichment đang tắt — bỏ qua kỳ này.');
+          this.logger.log("⏸️ product-enrichment đang tắt — bỏ qua kỳ này.");
           return { skipped: true };
         }
         // Step 1 — lấy batch sản phẩm chưa có description.
         const products = await step.run(
-          'fetch-unprocessed-products',
+          "fetch-unprocessed-products",
           async (): Promise<UnprocessedProduct[]> => {
             const rows = await this.prisma.product.findMany({
               where: { description: null, deletedAt: null },
-              orderBy: { createdAt: 'asc' },
+              orderBy: { createdAt: "asc" },
               take: runtime.batchSize,
               select: {
                 id: true,
@@ -110,7 +114,7 @@ export class ProductEnrichmentJob {
         );
 
         if (products.length === 0) {
-          this.logger.log('📭 Không có sản phẩm nào cần làm giàu.');
+          this.logger.log("📭 Không có sản phẩm nào cần làm giàu.");
           return { processed: 0, approved: 0, rejected: 0 };
         }
 
@@ -130,7 +134,7 @@ export class ProductEnrichmentJob {
               specsRaw: p.specsRaw,
             }),
           );
-          if (result.status === 'approved') approved += 1;
+          if (result.status === "approved") approved += 1;
           else rejected += 1;
 
           // Step 3 — lưu DB + audit.
@@ -148,7 +152,7 @@ export class ProductEnrichmentJob {
               async (tx) => {
                 let saved = false;
                 let savedImages = 0;
-                if (result.status === 'approved') {
+                if (result.status === "approved") {
                   const updated = await tx.product.updateMany({
                     where: { id: p.id, description: null },
                     data: { description: result.description },
@@ -183,8 +187,8 @@ export class ProductEnrichmentJob {
               undefined,
               p.id,
               {
-                actor: 'system:agent-crew',
-                source: 'product-enrichment',
+                actor: "system:agent-crew",
+                source: "product-enrichment",
                 status: result.status,
                 saved,
                 savedImages,
@@ -197,10 +201,7 @@ export class ProductEnrichmentJob {
 
           // Nghỉ durable giữa các sản phẩm (trừ sp cuối) để giãn tải Gemini.
           if (i < products.length - 1) {
-            await step.sleep(
-              `throttle-${p.id}`,
-              `${THROTTLE_SECONDS}s`,
-            );
+            await step.sleep(`throttle-${p.id}`, `${THROTTLE_SECONDS}s`);
           }
         }
 

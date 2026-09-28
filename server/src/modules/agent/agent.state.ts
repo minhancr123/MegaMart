@@ -2,13 +2,13 @@
  * Shared state cho Product Enrichment crew (LangGraph).
  * Mỗi node đọc state và trả về partial update; LangGraph merge theo key.
  */
-import type { BaseChatModel } from '@langchain/core/language_models/chat_models';
+import type { BaseChatModel } from "@langchain/core/language_models/chat_models";
 export type EnrichmentStatus =
-  | 'researching'
-  | 'drafting'
-  | 'reviewing'
-  | 'approved'
-  | 'rejected';
+  | "researching"
+  | "drafting"
+  | "reviewing"
+  | "approved"
+  | "rejected";
 
 export interface ProductEnrichmentInput {
   productId: string;
@@ -35,7 +35,7 @@ export interface EnrichmentResult {
   description: string;
   /** URL ảnh minh họa đã upload Cloudinary. */
   designerImages: string[];
-  status: 'approved' | 'rejected';
+  status: "approved" | "rejected";
   reviewFeedback: string;
   retryCount: number;
 }

@@ -1,12 +1,12 @@
-import { FakeListChatModel } from '@langchain/core/utils/testing';
-import { FlashSaleCampaignService } from './flash-sale.workflow';
-import type { SaleCandidate } from './nodes/flash-sale.nodes';
+import { FakeListChatModel } from "@langchain/core/utils/testing";
+import { FlashSaleCampaignService } from "./flash-sale.workflow";
+import type { SaleCandidate } from "./nodes/flash-sale.nodes";
 
 const CANDIDATES: SaleCandidate[] = [
   {
-    variantId: 'v-1',
-    productName: 'Tai nghe X',
-    sku: 'TN-X',
+    variantId: "v-1",
+    productName: "Tai nghe X",
+    sku: "TN-X",
     price: 500000,
     available: 100,
     sold30d: 0,
@@ -19,8 +19,8 @@ function buildService() {
   return new FlashSaleCampaignService(config, prisma);
 }
 
-describe('FlashSaleCampaignService', () => {
-  it('lên kế hoạch sale với item được duyệt', async () => {
+describe("FlashSaleCampaignService", () => {
+  it("lên kế hoạch sale với item được duyệt", async () => {
     const models = {
       analyst: new FakeListChatModel({
         responses: [
@@ -41,9 +41,9 @@ describe('FlashSaleCampaignService', () => {
 
     const plan = await buildService().runCampaign(CANDIDATES, models);
 
-    expect(plan.copy.name).toBe('Xả kho âm thanh');
+    expect(plan.copy.name).toBe("Xả kho âm thanh");
     expect(plan.items).toEqual([
-      { variantId: 'v-1', discountPct: 20, quantity: 30 },
+      { variantId: "v-1", discountPct: 20, quantity: 30 },
     ]);
   });
 });

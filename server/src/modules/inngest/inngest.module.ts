@@ -1,13 +1,13 @@
-import { Module } from '@nestjs/common';
-import { AgentModule } from '../agent/agent.module';
-import { InngestRegistryService } from './inngest-registry.service';
-import { InngestController } from './inngest.controller';
-import { ProductEnrichmentJob } from './functions/product-enrichment.job';
-import { SalesIngestJob } from './functions/sales-ingest.job';
-import { VoucherGovernorJob } from './functions/voucher-governor.job';
-import { FlashSaleCampaignJob } from './functions/flash-sale-campaign.job';
-import { LoyaltyNurtureJob } from './functions/loyalty-nurture.job';
-import { RecommendationRefreshJob } from './functions/recommendation-refresh.job';
+import { Module } from "@nestjs/common";
+import { AgentModule } from "../agent/agent.module";
+import { InngestRegistryService } from "./inngest-registry.service";
+import { InngestController } from "./inngest.controller";
+import { ProductEnrichmentJob } from "./functions/product-enrichment.job";
+import { SalesIngestJob } from "./functions/sales-ingest.job";
+import { VoucherGovernorJob } from "./functions/voucher-governor.job";
+import { FlashSaleCampaignJob } from "./functions/flash-sale-campaign.job";
+import { LoyaltyNurtureJob } from "./functions/loyalty-nurture.job";
+import { RecommendationRefreshJob } from "./functions/recommendation-refresh.job";
 
 /**
  * Durable runtime cho agent jobs.

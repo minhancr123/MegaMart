@@ -7,12 +7,12 @@ const DAY_MS = 24 * 60 * 60 * 1000;
 
 /** Trạng thái đơn được tính là "đã bán" khi ingest sale (loại PENDING/FAILED/REFUNDED/CANCELED). */
 export const SALE_ORDER_STATUSES = [
-  'CONFIRMED',
-  'PROCESSING',
-  'SHIPPING',
-  'DELIVERED',
-  'COMPLETED',
-  'PAID',
+  "CONFIRMED",
+  "PROCESSING",
+  "SHIPPING",
+  "DELIVERED",
+  "COMPLETED",
+  "PAID",
 ] as const;
 
 /** Mốc 00:00 UTC của ngày chứa timestamp (facts dùng ngày UTC cho nhất quán). */
@@ -54,10 +54,7 @@ export function isExpired(endDate: Date | null, now: Date): boolean {
   return endDate != null && endDate.getTime() <= now.getTime();
 }
 
-export function daysToExpiry(
-  endDate: Date | null,
-  now: Date,
-): number | null {
+export function daysToExpiry(endDate: Date | null, now: Date): number | null {
   if (!endDate) return null;
   return Math.ceil((endDate.getTime() - now.getTime()) / DAY_MS);
 }

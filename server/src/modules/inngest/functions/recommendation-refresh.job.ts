@@ -1,16 +1,20 @@
-import { Injectable, Logger } from '@nestjs/common';
-import { AuditAction, AuditEntity, AuditLogService } from '../../audit-log/audit-log.service';
-import { PrismaService } from '../../../prismaClient/prisma.service';
-import { RecommendationService } from '../../agent/recommendation.workflow';
-import { dedupeRankings } from './job-guards';
+import { Injectable, Logger } from "@nestjs/common";
+import {
+  AuditAction,
+  AuditEntity,
+  AuditLogService,
+} from "../../audit-log/audit-log.service";
+import { PrismaService } from "../../../prismaClient/prisma.service";
+import { RecommendationService } from "../../agent/recommendation.workflow";
+import { dedupeRankings } from "./job-guards";
 import type {
   BehaviorSignals,
   RankCandidate,
-} from '../../agent/nodes/recommendation.nodes';
-import { inngest } from '../inngest.client';
-import { InngestRegistryService } from '../inngest-registry.service';
-import { getJobRuntime } from '../agent-job-runtime';
-import { isJobEnabled } from '../job-flags';
+} from "../../agent/nodes/recommendation.nodes";
+import { inngest } from "../inngest.client";
+import { InngestRegistryService } from "../inngest-registry.service";
+import { getJobRuntime } from "../agent-job-runtime";
+import { isJobEnabled } from "../job-flags";
 
 const MAX_CANDIDATES = 30;
 
@@ -45,7 +49,7 @@ export class RecommendationRefreshJob {
     registry: InngestRegistryService,
   ) {
     // Công tắc env: tắt thì không đăng ký (cron không bắn). Đổi env phải restart.
-    if (isJobEnabled('JOB_RECOMMENDATION')) {
+    if (isJobEnabled("JOB_RECOMMENDATION")) {
       registry.register(this.buildFunction());
     }
   }
@@ -53,42 +57,47 @@ export class RecommendationRefreshJob {
   private buildFunction() {
     return inngest.createFunction(
       {
-        id: 'recommendation-refresh',
-        name: 'Recommendation Refresh (6h)',
+        id: "recommendation-refresh",
+        name: "Recommendation Refresh (6h)",
         retries: 2,
         // 1 run tại 1 thời điểm: chống trigger đè gây trùng unique/audit đôi.
         concurrency: { limit: 1 },
         // Chạy 05:20 VN hàng ngày (gợi ý không cần tươi theo giờ; 4 lần/ngày ngốn quota).
-        triggers: [{ cron: '20 22 * * *' }],
+        triggers: [{ cron: "20 22 * * *" }],
       },
       async ({ step }) => {
         // Step 0 — công tắc runtime (env boot + UI admin): tắt thì thoát
         // ngay, 0 token. Đổi trên UI có hiệu lực ngay kỳ cron tới.
-        const runtime = await getJobRuntime(this.prisma, 'recommendation-refresh');
+        const runtime = await getJobRuntime(
+          this.prisma,
+          "recommendation-refresh",
+        );
         if (!runtime.enabled) {
-          this.logger.log('⏸️ recommendation-refresh đang tắt — bỏ qua kỳ này.');
+          this.logger.log(
+            "⏸️ recommendation-refresh đang tắt — bỏ qua kỳ này.",
+          );
           return { skipped: true };
         }
         // Step 1 — user có tương tác gần đây (view/cart 7 ngày hoặc đơn mới).
         const userIds = await step.run(
-          'fetch-active-users',
+          "fetch-active-users",
           async (): Promise<string[]> => {
             const since = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
             const [viewers, buyers] = await Promise.all([
               this.prisma.userEvent.findMany({
                 where: {
                   userId: { not: null },
-                  eventType: { in: ['PRODUCT_VIEW', 'ADD_TO_CART'] },
+                  eventType: { in: ["PRODUCT_VIEW", "ADD_TO_CART"] },
                   createdAt: { gte: since },
                 },
                 select: { userId: true },
-                distinct: ['userId'],
+                distinct: ["userId"],
                 take: Math.max(runtime.batchSize, 20),
               }),
               this.prisma.order.findMany({
                 where: { userId: { not: null }, createdAt: { gte: since } },
                 select: { userId: true },
-                distinct: ['userId'],
+                distinct: ["userId"],
                 take: Math.max(runtime.batchSize, 20),
               }),
             ]);
@@ -112,7 +121,7 @@ export class RecommendationRefreshJob {
                 where: {
                   order: {
                     userId,
-                    status: { in: ['DELIVERED', 'COMPLETED'] },
+                    status: { in: ["DELIVERED", "COMPLETED"] },
                   },
                 },
                 select: {
@@ -143,9 +152,9 @@ export class RecommendationRefreshJob {
               this.prisma.userEvent.findMany({
                 where: {
                   userId,
-                  eventType: 'PRODUCT_VIEW',
+                  eventType: "PRODUCT_VIEW",
                 },
-                orderBy: { createdAt: 'desc' },
+                orderBy: { createdAt: "desc" },
                 take: 30,
                 select: { metadata: true },
               }),
@@ -173,8 +182,7 @@ export class RecommendationRefreshJob {
                           ?.productId,
                     )
                     .filter(
-                      (p): p is string =>
-                        typeof p === 'string' && p.length > 0,
+                      (p): p is string => typeof p === "string" && p.length > 0,
                     ),
                 ),
               ].slice(0, 10),
@@ -199,7 +207,7 @@ export class RecommendationRefreshJob {
                   deletedAt: null,
                   id: { notIn: bundle.signals.purchasedIds },
                 },
-                orderBy: { soldCount: 'desc' },
+                orderBy: { soldCount: "desc" },
                 take: MAX_CANDIDATES,
                 select: {
                   id: true,
@@ -239,11 +247,11 @@ export class RecommendationRefreshJob {
                 undefined,
                 userId,
                 {
-                  actor: 'system:agent-crew',
-                  source: 'recommendation-refresh',
+                  actor: "system:agent-crew",
+                  source: "recommendation-refresh",
                   count: 0,
                   dropped: rec.rankings.length,
-                  status: 'SKIPPED_EMPTY',
+                  status: "SKIPPED_EMPTY",
                 },
               );
               return { saved: 0, skipped: true };
@@ -269,8 +277,8 @@ export class RecommendationRefreshJob {
               undefined,
               userId,
               {
-                actor: 'system:agent-crew',
-                source: 'recommendation-refresh',
+                actor: "system:agent-crew",
+                source: "recommendation-refresh",
                 count: clean.length,
                 dropped: rec.rankings.length - clean.length,
               },
@@ -280,11 +288,13 @@ export class RecommendationRefreshJob {
           done += 1;
 
           if (i < userIds.length - 1) {
-            await step.sleep(`throttle-${userId}`, '5s');
+            await step.sleep(`throttle-${userId}`, "5s");
           }
         }
 
-        this.logger.log(`✅ recommendation-refresh: ${done}/${userIds.length} users`);
+        this.logger.log(
+          `✅ recommendation-refresh: ${done}/${userIds.length} users`,
+        );
         return { users: userIds.length, done };
       },
     );

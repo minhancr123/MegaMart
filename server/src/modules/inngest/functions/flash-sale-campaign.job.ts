@@ -1,14 +1,18 @@
-import { Injectable, Logger } from '@nestjs/common';
-import { AuditAction, AuditEntity, AuditLogService } from '../../audit-log/audit-log.service';
-import { PrismaService } from '../../../prismaClient/prisma.service';
-import { FlashSaleCampaignService } from '../../agent/flash-sale.workflow';
-import type { SaleCandidate } from '../../agent/nodes/flash-sale.nodes';
-import { SALE_ORDER_STATUSES, utcDayStart } from './job-guards';
-import { clampSaleItem } from './job-guards';
-import { inngest } from '../inngest.client';
-import { InngestRegistryService } from '../inngest-registry.service';
-import { getJobRuntime } from '../agent-job-runtime';
-import { isJobEnabled } from '../job-flags';
+import { Injectable, Logger } from "@nestjs/common";
+import {
+  AuditAction,
+  AuditEntity,
+  AuditLogService,
+} from "../../audit-log/audit-log.service";
+import { PrismaService } from "../../../prismaClient/prisma.service";
+import { FlashSaleCampaignService } from "../../agent/flash-sale.workflow";
+import type { SaleCandidate } from "../../agent/nodes/flash-sale.nodes";
+import { SALE_ORDER_STATUSES, utcDayStart } from "./job-guards";
+import { clampSaleItem } from "./job-guards";
+import { inngest } from "../inngest.client";
+import { InngestRegistryService } from "../inngest-registry.service";
+import { getJobRuntime } from "../agent-job-runtime";
+import { isJobEnabled } from "../job-flags";
 
 const MIN_AVAILABLE = 20;
 
@@ -28,7 +32,7 @@ export class FlashSaleCampaignJob {
     registry: InngestRegistryService,
   ) {
     // Công tắc env: tắt thì không đăng ký (cron không bắn). Đổi env phải restart.
-    if (isJobEnabled('JOB_FLASH_SALE')) {
+    if (isJobEnabled("JOB_FLASH_SALE")) {
       registry.register(this.buildFunction());
     }
   }
@@ -46,18 +50,18 @@ export class FlashSaleCampaignJob {
     const covered = await this.prisma.dailyVariantSale.findMany({
       where: { date: { gte: from } },
       select: { date: true },
-      distinct: ['date'],
+      distinct: ["date"],
     });
     if (covered.length >= 25) {
       const facts = await this.prisma.dailyVariantSale.groupBy({
-        by: ['variantId'],
+        by: ["variantId"],
         where: { date: { gte: from } },
         _sum: { qty: true },
       });
       return new Map(facts.map((f) => [f.variantId, f._sum.qty ?? 0]));
     }
     const live = await this.prisma.orderItem.groupBy({
-      by: ['variantId'],
+      by: ["variantId"],
       where: {
         order: {
           createdAt: { gte: since },
@@ -72,36 +76,33 @@ export class FlashSaleCampaignJob {
   private buildFunction() {
     return inngest.createFunction(
       {
-        id: 'flash-sale-campaign',
-        name: 'Flash Sale Campaign (daily)',
+        id: "flash-sale-campaign",
+        name: "Flash Sale Campaign (daily)",
         retries: 2,
         // 1 run tại 1 thời điểm: chống trigger đè gây trùng unique/audit đôi.
         concurrency: { limit: 1 },
-        triggers: [{ cron: '15 19 * * *' }],
+        triggers: [{ cron: "15 19 * * *" }],
       },
       async ({ step }) => {
         // Step 0 — công tắc runtime (env boot + UI admin): tắt thì thoát
         // ngay, 0 token. Đổi trên UI có hiệu lực ngay kỳ cron tới.
-        const runtime = await getJobRuntime(this.prisma, 'flash-sale-campaign');
+        const runtime = await getJobRuntime(this.prisma, "flash-sale-campaign");
         if (!runtime.enabled) {
-          this.logger.log('⏸️ flash-sale-campaign đang tắt — bỏ qua kỳ này.');
+          this.logger.log("⏸️ flash-sale-campaign đang tắt — bỏ qua kỳ này.");
           return { skipped: true };
         }
         // Step 1 — ứng viên: tồn khả dụng ≥ 20, không sale, bán chậm 30 ngày.
         const candidates = await step.run(
-          'fetch-candidates',
+          "fetch-candidates",
           async (): Promise<SaleCandidate[]> => {
             const since = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
             const now = new Date();
             const variants = await this.prisma.variant.findMany({
               where: {
                 product: { deletedAt: null },
-                OR: [
-                  { saleEndDate: null },
-                  { saleEndDate: { lt: now } },
-                ],
+                OR: [{ saleEndDate: null }, { saleEndDate: { lt: now } }],
               },
-              orderBy: { stock: 'desc' },
+              orderBy: { stock: "desc" },
               // Lấy dư để lọc (sale đang chạy, bán chậm) rồi mới slice batch.
               take: Math.max(runtime.batchSize * 3, 30),
               select: {
@@ -140,7 +141,7 @@ export class FlashSaleCampaignJob {
         }
 
         // Step 2 — crew lên kế hoạch (3 LLM calls).
-        const plan = await step.run('run-crew', () =>
+        const plan = await step.run("run-crew", () =>
           this.campaign.runCampaign(candidates),
         );
 
@@ -149,11 +150,11 @@ export class FlashSaleCampaignJob {
             AuditAction.FLASHSALE_CREATE,
             AuditEntity.FLASHSALE,
             undefined,
-            'none',
+            "none",
             {
-              actor: 'system:agent-crew',
-              source: 'flash-sale-campaign',
-              status: 'NO_APPROVED_ITEMS',
+              actor: "system:agent-crew",
+              source: "flash-sale-campaign",
+              status: "NO_APPROVED_ITEMS",
               rejected: plan.rejected,
               notes: plan.notes,
             },
@@ -162,14 +163,14 @@ export class FlashSaleCampaignJob {
         }
 
         // Step 3 — tạo DRAFT (guard số học bằng code, idempotent theo tên).
-        const created = await step.run('create-draft', async () => {
+        const created = await step.run("create-draft", async () => {
           const day = new Date();
-          const label = `${String(day.getDate()).padStart(2, '0')}/${String(day.getMonth() + 1).padStart(2, '0')}`;
+          const label = `${String(day.getDate()).padStart(2, "0")}/${String(day.getMonth() + 1).padStart(2, "0")}`;
           const name = `[DRAFT] ${plan.copy.name} ${label}`;
           // Idempotent theo ngày: cùng ngày rerun (LLM đổi tên) vẫn reuse draft
           // đã tạo, tránh spam nhiều chiến dịch trùng ngày.
           const existing = await this.prisma.flashSale.findFirst({
-            where: { name: { startsWith: '[DRAFT]', endsWith: label } },
+            where: { name: { startsWith: "[DRAFT]", endsWith: label } },
             select: { id: true },
           });
           if (existing) return { id: existing.id, reused: true };
@@ -193,7 +194,8 @@ export class FlashSaleCampaignJob {
               };
             })
             .filter((x): x is NonNullable<typeof x> => x !== null);
-          if (items.length === 0) return { id: null as string | null, reused: false };
+          if (items.length === 0)
+            return { id: null as string | null, reused: false };
 
           const start = new Date();
           start.setDate(start.getDate() + 1);
@@ -224,9 +226,9 @@ export class FlashSaleCampaignJob {
             undefined,
             draft.id,
             {
-              actor: 'system:agent-crew',
-              source: 'flash-sale-campaign',
-              status: 'DRAFT_PENDING_ADMIN',
+              actor: "system:agent-crew",
+              source: "flash-sale-campaign",
+              status: "DRAFT_PENDING_ADMIN",
               itemCount: items.length,
               rejected: plan.rejected,
             },

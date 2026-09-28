@@ -3,12 +3,16 @@ import {
   Injectable,
   Logger,
   NotFoundException,
-} from '@nestjs/common';
-import { AuditAction, AuditEntity, AuditLogService } from '../audit-log/audit-log.service';
-import { PrismaService } from '../../prismaClient/prisma.service';
-import { AGENT_JOBS } from '../inngest/agent-jobs.meta';
-import { isJobEnabled } from '../inngest/job-flags';
-import type { UpdateAgentJobDto } from './dto/update-agent-job.dto';
+} from "@nestjs/common";
+import {
+  AuditAction,
+  AuditEntity,
+  AuditLogService,
+} from "../audit-log/audit-log.service";
+import { PrismaService } from "../../prismaClient/prisma.service";
+import { AGENT_JOBS } from "../inngest/agent-jobs.meta";
+import { isJobEnabled } from "../inngest/job-flags";
+import type { UpdateAgentJobDto } from "./dto/update-agent-job.dto";
 
 /**
  * Admin quản trị runtime agent jobs (không cần restart).
@@ -28,7 +32,12 @@ export class AgentJobsService {
   async list() {
     // DB chưa migrate bảng (môi trường mới) → fallback rows rỗng, UI vẫn hiện
     // 5 jobs với default thay vì trắng trang 500.
-    let rows: { jobId: string; enabled: boolean; batchSize: number | null; updatedAt: Date }[] = [];
+    let rows: {
+      jobId: string;
+      enabled: boolean;
+      batchSize: number | null;
+      updatedAt: Date;
+    }[] = [];
     try {
       rows = await this.prisma.agentJobConfig.findMany();
     } catch (e) {
@@ -46,7 +55,8 @@ export class AgentJobsService {
         name: m.name,
         description: m.description,
         cron: m.cron,
-        cronNote: 'Sửa cron trong code job + rebuild (Inngest chốt lúc đăng ký)',
+        cronNote:
+          "Sửa cron trong code job + rebuild (Inngest chốt lúc đăng ký)",
         envKey: m.envKey,
         envOn,
         enabled,
@@ -65,7 +75,9 @@ export class AgentJobsService {
       throw new NotFoundException(`Job lạ: ${jobId}`);
     }
     if (dto.enabled === undefined && dto.batchSize === undefined) {
-      throw new BadRequestException('Phải cung cấp ít nhất enabled hoặc batchSize');
+      throw new BadRequestException(
+        "Phải cung cấp ít nhất enabled hoặc batchSize",
+      );
     }
     if (dto.batchSize !== undefined && !meta.batchLabel) {
       throw new BadRequestException(
@@ -90,12 +102,14 @@ export class AgentJobsService {
       adminId,
       jobId,
       {
-        actor: 'admin',
-        source: 'agent-jobs-ui',
+        actor: "admin",
+        source: "agent-jobs-ui",
         changes: dto,
       },
     );
-    this.logger.log(`⚙️ agent-job ${jobId} cập nhật bởi ${adminId}: ${JSON.stringify(dto)}`);
+    this.logger.log(
+      `⚙️ agent-job ${jobId} cập nhật bởi ${adminId}: ${JSON.stringify(dto)}`,
+    );
     return {
       id: row.jobId,
       enabled: row.enabled,

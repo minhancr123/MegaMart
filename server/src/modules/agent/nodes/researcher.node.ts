@@ -1,42 +1,44 @@
-import { ChatPromptTemplate } from '@langchain/core/prompts';
-import { createReactAgent } from '@langchain/langgraph/prebuilt';
-import type { BaseChatModel } from '@langchain/core/language_models/chat_models';
-import type { PrismaService } from '../../../prismaClient/prisma.service';
-import type { ProductEnrichmentState } from '../agent.state';
-import { createResearcherTools } from './researcher.tools';
+import { ChatPromptTemplate } from "@langchain/core/prompts";
+import { createReactAgent } from "@langchain/langgraph/prebuilt";
+import type { BaseChatModel } from "@langchain/core/language_models/chat_models";
+import type { PrismaService } from "../../../prismaClient/prisma.service";
+import type { ProductEnrichmentState } from "../agent.state";
+import { createResearcherTools } from "./researcher.tools";
 
 /** Ép AIMessage content (string | blocks[]) về string. */
 export function messageText(content: unknown): string {
   // Tool-call-only message có content null/undefined: JSON.stringify(undefined)
   // trả về undefined (không throw) → guard trước để .trim() sau không crash.
-  if (content == null) return '';
-  if (typeof content === 'string') return content;
+  if (content == null) return "";
+  if (typeof content === "string") return content;
   // Model có thể trả content dạng block array [{type:'text', text:'...'}] —
   // phải bóc text từng block, không JSON.stringify cả mảng vào prompt sau.
   if (Array.isArray(content)) {
     return content
       .map((c) =>
-        typeof c === 'string' ? c : String((c as { text?: unknown })?.text ?? ''),
+        typeof c === "string"
+          ? c
+          : String((c as { text?: unknown })?.text ?? ""),
       )
-      .join('');
+      .join("");
   }
   try {
     return JSON.stringify(content);
   } catch {
-    return String(content ?? '');
+    return String(content ?? "");
   }
 }
 
 const researcherPrompt = ChatPromptTemplate.fromMessages([
   [
-    'system',
+    "system",
     `Bạn là chuyên gia phân tích thông số sản phẩm cho sàn TMĐT MegaMart.
 Bạn có tool lookup_category_products để tham khảo sản phẩm cùng danh mục — chỉ gọi TỐI ĐA 1 lần, chỉ khi thật sự cần.
 Nhiệm vụ cuối: trích xuất specs từ dữ liệu thô thành dạng gạch đầu dòng tiếng Việt, giữ đúng số liệu (giá, SKU, màu, thuộc tính). Loại bỏ rác/HTML. Không bịa thêm thông số không có trong dữ liệu.
 Câu trả lời CUỐI CÙNG phải CHỈ gồm phần specs chuẩn, không thêm lời dẫn.`,
   ],
   [
-    'human',
+    "human",
     `Sản phẩm: {productName}
 Thương hiệu: {brand}
 Danh mục: {categoryName}
@@ -50,13 +52,13 @@ DỮ LIỆU THÔ:
 // model khỏi sinh text <tool_call> lẫn vào specs.
 const researcherPlainPrompt = ChatPromptTemplate.fromMessages([
   [
-    'system',
+    "system",
     `Bạn là chuyên gia phân tích thông số sản phẩm cho sàn TMĐT MegaMart.
 Nhiệm vụ: trích xuất specs từ dữ liệu thô thành dạng gạch đầu dòng tiếng Việt, giữ đúng số liệu (giá, SKU, màu, thuộc tính). Loại bỏ rác/HTML. Không bịa thêm thông số không có trong dữ liệu. Không gọi bất kỳ tool nào.
 Câu trả lời phải CHỈ gồm phần specs chuẩn, không thêm lời dẫn.`,
   ],
   [
-    'human',
+    "human",
     `Sản phẩm: {productName}
 Thương hiệu: {brand}
 Danh mục: {categoryName}
@@ -85,13 +87,13 @@ export function createResearcherNode(
     ): Promise<Partial<ProductEnrichmentState>> => {
       const res = await chain.invoke({
         productName: state.productName,
-        brand: state.brand || 'Không rõ',
-        categoryName: state.categoryName || 'Không rõ',
-        specsRaw: state.specsRaw || '(trống)',
+        brand: state.brand || "Không rõ",
+        categoryName: state.categoryName || "Không rõ",
+        specsRaw: state.specsRaw || "(trống)",
       });
       return {
         normalizedSpecs: messageText(res.content).trim(),
-        status: 'drafting' as const,
+        status: "drafting" as const,
       };
     };
   }
@@ -106,9 +108,9 @@ export function createResearcherNode(
   ): Promise<Partial<ProductEnrichmentState>> => {
     const promptValue = await researcherPrompt.invoke({
       productName: state.productName,
-      brand: state.brand || 'Không rõ',
-      categoryName: state.categoryName || 'Không rõ',
-      specsRaw: state.specsRaw || '(trống)',
+      brand: state.brand || "Không rõ",
+      categoryName: state.categoryName || "Không rõ",
+      specsRaw: state.specsRaw || "(trống)",
     });
     const result = await agent.invoke(
       { messages: promptValue.toChatMessages() },
@@ -118,9 +120,9 @@ export function createResearcherNode(
     );
     const last = result.messages[result.messages.length - 1];
     const text =
-      last && typeof last === 'object' && 'content' in last
+      last && typeof last === "object" && "content" in last
         ? messageText((last as { content: unknown }).content).trim()
-        : '';
-    return { normalizedSpecs: text, status: 'drafting' as const };
+        : "";
+    return { normalizedSpecs: text, status: "drafting" as const };
   };
 }

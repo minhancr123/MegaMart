@@ -1,28 +1,50 @@
-version: "3.8"
+# MegaMart local dev stack: server + client + nginx (build từ source).
+# Chạy: docker compose up -d --build
+# DB dev: dùng DATABASE_URL trong server/.env (Prisma Postgres / local).
+
+name: megamart-dev
 
 services:
   server:
     build: ./server
-    image: minhancr123/megamart:server
+    image: megamart:server-dev
     container_name: megamart_server
-    env_file:
-      - ./server/.env
     expose:
       - "3001"
-    restart: always
+    env_file:
+      - ./server/.env
+    environment:
+      NODE_ENV: development
+      PORT: "3001"
+    networks:
+      - megamart-network
+
+  client:
+    build:
+      context: ./client
+      args:
+        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:3001}
+    image: megamart:client-dev
+    container_name: megamart_client
+    expose:
+      - "3000"
+    environment:
+      NODE_ENV: production
+      PORT: "3000"
+    depends_on:
+      - server
     networks:
       - megamart-network
 
   nginx:
-    image: minhancr123/megamart:nginx
-    build: 
-      context: .
-      dockerfile: nginx/Dockerfile
+    build: ./nginx
+    image: megamart:nginx-dev
     container_name: megamart_nginx
     ports:
       - "80:80"
     depends_on:
       - server
+      - client
     networks:
       - megamart-network
 

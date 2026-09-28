@@ -38,6 +38,9 @@ lerna-debug.log*
 **/.env
 **/.env.local
 **/.env*.local
+# nhưng luôn cho phép commit file mẫu
+!.env.example
+!**/.env.example
 
 # vercel
 .vercel

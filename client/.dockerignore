@@ -1,5 +1,15 @@
 node_modules
 .next
-.git
+out
 build
-.env
+dist
+.git
+.gitignore
+Dockerfile*
+.dockerignore
+# Chặn mọi file env lọt vào image (kể cả .env.prod nếu ai đó tạo nhầm local).
+.env*
+!.env.example
+coverage
+*.log
+.turbo

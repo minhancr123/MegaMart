@@ -1,49 +1,173 @@
-name: Deploy MegaMart API
+# CD: deploy lên EC2 (AWS) khi CI trên main xanh.
+# Chuỗi: push main -> CI (ci.yml) -> workflow này (chỉ chạy khi CI success).
+#
+# Cần chuẩn bị 1 lần trên AWS + GitHub (chi tiết trong DEPLOY.md):
+#   ECR repos: megamart-server | megamart-client | megamart-nginx
+#   Secrets : AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY,
+#             EC2_HOST, EC2_USER, EC2_SSH_KEY
+#   Vars    : AWS_REGION (vd ap-southeast-1), AWS_ACCOUNT_ID,
+#             APP_URL (vd https://shop.cuaban.com — bake vào client bundle!)
+# Rollback: vào Actions, Re-run job deploy của bản cũ còn tag SHA.
+
+name: Deploy to AWS
 
 on:
-  push:
-    branches: [ "main" ]
+  workflow_run:
+    workflows: ["CI"]
+    types: [completed]
+    branches: ["main"]
+
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
 
 jobs:
-  deploy:
+  build-push:
+    name: Build & push images to ECR
     runs-on: ubuntu-latest
-    environment: 'Production Environments'
-
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    env:
+      AWS_REGION: ${{ vars.AWS_REGION }}
+      ECR: ${{ vars.AWS_ACCOUNT_ID }}.dkr.ecr.${{ vars.AWS_REGION }}.amazonaws.com
+      TAG: ${{ github.event.workflow_run.head_sha }}
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Login DockerHub
-        uses: docker/login-action@v3
+      - uses: actions/checkout@v4
         with:
-          username: ${{ secrets.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
+          ref: ${{ github.event.workflow_run.head_sha }}
 
-      - name: Build & push API
-        uses: docker/build-push-action@v5
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ vars.AWS_REGION }}
+
+      - uses: aws-actions/amazon-ecr-login@v2
+
+      - uses: docker/setup-buildx-action@v3
+
+      # Tự tạo repo nếu chưa có để lần deploy đầu không gãy.
+      - name: Ensure ECR repos exist
+        run: |
+          for repo in megamart-server megamart-client megamart-nginx; do
+            aws ecr describe-repositories --repository-names "$repo" --region "$AWS_REGION" >/dev/null 2>&1 \
+              || aws ecr create-repository --repository-name "$repo" --region "$AWS_REGION" >/dev/null
+          done
+
+      - name: Build & push server
+        uses: docker/build-push-action@v6
         with:
           context: ./server
           push: true
-          tags: minhancr123/megamart:server
+          tags: |
+            ${{ env.ECR }}/megamart-server:${{ env.TAG }}
+            ${{ env.ECR }}/megamart-server:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
 
-      - name: Build & push Nginx
-        uses: docker/build-push-action@v5
+      - name: Build & push client
+        uses: docker/build-push-action@v6
+        with:
+          context: ./client
+          push: true
+          tags: |
+            ${{ env.ECR }}/megamart-client:${{ env.TAG }}
+            ${{ env.ECR }}/megamart-client:latest
+          # QUAN TRỌNG: NEXT_PUBLIC_* bake cứng vào JS lúc build.
+          # APP_URL là origin public mà browser gọi được (client tự thêm /api).
+          # VD: https://shop.cuaban.com (có domain + HTTPS) hoặc http://1.2.3.4
+          build-args: |
+            NEXT_PUBLIC_API_URL=${{ vars.APP_URL }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Build & push nginx
+        uses: docker/build-push-action@v6
         with:
           context: ./nginx
           push: true
-          tags: minhancr123/megamart:nginx
+          tags: |
+            ${{ env.ECR }}/megamart-nginx:${{ env.TAG }}
+            ${{ env.ECR }}/megamart-nginx:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
 
-      - name: Deploy on VPS
-        uses: appleboy/ssh-action@v1
+  deploy:
+    name: Rolling deploy on EC2
+    runs-on: ubuntu-latest
+    needs: build-push
+    env:
+      AWS_REGION: ${{ vars.AWS_REGION }}
+      TAG: ${{ github.event.workflow_run.head_sha }}
+    steps:
+      - uses: actions/checkout@v4
         with:
-          host: ${{ secrets.VPS_HOST }}
-          username: ${{ secrets.VPS_USER }}
-          key: ${{ secrets.VPS_SSH_KEY }}
+          ref: ${{ github.event.workflow_run.head_sha }}
+
+      - name: Copy compose file to EC2
+        uses: appleboy/scp-action@v1
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USER }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          # SFTP không expand `~` — bắt buộc đường dẫn tuyệt đối.
+          source: "docker-compose.prod.yml"
+          target: "/home/${{ secrets.EC2_USER }}/megamart"
+
+      - name: Deploy over SSH
+        uses: appleboy/ssh-action@v1
+        env:
+          AWS_ACCOUNT_ID: ${{ vars.AWS_ACCOUNT_ID }}
+          AWS_REGION: ${{ vars.AWS_REGION }}
+          IMAGE_TAG: ${{ github.event.workflow_run.head_sha }}
+          COMPOSE_PROFILES: ${{ vars.COMPOSE_PROFILES }}
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USER }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          envs: AWS_ACCOUNT_ID,AWS_REGION,IMAGE_TAG,COMPOSE_PROFILES,AWS_ACCESS_KEY_ID,AWS_SECRET_ACCESS_KEY
           script: |
+            set -e
             cd ~/megamart
-            cd ~/megamart
-            docker stop megamart_server megamart_nginx || true
-            docker rm -f megamart_server megamart_nginx || true
-            docker compose pull
-            docker compose up -d
+            # COMPOSE_PROFILES=localdb nếu dùng Postgres container (xem DEPLOY.md
+            # bước 3). Rỗng = dùng RDS. Biến này giữ container postgres khỏi bị
+            # `up --remove-orphans` xóa nhầm.
+            export AWS_ACCOUNT_ID AWS_REGION IMAGE_TAG COMPOSE_PROFILES
+
+            # 1. Login ECR trên EC2
+            aws ecr get-login-password --region "$AWS_REGION" \
+              | docker login --username AWS --password-stdin "$AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com"
+
+            # 2. Pull image mới
+            docker compose -f docker-compose.prod.yml pull
+
+            # 3. Chạy migration (CHỈ migrate deploy — cấm migrate dev/reset ở prod!)
+            # @prisma/client kéo theo prisma CLI nên image prod chạy được luôn.
+            docker compose -f docker-compose.prod.yml run --rm server \
+              npx prisma migrate deploy --schema ./prisma/schema.prisma
+
+            # 4. Rolling update
+            docker compose -f docker-compose.prod.yml up -d --remove-orphans
+            # Nginx resolve upstream 1 lần lúc start — reload để ăn IP mới của
+            # container server/client vừa recreate, tránh 502 sau deploy.
+            docker compose -f docker-compose.prod.yml exec -T nginx nginx -s reload \
+              || docker compose -f docker-compose.prod.yml restart nginx
+
+            # 5. Healthcheck: đợi tối đa ~90s
+            for i in $(seq 1 18); do
+              if curl -fsS http://localhost/api >/dev/null && curl -fsS http://localhost/ >/dev/null; then
+                echo "HEALTHCHECK OK"
+                break
+              fi
+              if [ "$i" -eq 18 ]; then
+                echo "HEALTHCHECK FAILED — xem log:"
+                docker compose -f docker-compose.prod.yml logs --tail=50
+                exit 1
+              fi
+              sleep 5
+            done
+
+            # 6. Dọn image cũ
             docker image prune -f
+            echo "DEPLOYED TAG=$IMAGE_TAG"

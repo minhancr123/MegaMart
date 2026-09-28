@@ -1,4 +1,13 @@
 node_modules
 dist
 .git
-.env
+.gitignore
+Dockerfile*
+.dockerignore
+# Chặn mọi file env lọt vào image (kể cả .env.prod nếu ai đó tạo nhầm local).
+.env*
+!.env.example
+coverage
+*.log
+test
+.turbo

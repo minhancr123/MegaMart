@@ -1,0 +1,110 @@
+# MegaMart production stack trên EC2 (AWS).
+# Dùng image từ ECR, biến đọc từ shell environment trên EC2:
+#   export AWS_ACCOUNT_ID=123456789012 AWS_REGION=ap-southeast-1 IMAGE_TAG=latest
+# File secret runtime: server/.env.prod (chmod 600, KHÔNG commit git).
+# DB khuyến nghị: RDS Postgres, trỏ DATABASE_URL trong server/.env.prod.
+
+name: megamart-prod
+
+services:
+  server:
+    image: ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/megamart-server:${IMAGE_TAG:-latest}
+    container_name: megamart_server
+    restart: unless-stopped
+    expose:
+      - "3001"
+    env_file:
+      - ./server/.env.prod
+    environment:
+      NODE_ENV: production
+      PORT: "3001"
+    mem_limit: 768m
+    mem_reservation: 384m
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://localhost:3001/api').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"]
+      interval: 20s
+      timeout: 5s
+      retries: 5
+      start_period: 40s
+    networks:
+      - megamart-network
+
+  client:
+    image: ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/megamart-client:${IMAGE_TAG:-latest}
+    container_name: megamart_client
+    restart: unless-stopped
+    expose:
+      - "3000"
+    # Dùng chung .env.prod của server để middleware Edge có JWT_SECRET lúc
+    # runtime. Chỉ biến NEXT_PUBLIC_* mới lọt ra browser (đã bake lúc build),
+    # secret còn lại nằm trong container, cùng trust-level với server.
+    env_file:
+      - ./server/.env.prod
+    environment:
+      NODE_ENV: production
+      PORT: "3000"
+    depends_on:
+      server:
+        condition: service_healthy
+    mem_limit: 768m
+    mem_reservation: 384m
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://localhost:3000/').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"]
+      interval: 20s
+      timeout: 5s
+      retries: 5
+      start_period: 40s
+    networks:
+      - megamart-network
+
+  nginx:
+    image: ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/megamart-nginx:${IMAGE_TAG:-latest}
+    container_name: megamart_nginx
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - /etc/letsencrypt:/etc/letsencrypt:ro
+      - /var/www/certbot:/var/www/certbot:ro
+    depends_on:
+      server:
+        condition: service_healthy
+      client:
+        condition: service_healthy
+    networks:
+      - megamart-network
+
+  # ---- Fallback DB self-hosted (chỉ dùng khi KHÔNG có RDS) ----
+  # Mở bằng profile: docker compose -f docker-compose.prod.yml --profile localdb up -d
+  # Khi dùng, đặt DATABASE_URL=postgresql://megamart:doi-pass-manh@postgres:5432/megamart
+  # trong server/.env.prod. Backup volume pgdata thường xuyên (xem DEPLOY.md).
+  postgres:
+    image: postgres:16-alpine
+    container_name: megamart_postgres
+    restart: unless-stopped
+    profiles: ["localdb"]
+    environment:
+      POSTGRES_USER: megamart
+      # BẮT BUỘC export POSTGRES_PASSWORD khi dùng --profile localdb.
+      # Để default rỗng để `compose config` không gãy; container sẽ từ chối
+      # khởi động nếu bỏ trống (xem DEPLOY.md bước 3).
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-}
+      POSTGRES_DB: megamart
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    mem_limit: 512m
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U megamart -d megamart"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+    networks:
+      - megamart-network
+
+volumes:
+  pgdata:
+
+networks:
+  megamart-network:
+    driver: bridge

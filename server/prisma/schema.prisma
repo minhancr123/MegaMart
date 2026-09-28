@@ -9,80 +9,87 @@ datasource db {
 }
 
 model User {
-  id           String    @id @default(cuid())
-  email        String    @unique
-  passwordHash String
-  avatarUrl    String?  
-  name         String?
-  role         UserRole  @default(USER)
-  createdAt    DateTime  @default(now())
-  updatedAt    DateTime  @updatedAt
-  carts        Cart[]
-  orders       Order[]
-  addresses    Address[]
-  reviews      Review[]
-  wishlist     WishlistItem[]
-  compareItems CompareItem[]
-  voucherUsage VoucherUsage[]
-  posts        Post[]
-  auditLogs    AuditLog[]
-  supplierId   String?   // Link tài khoản NCC (role SUPPLIER) tới 1 nhà cung cấp
-  supplier     Supplier? @relation(fields: [supplierId], references: [id])
-  wallet       Wallet?
-  shipperProfile ShipperProfile?
-  assignedOrders Order[] @relation("ShipperOrders")
-  recommendations UserRecommendation[]
-  nurtureQueue    LoyaltyNurtureQueue[]
-  loyaltyPoints   Int                  @default(0)
-  lifetimePoints  Int                  @default(0)
-  loyaltyTransactions LoyaltyTransaction[]
-  redeemedVouchers    RedeemedVoucher[]
+  id                     String                  @id @default(cuid())
+  email                  String                  @unique
+  passwordHash           String
+  avatarUrl              String?
+  name                   String?
+  role                   UserRole                @default(USER)
+  createdAt              DateTime                @default(now())
+  updatedAt              DateTime                @updatedAt
+  carts                  Cart[]
+  orders                 Order[]
+  addresses              Address[]
+  reviews                Review[]
+  wishlist               WishlistItem[]
+  compareItems           CompareItem[]
+  voucherUsage           VoucherUsage[]
+  posts                  Post[]
+  auditLogs              AuditLog[]
+  supplierId             String? // Link tài khoản NCC (role SUPPLIER) tới 1 nhà cung cấp
+  supplier               Supplier?               @relation(fields: [supplierId], references: [id])
+  wallet                 Wallet?
+  shipperProfile         ShipperProfile?
+  assignedOrders         Order[]                 @relation("ShipperOrders")
+  recommendations        UserRecommendation[]
+  nurtureQueue           LoyaltyNurtureQueue[]
+  loyaltyPoints          Int                     @default(0)
+  lifetimePoints         Int                     @default(0)
+  loyaltyTransactions    LoyaltyTransaction[]
+  redeemedVouchers       RedeemedVoucher[]
+  customerTagAssignments CustomerTagAssignment[] @relation("CustomerTagAssignments")
+  customerNotes          CustomerNote[]          @relation("CustomerNotes")
+  authoredCustomerNotes  CustomerNote[]          @relation("CustomerNoteAuthors")
+  assignedVouchers       Voucher[]               @relation("UserAssignedVouchers")
+  campaignHistory        CampaignHistory[]
 }
 
 model Address {
-  id        String   @id @default(cuid())
-  userId    String
-  fullName  String
-  phone     String
-  address   String
-  province  String?
-  district  String?
-  ward      String?
+  id         String   @id @default(cuid())
+  userId     String
+  fullName   String
+  phone      String
+  address    String
+  province   String?
+  district   String?
+  ward       String?
+  lat        Float?
+  lng        Float?
   // Mã hành chính GHN để tính phí/tạo đơn (dropdown liên hoàn ở client)
   provinceId Int?
   districtId Int?
   wardCode   String?
-  label     String?  // "Nhà", "Văn phòng", etc.
-  isDefault Boolean  @default(false)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  label      String? // "Nhà", "Văn phòng", etc.
+  isDefault  Boolean  @default(false)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
   @@index([userId, isDefault])
 }
 
 model Product {
-  id          String         @id @default(cuid())
-  slug        String         @unique
-  name        String
-  description String?
+  id                String               @id @default(cuid())
+  slug              String               @unique
+  name              String
+  description       String?
   // URL ảnh minh họa xen trong bài mô tả (mirror lên Cloudinary).
   // Vị trí chèn ảnh được đánh dấu bằng [DESCIMG:n] ngay trong description.
-  descriptionImages String[]  @default([])
-  brand       String?
-  categoryId  String?
-  soldCount   Int            @default(0)
-  createdAt   DateTime       @default(now())
-  updatedAt   DateTime       @updatedAt
-  deletedAt   DateTime?
-  category    Category?      @relation(fields: [categoryId], references: [id])
-  images      ProductImage[]
-  variants    Variant[]
-  reviews     Review[]
-  wishlist    WishlistItem[]
-  compare     CompareItem[]
-  recommendations UserRecommendation[]
+  descriptionImages String[]             @default([])
+  brand             String?
+  categoryId        String?
+  soldCount         Int                  @default(0)
+  createdAt         DateTime             @default(now())
+  updatedAt         DateTime             @updatedAt
+  deletedAt         DateTime?
+  category          Category?            @relation(fields: [categoryId], references: [id])
+  images            ProductImage[]
+  variants          Variant[]
+  reviews           Review[]
+  wishlist          WishlistItem[]
+  compare           CompareItem[]
+  recommendations   UserRecommendation[]
 
   @@index([createdAt])
   @@index([categoryId])
@@ -122,37 +129,75 @@ model Category {
 }
 
 model Variant {
-  id                  String               @id @default(cuid())
-  productId           String
-  sku                 String               @unique
-  price               BigInt
-  salePrice           BigInt?              // Giá sau khi giảm (nếu có sale)
-  discountPercent     Int?                 // % giảm giá (0-100)
-  saleStartDate       DateTime?            // Ngày bắt đầu sale
-  saleEndDate         DateTime?            // Ngày kết thúc sale
-  stock               Int                  @default(0)
+  id                   String               @id @default(cuid())
+  productId            String
+  sku                  String               @unique
+  price                BigInt
+  salePrice            BigInt? // Giá sau khi giảm (nếu có sale)
+  discountPercent      Int? // % giảm giá (0-100)
+  saleStartDate        DateTime? // Ngày bắt đầu sale
+  saleEndDate            DateTime? // Ngày kết thúc sale
+  saleCampaignId         String?
+  stock                Int                  @default(0)
   // On Hand = stock. Reserved = reservedQuantity (hàng giữ cho đơn chưa xuất).
   // Available = stock - reservedQuantity (tính động, không lưu cột riêng).
-  reservedQuantity    Int                  @default(0)
-  colors              Json?                // Array các màu: [{hex: "#ff0000", name: "Đỏ", imageUrl: "..."}]
-  attributes          Json?
-  createdAt           DateTime             @default(now())
-  updatedAt           DateTime             @updatedAt
-  cartItems           CartItem[]
-  orderItems          OrderItem[]
-  flashSaleItems      FlashSaleItem[]
+  reservedQuantity     Int                  @default(0)
+  colors               Json? // Array các màu: [{hex: "#ff0000", name: "Đỏ", imageUrl: "..."}]
+  attributes           Json?
+  createdAt            DateTime             @default(now())
+  updatedAt            DateTime             @updatedAt
+  cartItems            CartItem[]
+  orderItems           OrderItem[]
+  flashSaleItems       FlashSaleItem[]
   warehouseInventories WarehouseInventory[]
-  stockMovementItems  StockMovementItem[]
-  purchaseOrderItems  PurchaseOrderItem[]
-  palletBoxes         PalletBox[]
-  lots                Lot[]
-  serials             SerialNumber[]
-  dailySales          DailyVariantSale[]
-  product             Product              @relation(fields: [productId], references: [id], onDelete: Cascade)
+  stockMovementItems   StockMovementItem[]
+  purchaseOrderItems   PurchaseOrderItem[]
+  palletBoxes          PalletBox[]
+  lots                 Lot[]
+  serials              SerialNumber[]
+  dailySales           DailyVariantSale[]
+  product              Product              @relation(fields: [productId], references: [id], onDelete: Cascade)
+  saleCampaign         SaleCampaign?        @relation(fields: [saleCampaignId], references: [id], onDelete: SetNull)
+  saleCampaignItems    SaleCampaignItem[]
 
   @@index([sku])
   @@index([productId])
   @@index([saleStartDate, saleEndDate])
+  @@index([saleCampaignId])
+}
+
+model SaleCampaign {
+  id              String             @id @default(cuid())
+  name            String
+  description     String?
+  bannerUrl       String?
+  startDate       DateTime
+  endDate         DateTime
+  status          String             @default("DRAFT")
+  defaultDiscount Int?
+  createdAt       DateTime           @default(now())
+  updatedAt       DateTime           @updatedAt
+  variants        Variant[]
+  items           SaleCampaignItem[]
+
+  @@index([status])
+  @@index([startDate, endDate])
+}
+
+model SaleCampaignItem {
+  id              String       @id @default(cuid())
+  campaignId      String
+  variantId       String
+  discountPercent Int
+  salePrice       BigInt
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+  campaign        SaleCampaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  variant         Variant      @relation(fields: [variantId], references: [id], onDelete: Cascade)
+
+  @@unique([campaignId, variantId])
+  @@index([campaignId])
+  @@index([variantId])
 }
 
 model Cart {
@@ -182,38 +227,38 @@ model CartItem {
 }
 
 model Order {
-  id              String      @id @default(cuid())
-  code            String      @unique
-  userId          String?
-  status          OrderStatus @default(PENDING)
-  total           BigInt
-  discountAmount  BigInt      @default(0)
-  voucherCode     String?
-  voucherId       String?
-  vatAmount       BigInt      @default(0)
-  shippingFee     BigInt      @default(0)
+  id                   String               @id @default(cuid())
+  code                 String               @unique
+  userId               String?
+  status               OrderStatus          @default(PENDING)
+  total                BigInt
+  discountAmount       BigInt               @default(0)
+  voucherCode          String?
+  voucherId            String?
+  vatAmount            BigInt               @default(0)
+  shippingFee          BigInt               @default(0)
   // Vận chuyển GHN
-  shippingCarrier      String?   @default("GHN")
-  shippingOrderCode    String?   @unique
-  shippingFeeReal      BigInt?   @default(0)
+  shippingCarrier      String?              @default("GHN")
+  shippingOrderCode    String?              @unique
+  shippingFeeReal      BigInt?              @default(0)
   shippingStatus       String?
   expectedDeliveryDate DateTime?
   shippingMetadata     Json?
-  assignedShipperId String?
-  assignedShipper   User?      @relation("ShipperOrders", fields: [assignedShipperId], references: [id])
-  createdAt       DateTime    @default(now())
-  updatedAt       DateTime    @updatedAt
-  shippingAddress Json?
-  billingAddress  Json?
-  user            User?       @relation(fields: [userId], references: [id])
-  items           OrderItem[]
-  payments        Payment[]
-  voucher         Voucher?    @relation(fields: [voucherId], references: [id])
-  voucherUsages   VoucherUsage[]
-  statusHistory   OrderStatusHistory[]
-  shipmentEvents  ShipmentEvent[]
-  deliveryProofs  DeliveryProof[]
-  refundRequests  RefundRequest[]
+  assignedShipperId    String?
+  assignedShipper      User?                @relation("ShipperOrders", fields: [assignedShipperId], references: [id])
+  createdAt            DateTime             @default(now())
+  updatedAt            DateTime             @updatedAt
+  shippingAddress      Json?
+  billingAddress       Json?
+  user                 User?                @relation(fields: [userId], references: [id])
+  items                OrderItem[]
+  payments             Payment[]
+  voucher              Voucher?             @relation(fields: [voucherId], references: [id])
+  voucherUsages        VoucherUsage[]
+  statusHistory        OrderStatusHistory[]
+  shipmentEvents       ShipmentEvent[]
+  deliveryProofs       DeliveryProof[]
+  refundRequests       RefundRequest[]
 
   @@index([userId, status])
   @@index([assignedShipperId])
@@ -223,19 +268,19 @@ model Order {
 }
 
 model OrderStatusHistory {
-  id         String       @id @default(cuid())
-  orderId    String
-  order      Order        @relation(fields: [orderId], references: [id], onDelete: Cascade)
-  
+  id      String @id @default(cuid())
+  orderId String
+  order   Order  @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
   fromStatus OrderStatus?
   toStatus   OrderStatus
-  
-  changedBy  String?      // Admin/System user ID
-  reason     String?      @db.Text
-  note       String?      @db.Text
-  
-  createdAt  DateTime     @default(now())
-  
+
+  changedBy String? // Admin/System user ID
+  reason    String? @db.Text
+  note      String? @db.Text
+
+  createdAt DateTime @default(now())
+
   @@index([orderId])
   @@index([createdAt(sort: Desc)])
 }
@@ -271,42 +316,126 @@ model Payment {
 }
 
 model Voucher {
-  id            String        @id @default(cuid())
-  code          String        @unique
-  title         String
-  description   String?
-  type          VoucherType
-  value         Int           // percent (1-100) or fixed amount in VND
-  maxDiscount   Int?          // cap for percent vouchers
-  minOrderValue Int?          // apply if subtotal >= min
-  usageLimit    Int?          // total usage across all users
-  usagePerUser  Int?          // per-user limit
-  usedCount     Int           @default(0)
-  startDate     DateTime?
-  endDate       DateTime?
-  active        Boolean       @default(true)
-  createdAt     DateTime      @default(now())
-  updatedAt     DateTime      @updatedAt
-  usages        VoucherUsage[]
-  orders        Order[]
-  nurtureQueue  LoyaltyNurtureQueue[]
+  id              String                @id @default(cuid())
+  code            String                @unique
+  title           String
+  description     String?
+  type            VoucherType
+  value           Int // percent (1-100) or fixed amount in VND
+  maxDiscount     Int? // cap for percent vouchers
+  minOrderValue   Int? // apply if subtotal >= min
+  usageLimit      Int? // total usage across all users
+  usagePerUser    Int? // per-user limit
+  usedCount       Int                   @default(0)
+  startDate       DateTime?
+  endDate         DateTime?
+  active          Boolean               @default(true)
+  createdAt       DateTime              @default(now())
+  updatedAt       DateTime              @updatedAt
+  usages          VoucherUsage[]
+  orders          Order[]
+  nurtureQueue    LoyaltyNurtureQueue[]
   redeemedVoucher RedeemedVoucher?
+  assignedUserId  String?
+  assignedUser    User?                 @relation("UserAssignedVouchers", fields: [assignedUserId], references: [id], onDelete: SetNull)
 
   @@index([code])
   @@index([active])
+  @@index([assignedUserId])
   @@index([startDate])
   @@index([endDate])
 }
 
+model CustomerTag {
+  id          String                  @id @default(cuid())
+  name        String                  @unique
+  color       String                  @default("#f97316")
+  description String?
+  createdAt   DateTime                @default(now())
+  updatedAt   DateTime                @updatedAt
+  assignments CustomerTagAssignment[]
+
+  @@index([name])
+}
+
+model CustomerTagAssignment {
+  id           String      @id @default(cuid())
+  userId       String
+  tagId        String
+  assignedById String?
+  assignedAt   DateTime    @default(now())
+  user         User        @relation("CustomerTagAssignments", fields: [userId], references: [id], onDelete: Cascade)
+  tag          CustomerTag @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, tagId])
+  @@index([userId])
+  @@index([tagId])
+}
+
+model CustomerNote {
+  id        String   @id @default(cuid())
+  userId    String
+  authorId  String?
+  content   String
+  isPinned  Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  user      User     @relation("CustomerNotes", fields: [userId], references: [id], onDelete: Cascade)
+  author    User?    @relation("CustomerNoteAuthors", fields: [authorId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+  @@index([authorId])
+  @@index([isPinned])
+  @@index([createdAt])
+}
+
+model MarketingCampaign {
+  id             String            @id @default(cuid())
+  name           String
+  description    String?
+  type           CampaignType
+  trigger        CampaignTrigger
+  status         CampaignStatus    @default(DRAFT)
+  targetSegment  String?
+  minHealthScore Int?
+  rewardValue    Float?
+  rewardType     String?
+  startDate      DateTime?
+  endDate        DateTime?
+  lastRunAt      DateTime?
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
+  history        CampaignHistory[]
+
+  @@index([status])
+  @@index([trigger])
+  @@index([targetSegment])
+}
+
+model CampaignHistory {
+  id          String            @id @default(cuid())
+  campaignId  String
+  userId      String
+  actionTaken String
+  executedAt  DateTime          @default(now())
+  campaign    MarketingCampaign @relation(fields: [campaignId], references: [id])
+  user        User              @relation(fields: [userId], references: [id])
+
+  @@unique([campaignId, userId])
+  @@index([campaignId])
+  @@index([userId])
+  @@index([executedAt])
+}
+
 model VoucherUsage {
-  id         String   @id @default(cuid())
-  voucherId  String
-  userId     String
-  orderId    String?
-  usedAt     DateTime @default(now())
-  voucher    Voucher  @relation(fields: [voucherId], references: [id], onDelete: Cascade)
-  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  order      Order?   @relation(fields: [orderId], references: [id], onDelete: SetNull)
+  id        String   @id @default(cuid())
+  voucherId String
+  userId    String
+  orderId   String?
+  usedAt    DateTime @default(now())
+  voucher   Voucher  @relation(fields: [voucherId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  order     Order?   @relation(fields: [orderId], references: [id], onDelete: SetNull)
 
   @@unique([voucherId, userId, orderId])
   @@index([voucherId])
@@ -315,17 +444,17 @@ model VoucherUsage {
 }
 
 model Review {
-  id         String   @id @default(cuid())
-  userId     String
-  productId  String
-  rating     Int
-  comment    String?
-  images     Json?
-  approved   Boolean  @default(true)
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
-  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  product    Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  id        String   @id @default(cuid())
+  userId    String
+  productId String
+  rating    Int
+  comment   String?
+  images    Json?
+  approved  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
 
   @@index([productId])
   @@index([userId])
@@ -406,6 +535,27 @@ model PostTag {
   @@index([tagId])
 }
 
+enum CampaignStatus {
+  DRAFT
+  ACTIVE
+  PAUSED
+  COMPLETED
+}
+
+enum CampaignTrigger {
+  MANUAL
+  ON_SIGNUP
+  HEALTH_DROP
+  BIRTHDAY
+  ABANDONED_CART
+}
+
+enum CampaignType {
+  VOUCHER
+  LOYALTY_POINTS
+  NOTIFICATION
+}
+
 enum UserRole {
   USER
   ADMIN
@@ -414,16 +564,16 @@ enum UserRole {
 }
 
 enum OrderStatus {
-  PENDING       // Chờ xác nhận
-  CONFIRMED     // Đã xác nhận (admin confirm)
-  PROCESSING    // Đang chuẩn bị hàng
-  SHIPPING      // Đang giao hàng
-  DELIVERED     // Đã giao thành công
-  COMPLETED     // Hoàn thành (customer confirm)
-  PAID          // Đã thanh toán (legacy - for backward compatibility)
-  FAILED        // Thanh toán thất bại
-  REFUNDED      // Đã hoàn tiền
-  CANCELED      // Đã hủy
+  PENDING // Chờ xác nhận
+  CONFIRMED // Đã xác nhận (admin confirm)
+  PROCESSING // Đang chuẩn bị hàng
+  SHIPPING // Đang giao hàng
+  DELIVERED // Đã giao thành công
+  COMPLETED // Hoàn thành (customer confirm)
+  PAID // Đã thanh toán (legacy - for backward compatibility)
+  FAILED // Thanh toán thất bại
+  REFUNDED // Đã hoàn tiền
+  CANCELED // Đã hủy
 }
 
 enum PaymentProvider {
@@ -461,43 +611,43 @@ enum PostStatus {
 }
 
 model Settings {
-  id                    String   @id @default(cuid())
-  storeName             String   @default("MegaMart")
-  storeDescription      String?  @default("Cửa hàng công nghệ hàng đầu Việt Nam")
-  email                 String?  @default("contact@megamart.com")
-  phone                 String?  @default("1900 1234")
-  address               String?  @default("123 Đường ABC, Quận 1, TP.HCM")
-  maintenanceMode       Boolean  @default(false)
-  enableReviews         Boolean  @default(true)
-  enableRegistration    Boolean  @default(true)
-  createdAt             DateTime @default(now())
-  updatedAt             DateTime @updatedAt
+  id                 String   @id @default(cuid())
+  storeName          String   @default("MegaMart")
+  storeDescription   String?  @default("Cửa hàng công nghệ hàng đầu Việt Nam")
+  email              String?  @default("contact@megamart.com")
+  phone              String?  @default("1900 1234")
+  address            String?  @default("123 Đường ABC, Quận 1, TP.HCM")
+  maintenanceMode    Boolean  @default(false)
+  enableReviews      Boolean  @default(true)
+  enableRegistration Boolean  @default(true)
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
 }
 
 // ==================== MARKETING MODELS ====================
 
 model Banner {
-  id           String    @id @default(cuid())
-  title        String
-  description  String?
-  imageUrl     String
-  linkUrl      String?
-  displayOrder Int       @default(0)
-  active       Boolean   @default(true)
-  startDate    DateTime?
-  endDate      DateTime?
+  id                 String    @id @default(cuid())
+  title              String
+  description        String?
+  imageUrl           String
+  linkUrl            String?
+  displayOrder       Int       @default(0)
+  active             Boolean   @default(true)
+  startDate          DateTime?
+  endDate            DateTime?
   // Vị trí hiển thị: HOME_SLIDER | CATEGORY | POPUP
-  position     String    @default("HOME_SLIDER")
-  impressions  Int       @default(0)
-  clicks       Int       @default(0)
+  position           String    @default("HOME_SLIDER")
+  impressions        Int       @default(0)
+  clicks             Int       @default(0)
   // Mẫu hiển thị hero: STATIC (giống ban đầu) | AUTO (tự suy ra) | TEMPLATE_1/2/3
-  template     String    @default("AUTO")
-  ctaText      String?
-  badgeText    String?
+  template           String    @default("AUTO")
+  ctaText            String?
+  badgeText          String?
   // ID sản phẩm nổi trên banner (JSON array string)
   featuredProductIds Json?
-  createdAt    DateTime  @default(now())
-  updatedAt    DateTime  @updatedAt
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
 
   @@index([active, displayOrder])
   @@index([startDate, endDate])
@@ -523,7 +673,7 @@ model FlashSaleItem {
   flashSaleId String
   variantId   String
   salePrice   BigInt
-  quantity    Int       // Số lượng giới hạn cho flash sale
+  quantity    Int // Số lượng giới hạn cho flash sale
   soldCount   Int       @default(0)
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
@@ -540,11 +690,11 @@ model FlashSaleItem {
 model AuditLog {
   id        String   @id @default(cuid())
   userId    String?
-  action    String   // CREATE, UPDATE, DELETE
-  entity    String   // Product, Order, User, Banner, etc.
+  action    String // CREATE, UPDATE, DELETE
+  entity    String // Product, Order, User, Banner, etc.
   entityId  String
-  oldData   Json?    // Dữ liệu trước khi thay đổi
-  newData   Json?    // Dữ liệu sau khi thay đổi
+  oldData   Json? // Dữ liệu trước khi thay đổi
+  newData   Json? // Dữ liệu sau khi thay đổi
   ipAddress String?
   userAgent String?
   createdAt DateTime @default(now())
@@ -560,19 +710,19 @@ model AuditLog {
 
 // Kho hàng / Chi nhánh
 model Warehouse {
-  id          String             @id @default(cuid())
-  name        String
-  code        String             @unique // Mã kho: KHO-HCM, KHO-HN
-  address     String?
-  phone       String?
-  isActive    Boolean            @default(true)
-  createdAt   DateTime           @default(now())
-  updatedAt   DateTime           @updatedAt
-  inventories WarehouseInventory[]
+  id             String               @id @default(cuid())
+  name           String
+  code           String               @unique // Mã kho: KHO-HCM, KHO-HN
+  address        String?
+  phone          String?
+  isActive       Boolean              @default(true)
+  createdAt      DateTime             @default(now())
+  updatedAt      DateTime             @updatedAt
+  inventories    WarehouseInventory[]
   stockMovements StockMovement[]
-  pallets Pallet[]
+  pallets        Pallet[]
   purchaseOrders PurchaseOrder[]
-  lots Lot[]
+  lots           Lot[]
 
   @@index([code])
   @@index([isActive])
@@ -580,23 +730,23 @@ model Warehouse {
 
 // Tồn kho theo kho và variant
 model WarehouseInventory {
-  id           String    @id @default(cuid())
-  warehouseId  String
-  variantId    String
-  quantity     Int       @default(0)
+  id               String    @id @default(cuid())
+  warehouseId      String
+  variantId        String
+  quantity         Int       @default(0)
   // Tồn giữ theo kho (đồng bộ logic với Variant.reservedQuantity).
-  reservedQuantity Int   @default(0)
-  minQuantity  Int       @default(5)   // Số lượng tối thiểu cảnh báo
-  maxQuantity  Int?                     // Số lượng tối đa
-  location     String?                  // Vị trí trong kho: A1-01, B2-05
-  createdAt    DateTime  @default(now())
-  updatedAt    DateTime  @updatedAt
-  warehouse    Warehouse @relation(fields: [warehouseId], references: [id], onDelete: Cascade)
-  variant      Variant   @relation(fields: [variantId], references: [id], onDelete: Cascade)
-  palletId     String?
-  pallet       Pallet?   @relation(fields: [palletId], references: [id])
-  lotId        String?
-  lot          Lot?      @relation(fields: [lotId], references: [id])
+  reservedQuantity Int       @default(0)
+  minQuantity      Int       @default(5) // Số lượng tối thiểu cảnh báo
+  maxQuantity      Int? // Số lượng tối đa
+  location         String? // Vị trí trong kho: A1-01, B2-05
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+  warehouse        Warehouse @relation(fields: [warehouseId], references: [id], onDelete: Cascade)
+  variant          Variant   @relation(fields: [variantId], references: [id], onDelete: Cascade)
+  palletId         String?
+  pallet           Pallet?   @relation(fields: [palletId], references: [id])
+  lotId            String?
+  lot              Lot?      @relation(fields: [lotId], references: [id])
 
   @@unique([warehouseId, variantId])
   @@index([warehouseId])
@@ -606,21 +756,26 @@ model WarehouseInventory {
 
 // Nhà cung cấp
 model Supplier {
-  id           String          @id @default(cuid())
-  name         String
-  code         String          @unique
-  email        String?
-  phone        String?
-  address      String?
-  taxCode      String?         // Mã số thuế
-  contactName  String?         // Người liên hệ
-  notes        String?
-  isActive     Boolean         @default(true)
-  createdAt    DateTime        @default(now())
-  updatedAt    DateTime        @updatedAt
+  id             String          @id @default(cuid())
+  name           String
+  code           String          @unique
+  email          String?
+  phone          String?
+  address        String?
+  province       String?
+  district       String?
+  ward           String?
+  lat            Float?
+  lng            Float?
+  taxCode        String? // Mã số thuế
+  contactName    String? // Người liên hệ
+  notes          String?
+  isActive       Boolean         @default(true)
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
   stockMovements StockMovement[]
   purchaseOrders PurchaseOrder[]
-  users          User[]          // Tài khoản đăng nhập của NCC này
+  users          User[] // Tài khoản đăng nhập của NCC này
   lots           Lot[]
 
   @@index([code])
@@ -629,40 +784,40 @@ model Supplier {
 
 // Enum for stock movement types
 enum StockMovementType {
-  IMPORT        // Nhập kho
-  EXPORT        // Xuất kho
-  TRANSFER_IN   // Chuyển kho đến
-  TRANSFER_OUT  // Chuyển kho đi
-  ADJUSTMENT    // Điều chỉnh
-  RETURN        // Trả hàng
-  DAMAGE        // Hư hỏng
-  SALE          // Bán hàng (tự động)
-  RESERVE       // Giữ hàng cho đơn (thủ kho lập tay)
-  RELEASE       // Giải phóng hàng giữ (thủ kho lập tay)
+  IMPORT // Nhập kho
+  EXPORT // Xuất kho
+  TRANSFER_IN // Chuyển kho đến
+  TRANSFER_OUT // Chuyển kho đi
+  ADJUSTMENT // Điều chỉnh
+  RETURN // Trả hàng
+  DAMAGE // Hư hỏng
+  SALE // Bán hàng (tự động)
+  RESERVE // Giữ hàng cho đơn (thủ kho lập tay)
+  RELEASE // Giải phóng hàng giữ (thủ kho lập tay)
 }
 
 // Phiếu nhập/xuất kho
 model StockMovement {
-  id            String            @id @default(cuid())
-  code          String            @unique   // PN-2024-001, PX-2024-001
-  type          StockMovementType
-  warehouseId   String
-  supplierId    String?           // Cho nhập kho
-  toWarehouseId String?           // Cho chuyển kho
-  orderId       String?           // Cho xuất kho bán hàng
-  purchaseOrderId String?         // Phiếu nhập link tới PO (Nấc 2: GR theo PO)
-  notes         String?
-  status        String            @default("PENDING") // PENDING, COMPLETED, CANCELLED
-  qcStatus      String            @default("PENDING") // PENDING, PASSED, PARTIAL, FAILED (QC khi nhập)
-  totalAmount   BigInt?           // Tổng tiền (cho nhập kho)
-  createdBy     String            // User ID tạo phiếu
-  completedAt   DateTime?
-  createdAt     DateTime          @default(now())
-  updatedAt     DateTime          @updatedAt
-  warehouse     Warehouse         @relation(fields: [warehouseId], references: [id])
-  supplier      Supplier?         @relation(fields: [supplierId], references: [id])
-  purchaseOrder PurchaseOrder?    @relation(fields: [purchaseOrderId], references: [id])
-  items         StockMovementItem[]
+  id              String              @id @default(cuid())
+  code            String              @unique // PN-2024-001, PX-2024-001
+  type            StockMovementType
+  warehouseId     String
+  supplierId      String? // Cho nhập kho
+  toWarehouseId   String? // Cho chuyển kho
+  orderId         String? // Cho xuất kho bán hàng
+  purchaseOrderId String? // Phiếu nhập link tới PO (Nấc 2: GR theo PO)
+  notes           String?
+  status          String              @default("PENDING") // PENDING, COMPLETED, CANCELLED
+  qcStatus        String              @default("PENDING") // PENDING, PASSED, PARTIAL, FAILED (QC khi nhập)
+  totalAmount     BigInt? // Tổng tiền (cho nhập kho)
+  createdBy       String // User ID tạo phiếu
+  completedAt     DateTime?
+  createdAt       DateTime            @default(now())
+  updatedAt       DateTime            @updatedAt
+  warehouse       Warehouse           @relation(fields: [warehouseId], references: [id])
+  supplier        Supplier?           @relation(fields: [supplierId], references: [id])
+  purchaseOrder   PurchaseOrder?      @relation(fields: [purchaseOrderId], references: [id])
+  items           StockMovementItem[]
 
   @@index([code])
   @@index([type])
@@ -677,20 +832,20 @@ model StockMovementItem {
   id              String        @id @default(cuid())
   stockMovementId String
   variantId       String
-  quantity        Int           // Số lượng THỰC NHẬN (GR)
-  orderedQty      Int?          // Số lượng ĐẶT theo PO (để đối chiếu thừa/thiếu)
-  qcPassedQty     Int?          // Số lượng đạt QC (duyệt nhập bấy nhiêu)
+  quantity        Int // Số lượng THỰC NHẬN (GR)
+  orderedQty      Int? // Số lượng ĐẶT theo PO (để đối chiếu thừa/thiếu)
+  qcPassedQty     Int? // Số lượng đạt QC (duyệt nhập bấy nhiêu)
   qcFailedQty     Int           @default(0) // Số lượng lỗi QC
-  qcNote          String?       // Ghi chú kiểm hàng
-  putawayLocation String?       // Vị trí kệ xếp hàng khi duyệt (vd A1-01)
-  palletId        String?       // Pallet xếp hàng khi duyệt
-  lotId           String?       // Lô hàng của dòng này (nhập theo lô)
+  qcNote          String? // Ghi chú kiểm hàng
+  putawayLocation String? // Vị trí kệ xếp hàng khi duyệt (vd A1-01)
+  palletId        String? // Pallet xếp hàng khi duyệt
+  lotId           String? // Lô hàng của dòng này (nhập theo lô)
   lot             Lot?          @relation(fields: [lotId], references: [id])
-  lotCode         String?       // Mã lô nhập tay ở bước QC (tự tạo lô khi duyệt)
-  mfgDate         DateTime?     // NSX ghi ở bước QC
-  expiryDate      DateTime?     // HSD ghi ở bước QC
-  serials         Json?         // Danh sách serial nhập ở bước QC (tạo Serial khi duyệt)
-  unitPrice       BigInt?       // Giá nhập (cho nhập kho)
+  lotCode         String? // Mã lô nhập tay ở bước QC (tự tạo lô khi duyệt)
+  mfgDate         DateTime? // NSX ghi ở bước QC
+  expiryDate      DateTime? // HSD ghi ở bước QC
+  serials         Json? // Danh sách serial nhập ở bước QC (tạo Serial khi duyệt)
+  unitPrice       BigInt? // Giá nhập (cho nhập kho)
   notes           String?
   createdAt       DateTime      @default(now())
   stockMovement   StockMovement @relation(fields: [stockMovementId], references: [id], onDelete: Cascade)
@@ -704,34 +859,34 @@ model StockMovementItem {
 
 // Đơn đặt hàng nhà cung cấp (Purchase Order) - Nấc 2
 enum PurchaseOrderStatus {
-  DRAFT      // Nháp
-  SENT       // Đã gửi NCC
-  PARTIAL    // Nhập một phần
-  COMPLETED  // Nhập đủ
-  CANCELLED  // Đã hủy
+  DRAFT // Nháp
+  SENT // Đã gửi NCC
+  PARTIAL // Nhập một phần
+  COMPLETED // Nhập đủ
+  CANCELLED // Đã hủy
 }
 
 model PurchaseOrder {
-  id            String              @id @default(cuid())
-  code          String              @unique   // PO-2026-0001
-  supplierId    String
-  supplier      Supplier            @relation(fields: [supplierId], references: [id])
-  warehouseId   String              // Kho nhận dự kiến
-  warehouse     Warehouse           @relation(fields: [warehouseId], references: [id])
-  status        PurchaseOrderStatus @default(DRAFT)
-  expectedDate  DateTime?
-  notes         String?
-  totalAmount   BigInt?
-  createdBy     String              // User ID tạo PO
-  confirmedAt   DateTime?           // NCC bấm xác nhận đã nhận PO
-  confirmedNote String?             // Ghi chú xác nhận của NCC (vd ngày giao dự kiến)
-  shipmentStatus String            @default("IDLE") // IDLE, TRANSIT, ARRIVED (giả lập xe giao, share 2 chiều)
-  shipmentProgress Int             @default(0) // % xe chạy (0-100)
+  id                String              @id @default(cuid())
+  code              String              @unique // PO-2026-0001
+  supplierId        String
+  supplier          Supplier            @relation(fields: [supplierId], references: [id])
+  warehouseId       String // Kho nhận dự kiến
+  warehouse         Warehouse           @relation(fields: [warehouseId], references: [id])
+  status            PurchaseOrderStatus @default(DRAFT)
+  expectedDate      DateTime?
+  notes             String?
+  totalAmount       BigInt?
+  createdBy         String // User ID tạo PO
+  confirmedAt       DateTime? // NCC bấm xác nhận đã nhận PO
+  confirmedNote     String? // Ghi chú xác nhận của NCC (vd ngày giao dự kiến)
+  shipmentStatus    String              @default("IDLE") // IDLE, TRANSIT, ARRIVED (giả lập xe giao, share 2 chiều)
+  shipmentProgress  Int                 @default(0) // % xe chạy (0-100)
   shipmentUpdatedAt DateTime?
-  createdAt     DateTime            @default(now())
-  updatedAt     DateTime            @updatedAt
-  items         PurchaseOrderItem[]
-  movements     StockMovement[]     // Các phiếu nhập theo PO này
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime            @updatedAt
+  items             PurchaseOrderItem[]
+  movements         StockMovement[] // Các phiếu nhập theo PO này
 
   @@index([code])
   @@index([supplierId])
@@ -757,23 +912,23 @@ model PurchaseOrderItem {
 
 // Pallet trong kho (quản lý gọn nhẹ) - Nấc 2
 model Pallet {
-  id          String   @id @default(cuid())
-  code        String   @unique // PL-HCM-001
-  warehouseId String
-  warehouse   Warehouse @relation(fields: [warehouseId], references: [id])
-  location    String?  // Vị trí pallet đang đứng (vd A1-01)
-  status      String   @default("ACTIVE") // ACTIVE, EMPTY, LOCKED
-  maxLevels   Int      @default(4) // Số tầng tối đa cho phép xếp
-  maxWeight   Int?     @default(500) // Tải trọng tối đa (kg)
-  maxVolume   Float?   // Thể tích tối đa (m3)
-  qcStatus    String?  // Trạng thái kiểm định: PASSED/PENDING/FAILED
-  qcNote      String?
-  notes       String?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id            String               @id @default(cuid())
+  code          String               @unique // PL-HCM-001
+  warehouseId   String
+  warehouse     Warehouse            @relation(fields: [warehouseId], references: [id])
+  location      String? // Vị trí pallet đang đứng (vd A1-01)
+  status        String               @default("ACTIVE") // ACTIVE, EMPTY, LOCKED
+  maxLevels     Int                  @default(4) // Số tầng tối đa cho phép xếp
+  maxWeight     Int?                 @default(500) // Tải trọng tối đa (kg)
+  maxVolume     Float? // Thể tích tối đa (m3)
+  qcStatus      String? // Trạng thái kiểm định: PASSED/PENDING/FAILED
+  qcNote        String?
+  notes         String?
+  createdAt     DateTime             @default(now())
+  updatedAt     DateTime             @updatedAt
   movementItems StockMovementItem[]
-  inventories WarehouseInventory[]
-  boxes       PalletBox[]
+  inventories   WarehouseInventory[]
+  boxes         PalletBox[]
 
   @@index([warehouseId])
   @@index([code])
@@ -782,24 +937,24 @@ model Pallet {
 
 // Lô hàng (Nấc 3): quản lý theo lô + HSD. Mỗi dòng tồn kho có thể gắn 1 lô.
 model Lot {
-  id           String    @id @default(cuid())
-  code         String    @unique // LOT-2026-0001
-  variantId    String
-  variant      Variant   @relation(fields: [variantId], references: [id])
-  warehouseId  String?
-  warehouse    Warehouse? @relation(fields: [warehouseId], references: [id])
-  supplierId   String?
-  supplier     Supplier? @relation(fields: [supplierId], references: [id])
-  quantity     Int       @default(0) // Tồn hiện tại của lô
-  initialQty   Int       @default(0) // SL ban đầu khi tạo lô
-  mfgDate      DateTime? // Ngày sản xuất
-  expiryDate   DateTime? // Hạn sử dụng (null = không HSD)
-  status       String    @default("ACTIVE") // ACTIVE, EXHAUSTED, EXPIRED, BLOCKED
-  notes        String?
-  createdAt    DateTime  @default(now())
-  updatedAt    DateTime  @updatedAt
-  inventories  WarehouseInventory[]
-  serials      SerialNumber[]
+  id            String               @id @default(cuid())
+  code          String               @unique // LOT-2026-0001
+  variantId     String
+  variant       Variant              @relation(fields: [variantId], references: [id])
+  warehouseId   String?
+  warehouse     Warehouse?           @relation(fields: [warehouseId], references: [id])
+  supplierId    String?
+  supplier      Supplier?            @relation(fields: [supplierId], references: [id])
+  quantity      Int                  @default(0) // Tồn hiện tại của lô
+  initialQty    Int                  @default(0) // SL ban đầu khi tạo lô
+  mfgDate       DateTime? // Ngày sản xuất
+  expiryDate    DateTime? // Hạn sử dụng (null = không HSD)
+  status        String               @default("ACTIVE") // ACTIVE, EXHAUSTED, EXPIRED, BLOCKED
+  notes         String?
+  createdAt     DateTime             @default(now())
+  updatedAt     DateTime             @updatedAt
+  inventories   WarehouseInventory[]
+  serials       SerialNumber[]
   movementItems StockMovementItem[]
 
   @@index([variantId])
@@ -818,17 +973,17 @@ enum SerialStatus {
 }
 
 model SerialNumber {
-  id         String       @id @default(cuid())
-  serial     String       @unique
-  variantId  String
-  variant    Variant      @relation(fields: [variantId], references: [id])
-  lotId      String?
-  lot        Lot?         @relation(fields: [lotId], references: [id])
-  status     SerialStatus @default(IN_STOCK)
-  orderId    String?      // Đơn đã bán (khi SOLD)
-  notes      String?
-  createdAt  DateTime     @default(now())
-  updatedAt  DateTime     @updatedAt
+  id        String       @id @default(cuid())
+  serial    String       @unique
+  variantId String
+  variant   Variant      @relation(fields: [variantId], references: [id])
+  lotId     String?
+  lot       Lot?         @relation(fields: [lotId], references: [id])
+  status    SerialStatus @default(IN_STOCK)
+  orderId   String? // Đơn đã bán (khi SOLD)
+  notes     String?
+  createdAt DateTime     @default(now())
+  updatedAt DateTime     @updatedAt
 
   @@index([variantId])
   @@index([lotId])
@@ -838,30 +993,30 @@ model SerialNumber {
 
 // Thùng hàng trên pallet, xếp theo tầng (tầng 1 ở dưới cùng)
 model PalletBox {
-  id        String   @id @default(cuid())
-  palletId  String
-  pallet    Pallet   @relation(fields: [palletId], references: [id], onDelete: Cascade)
-  boxCode   String   // Mã thùng (vd PL-HCM-002-T1-B03)
-  level     Int      @default(1) // Tầng (1 = sát pallet)
-  slotIndex Int?     // Thứ tự ô xếp trên tầng (phục vụ mô phỏng 3D)
-  variantId String?
-  variant   Variant? @relation(fields: [variantId], references: [id])
-  quantity  Int      @default(0)
-  tareWeight Float?  // Khối lượng bì (kg)
-  netWeight  Float?  // Khối lượng tịnh (kg)
-  length     Float?  // Dài (mm)
-  width      Float?  // Rộng (mm)
-  height     Float?  // Cao (mm)
-  volume     Float?  // Thể tích (m3)
-  barcode    String? // Mã vạch định danh thùng
-  poNumber   String? // Mã PO nhập hàng
-  exportPurpose String? // Mục đích xuất (vd Flash Sale 9.9)
+  id               String    @id @default(cuid())
+  palletId         String
+  pallet           Pallet    @relation(fields: [palletId], references: [id], onDelete: Cascade)
+  boxCode          String // Mã thùng (vd PL-HCM-002-T1-B03)
+  level            Int       @default(1) // Tầng (1 = sát pallet)
+  slotIndex        Int? // Thứ tự ô xếp trên tầng (phục vụ mô phỏng 3D)
+  variantId        String?
+  variant          Variant?  @relation(fields: [variantId], references: [id])
+  quantity         Int       @default(0)
+  tareWeight       Float? // Khối lượng bì (kg)
+  netWeight        Float? // Khối lượng tịnh (kg)
+  length           Float? // Dài (mm)
+  width            Float? // Rộng (mm)
+  height           Float? // Cao (mm)
+  volume           Float? // Thể tích (m3)
+  barcode          String? // Mã vạch định danh thùng
+  poNumber         String? // Mã PO nhập hàng
+  exportPurpose    String? // Mục đích xuất (vd Flash Sale 9.9)
   exportTicketCode String? // Phiếu xuất liên kết
-  sealedBy   String? // Người niêm phong
-  sealedAt   DateTime?
-  notes     String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  sealedBy         String? // Người niêm phong
+  sealedAt         DateTime?
+  notes            String?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
 
   @@unique([palletId, boxCode])
   @@index([palletId])
@@ -870,18 +1025,18 @@ model PalletBox {
 
 // Vận hành sau bàn giao GHN: timeline sự kiện, ảnh POD, yêu cầu hoàn tiền
 model ShipmentEvent {
-  id         String   @id @default(cuid())
+  id         String    @id @default(cuid())
   orderId    String
-  order      Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  order      Order     @relation(fields: [orderId], references: [id], onDelete: Cascade)
   ghnCode    String?
-  status     String   // mã GHN raw lowercase, vd delivering/delivered/delivery_fail/lost/damage
+  status     String // mã GHN raw lowercase, vd delivering/delivered/delivery_fail/lost/damage
   statusName String?
-  kind       String   @default("TRACKING") // TRACKING | POD | INCIDENT | NOTE
-  message    String?  @db.Text
+  kind       String    @default("TRACKING") // TRACKING | POD | INCIDENT | NOTE
+  message    String?   @db.Text
   occurredAt DateTime?
   raw        Json?
   createdBy  String?
-  createdAt  DateTime @default(now())
+  createdAt  DateTime  @default(now())
 
   @@index([orderId, createdAt(sort: Desc)])
   @@index([orderId, status])
@@ -900,24 +1055,24 @@ model DeliveryProof {
 }
 
 model RefundRequest {
-  id             String   @id @default(cuid())
-  orderId        String
-  order          Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
-  amount         BigInt
-  reason         String   @db.Text
-  method         String   @default("MANUAL") // MANUAL | ORIGINAL_GATEWAY | BANK_TRANSFER
-  channel        String? // WALLET | SEPAY | MANUAL — kênh hoàn thực tế
-  idempotencyKey String?  @unique
+  id               String   @id @default(cuid())
+  orderId          String
+  order            Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  amount           BigInt
+  reason           String   @db.Text
+  method           String   @default("MANUAL") // MANUAL | ORIGINAL_GATEWAY | BANK_TRANSFER
+  channel          String? // WALLET | SEPAY | MANUAL — kênh hoàn thực tế
+  idempotencyKey   String?  @unique
   externalRefundId String?
-  failureReason  String?  @db.Text
-  rawResponse    Json?
-  bankInfo       Json?
-  status         String   @default("PENDING") // PENDING | APPROVED | REJECTED | COMPLETED
-  requestedBy    String?
-  reviewedBy     String?
-  reviewedNote   String?  @db.Text
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+  failureReason    String?  @db.Text
+  rawResponse      Json?
+  bankInfo         Json?
+  status           String   @default("PENDING") // PENDING | APPROVED | REJECTED | COMPLETED
+  requestedBy      String?
+  reviewedBy       String?
+  reviewedNote     String?  @db.Text
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
 
   @@index([orderId, status])
   @@index([status, createdAt(sort: Desc)])
@@ -970,17 +1125,17 @@ model WalletTransaction {
 
 // User Event Tracking
 model UserEvent {
-  id          String    @id @default(cuid())
-  userId      String?   // Optional - for guest users
-  sessionId   String    // Browser session ID
-  eventType   EventType
-  eventName   String    // e.g., "view_product", "add_to_cart", "search"
-  metadata    Json?     // Additional data: productId, searchTerm, etc.
-  userAgent   String?
-  ipAddress   String?
-  referrer    String?
-  pageUrl     String?
-  createdAt   DateTime  @default(now())
+  id        String    @id @default(cuid())
+  userId    String? // Optional - for guest users
+  sessionId String // Browser session ID
+  eventType EventType
+  eventName String // e.g., "view_product", "add_to_cart", "search"
+  metadata  Json? // Additional data: productId, searchTerm, etc.
+  userAgent String?
+  ipAddress String?
+  referrer  String?
+  pageUrl   String?
+  createdAt DateTime  @default(now())
 
   @@index([userId])
   @@index([sessionId])
@@ -993,10 +1148,10 @@ model LoyaltyTransaction {
   id             String   @id @default(cuid())
   userId         String
   user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  amount         Int      // Số điểm (+ tích/thưởng, - đổi quà)
-  type           String   // EARN | REDEEM | BONUS | ADJUST
+  amount         Int // Số điểm (+ tích/thưởng, - đổi quà)
+  type           String // EARN | REDEEM | BONUS | ADJUST
   description    String   @db.Text
-  orderId        String?  // Gắn với đơn hàng nếu là EARN
+  orderId        String? // Gắn với đơn hàng nếu là EARN
   idempotencyKey String?  @unique // order-award-{orderId}
   balanceBefore  Int
   balanceAfter   Int
@@ -1008,16 +1163,16 @@ model LoyaltyTransaction {
 }
 
 model RedeemedVoucher {
-  id             String   @id @default(cuid())
-  userId         String
-  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  voucherId      String   @unique
-  voucher        Voucher  @relation(fields: [voucherId], references: [id], onDelete: Cascade)
+  id               String   @id @default(cuid())
+  userId           String
+  user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  voucherId        String   @unique
+  voucher          Voucher  @relation(fields: [voucherId], references: [id], onDelete: Cascade)
   rewardTemplateId String // v1, v2, v3, v4, v5
-  pointsCost     Int
-  code           String   @unique
-  status         String   @default("ACTIVE") // ACTIVE | USED | EXPIRED
-  createdAt      DateTime @default(now())
+  pointsCost       Int
+  code             String   @unique
+  status           String   @default("ACTIVE") // ACTIVE | USED | EXPIRED
+  createdAt        DateTime @default(now())
 
   @@index([userId, createdAt(sort: Desc)])
 }
@@ -1107,4 +1262,3 @@ model DailyVariantSale {
   @@index([date])
   @@index([variantId])
 }
-

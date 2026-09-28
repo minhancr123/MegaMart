@@ -1,16 +1,18 @@
 /**
  * Đổi URL ảnh trong DB từ Cloudinary (đã disable) sang Cloudflare R2.
  *
- * Cloudinary trả 401 nên mọi ảnh trong bảng ProductImage và cột
+ * Cloudinary trả 401 nên ảnh trong bảng ProductImage và cột
  * Product.descriptionImages đều hỏng. Script mirror_to_r2.py đã tải lại ảnh
- * từ CDN nguồn, nén WebP và đẩy lên R2, xuất map {url_nguon: url_r2}.
- * Script này đọc map đó rồi ghi vào DB.
+ * từ CDN nguồn và đẩy lên R2, xuất map {url_nguon: url_r2}.
+ *
+ * Map khoá theo URL nguồn còn DB lưu URL Cloudinary, mà tên file Cloudinary là
+ * chuỗi ngẫu nhiên (vd kqejppr8sfufnqildtve.jpg) nên không đối chiếu trực
+ * tiếp được. Thay vào đó dựng map theo slug sản phẩm — mỗi slug khớp đúng một
+ * nhóm ảnh trong R2.
  *
  * Chạy (từ thư mục server/):
  *   npx ts-node src/scripts/update-image-urls-to-r2.ts          # xem trước
  *   APPLY=1 npx ts-node src/scripts/update-image-urls-to-r2.ts  # ghi thật
- *
- * Map đọc từ crawler/out/r2-url-map.json (cùng thư mục cha với server/).
  */
 
 import { PrismaClient } from "@prisma/client";
@@ -35,94 +37,117 @@ function loadMap(): UrlMap {
   return JSON.parse(fs.readFileSync(MAP_PATH, "utf-8"));
 }
 
-/** URL Cloudinary còn sót lại trong DB sẽ bị thay bằng R2. */
-function isStale(url: string): boolean {
-  return url.includes("res.cloudinary.com");
+/**
+ * Gom ảnh R2 theo slug sản phẩm.
+ *
+ * URL R2 có dạng https://host/products/<slug>/<ten-anh>.webp, nên slug nằm
+ * ngay sau /products/. Giữ nguyên thứ tự trong map để ghép với thứ tự ảnh
+ * trong DB (displayOrder).
+ */
+function buildSlugIndex(map: UrlMap): Map<string, string[]> {
+  const byslug = new Map<string, string[]>();
+  for (const r2url of Object.values(map)) {
+    const match = r2url.match(/\/products\/([^/]+)\//);
+    if (!match) continue;
+    const list = byslug.get(match[1]) ?? [];
+    list.push(r2url);
+    byslug.set(match[1], list);
+  }
+  return byslug;
 }
+
+const isStale = (url: string) => url.includes("res.cloudinary.com");
 
 async function main() {
   const apply = process.env.APPLY === "1";
-  const map = loadMap();
-  console.log(`Map: ${Object.keys(map).length} URL nguồn -> R2`);
+  const byslug = buildSlugIndex(loadMap());
+  console.log(`Map: ${byslug.size} slug sản phẩm trong R2`);
   console.log(apply ? "CHẾ ĐỘ GHI THẬT vào DB" : "dry-run (chưa ghi)");
 
-  // 1. ProductImage: cột `url` lưu link Cloudinary.
-  const images = await prisma.productImage.findMany({
-    where: { url: { contains: "res.cloudinary.com" } },
-    select: { id: true, url: true, productId: true },
-  });
-
-  let imageHits = 0;
-  const imageOps: { update: { where: { id: string }; data: { url: string } } }[] =
-    [];
-  for (const image of images) {
-    const next = map[image.url];
-    if (!next) continue;
-    imageHits += 1;
-    imageOps.push({ update: { where: { id: image.id }, data: { url: next } } });
-  }
-  console.log(`ProductImage: ${imageHits}/${images.length} URL có trong map`);
-
-  // 2. Product.descriptionImages: String[] lưu link Cloudinary.
+  // Ảnh chính nằm ở ProductImage, ghép theo slug + thứ tự hiển thị.
   const products = await prisma.product.findMany({
-    where: { descriptionImages: { has: "res.cloudinary.com" } },
-    select: { id: true, slug: true, descriptionImages: true },
+    where: { deletedAt: null },
+    select: {
+      id: true,
+      slug: true,
+      images: { orderBy: { displayOrder: "asc" } },
+      descriptionImages: true,
+    },
   });
+  console.log(`Sản phẩm trong DB: ${products.length}`);
 
-  let descHits = 0;
-  const productOps: {
+  let imgHit = 0, imgMiss = 0, descHit = 0, descMiss = 0;
+  const imgOps: { update: { where: { id: string }; data: { url: string } } }[] = [];
+  const prodOps: {
     update: { where: { id: string }; data: { descriptionImages: string[] } };
   }[] = [];
+
   for (const product of products) {
-    let changed = false;
-    const next = product.descriptionImages.map((url) => {
-      if (!isStale(url)) return url;
-      const replacement = map[url];
-      if (!replacement) return url;
-      changed = true;
-      descHits += 1;
-      return replacement;
-    });
-    if (changed) {
-      productOps.push({
-        update: {
-          where: { id: product.id },
-          data: { descriptionImages: next },
-        },
-      });
+    const r2list = byslug.get(product.slug);
+
+    if (r2list && product.images.length > 0) {
+      // Ảnh thừa trong R2 (crawler lấy nhiều góc hơn DB đang giữ) thì bỏ qua.
+      const pairs = product.images.map((image, index) => ({
+        image,
+        r2url: r2list[index],
+      }));
+      for (const pair of pairs) {
+        if (!isStale(pair.image.url)) continue;
+        if (!pair.r2url) {
+          imgMiss += 1;
+          continue;
+        }
+        imgHit += 1;
+        imgOps.push({
+          update: { where: { id: pair.image.id }, data: { url: pair.r2url } },
+        });
+      }
+    } else if (product.images.some((image) => isStale(image.url))) {
+      imgMiss += product.images.filter((i) => isStale(i.url)).length;
+    }
+
+    const desc = product.descriptionImages.filter(isStale);
+    if (desc.length > 0) {
+      if (r2list) {
+        descHit += desc.length;
+        prodOps.push({
+          update: {
+            where: { id: product.id },
+            data: { descriptionImages: product.descriptionImages.map((url) =>
+              isStale(url) ? r2list[0] : url,
+            ) },
+          },
+        });
+      } else {
+        descMiss += desc.length;
+      }
     }
   }
-  console.log(`descriptionImages: ${descHits} URL trên ${products.length} sản phẩm`);
 
-  // 3. Báo cáo ảnh Cloudinary còn sót (không có trong map vì nguồn chết).
-  const leftoverImages = images.length - imageHits;
-  const leftoverDesc = products.length * 0; // đếm chi tiết bên dưới nếu cần
-  console.log(`Còn sót (không mirror được): ${leftoverImages} ảnh chính`);
+  console.log(`Ảnh chính:  sẽ đổi ${imgHit}, không tìm thấy bản R2 ${imgMiss}`);
+  console.log(`Ảnh mô tả: sẽ đổi ${descHit}, không tìm thấy bản R2 ${descMiss}`);
 
   if (!apply) {
     console.log("\nĐặt APPLY=1 để ghi vào DB.");
     return;
   }
 
-  // Ghi theo lô để tránh transaction quá dài trên DB cloud.
+  // Ghi theo lô: transaction quá dài sẽ giữ khoá bảng trên DB cloud.
   const BATCH = 200;
-  for (let i = 0; i < imageOps.length; i += BATCH) {
-    const batch = imageOps.slice(i, i + BATCH);
+  for (let i = 0; i < imgOps.length; i += BATCH) {
     await prisma.$transaction(
-      batch.map((op) => prisma.productImage.update(op.update)),
+      imgOps.slice(i, i + BATCH).map((op) => prisma.productImage.update(op.update)),
     );
-    console.log(`  ảnh: ${Math.min(i + BATCH, imageOps.length)}/${imageOps.length}`);
+    console.log(`  ảnh: ${Math.min(i + BATCH, imgOps.length)}/${imgOps.length}`);
   }
-  for (let i = 0; i < productOps.length; i += BATCH) {
-    const batch = productOps.slice(i, i + BATCH);
+  for (let i = 0; i < prodOps.length; i += BATCH) {
     await prisma.$transaction(
-      batch.map((op) => prisma.product.update(op.update)),
+      prodOps.slice(i, i + BATCH).map((op) => prisma.product.update(op.update)),
     );
-    console.log(`  sản phẩm: ${Math.min(i + BATCH, productOps.length)}/${productOps.length}`);
+    console.log(`  sản phẩm: ${Math.min(i + BATCH, prodOps.length)}/${prodOps.length}`);
   }
 
-  console.log(`\nXong. ${imageHits} ảnh + ${descHits} ảnh mô tả đã đổi sang R2.`);
-  void leftoverDesc;
+  console.log(`\nXong. ${imgHit} ảnh + ${descHit} ảnh mô tả đã đổi sang R2.`);
 }
 
 main()

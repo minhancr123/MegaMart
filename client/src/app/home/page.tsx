@@ -16,6 +16,12 @@ export const metadata: Metadata = {
   },
 };
 
+// Trang chủ gọi API ở server nên mặc định Next.js prerender lúc `next build`
+// và đóng băng HTML kèm cache 1 năm. Giá và ảnh sản phẩm thay đổi liên tục
+// nên phải render mỗi request, có cache ngắn để chịu tải.
+export const dynamic = "force-dynamic";
+export const revalidate = 60;
+
 //Fetch data SSR
 // Ba nguồn dữ liệu này độc lập nhau nên gọi song song. Gọi tuần tự cộng dồn
 // ~3s chờ SSR, đủ để Next.js render trang rỗng khi một request chậm.

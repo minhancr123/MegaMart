@@ -1,83 +1,83 @@
-import { Injectable } from '@nestjs/common';
-import { PrismaService } from 'src/prismaClient/prisma.service';
-import { CreateAuditLogDto, QueryAuditLogDto } from './dto/audit-log.dto';
+import { Injectable } from "@nestjs/common";
+import { PrismaService } from "src/prismaClient/prisma.service";
+import { CreateAuditLogDto, QueryAuditLogDto } from "./dto/audit-log.dto";
 
 export enum AuditAction {
   // Auth
-  LOGIN = 'LOGIN',
-  LOGOUT = 'LOGOUT',
-  LOGIN_FAILED = 'LOGIN_FAILED',
+  LOGIN = "LOGIN",
+  LOGOUT = "LOGOUT",
+  LOGIN_FAILED = "LOGIN_FAILED",
 
   // User
-  USER_CREATE = 'USER_CREATE',
-  USER_UPDATE = 'USER_UPDATE',
-  USER_DELETE = 'USER_DELETE',
+  USER_CREATE = "USER_CREATE",
+  USER_UPDATE = "USER_UPDATE",
+  USER_DELETE = "USER_DELETE",
 
   // Product
-  PRODUCT_CREATE = 'PRODUCT_CREATE',
-  PRODUCT_UPDATE = 'PRODUCT_UPDATE',
-  PRODUCT_DELETE = 'PRODUCT_DELETE',
+  PRODUCT_CREATE = "PRODUCT_CREATE",
+  PRODUCT_UPDATE = "PRODUCT_UPDATE",
+  PRODUCT_DELETE = "PRODUCT_DELETE",
 
   // Order
-  ORDER_CREATE = 'ORDER_CREATE',
-  ORDER_UPDATE = 'ORDER_UPDATE',
-  ORDER_STATUS_CHANGE = 'ORDER_STATUS_CHANGE',
-  ORDER_CANCEL = 'ORDER_CANCEL',
+  ORDER_CREATE = "ORDER_CREATE",
+  ORDER_UPDATE = "ORDER_UPDATE",
+  ORDER_STATUS_CHANGE = "ORDER_STATUS_CHANGE",
+  ORDER_CANCEL = "ORDER_CANCEL",
 
   // Category
-  CATEGORY_CREATE = 'CATEGORY_CREATE',
-  CATEGORY_UPDATE = 'CATEGORY_UPDATE',
-  CATEGORY_DELETE = 'CATEGORY_DELETE',
+  CATEGORY_CREATE = "CATEGORY_CREATE",
+  CATEGORY_UPDATE = "CATEGORY_UPDATE",
+  CATEGORY_DELETE = "CATEGORY_DELETE",
 
   // Banner
-  BANNER_CREATE = 'BANNER_CREATE',
-  BANNER_UPDATE = 'BANNER_UPDATE',
-  BANNER_DELETE = 'BANNER_DELETE',
+  BANNER_CREATE = "BANNER_CREATE",
+  BANNER_UPDATE = "BANNER_UPDATE",
+  BANNER_DELETE = "BANNER_DELETE",
 
   // FlashSale
-  FLASHSALE_CREATE = 'FLASHSALE_CREATE',
-  FLASHSALE_UPDATE = 'FLASHSALE_UPDATE',
-  FLASHSALE_DELETE = 'FLASHSALE_DELETE',
+  FLASHSALE_CREATE = "FLASHSALE_CREATE",
+  FLASHSALE_UPDATE = "FLASHSALE_UPDATE",
+  FLASHSALE_DELETE = "FLASHSALE_DELETE",
 
   // Voucher (agent crews)
-  VOUCHER_CREATE = 'VOUCHER_CREATE',
-  VOUCHER_UPDATE = 'VOUCHER_UPDATE',
-  VOUCHER_GOVERNANCE_PROPOSAL = 'VOUCHER_GOVERNANCE_PROPOSAL',
-  LOYALTY_NURTURE_PROPOSAL = 'LOYALTY_NURTURE_PROPOSAL',
-  RECOMMENDATION_REFRESH = 'RECOMMENDATION_REFRESH',
+  VOUCHER_CREATE = "VOUCHER_CREATE",
+  VOUCHER_UPDATE = "VOUCHER_UPDATE",
+  VOUCHER_GOVERNANCE_PROPOSAL = "VOUCHER_GOVERNANCE_PROPOSAL",
+  LOYALTY_NURTURE_PROPOSAL = "LOYALTY_NURTURE_PROPOSAL",
+  RECOMMENDATION_REFRESH = "RECOMMENDATION_REFRESH",
 
   // Posts
-  POST_CREATE = 'POST_CREATE',
-  POST_UPDATE = 'POST_UPDATE',
-  POST_DELETE = 'POST_DELETE',
-  POST_PUBLISH = 'POST_PUBLISH',
+  POST_CREATE = "POST_CREATE",
+  POST_UPDATE = "POST_UPDATE",
+  POST_DELETE = "POST_DELETE",
+  POST_PUBLISH = "POST_PUBLISH",
 
   // Settings
-  SETTINGS_UPDATE = 'SETTINGS_UPDATE',
+  SETTINGS_UPDATE = "SETTINGS_UPDATE",
 
   // Pallet / Box
-  PALLET_BOX_CREATE = 'PALLET_BOX_CREATE',
-  PALLET_BOX_DELETE = 'PALLET_BOX_DELETE',
-  PALLET_BOX_TRANSFER = 'PALLET_BOX_TRANSFER',
+  PALLET_BOX_CREATE = "PALLET_BOX_CREATE",
+  PALLET_BOX_DELETE = "PALLET_BOX_DELETE",
+  PALLET_BOX_TRANSFER = "PALLET_BOX_TRANSFER",
 }
 
 export enum AuditEntity {
-  USER = 'USER',
-  PRODUCT = 'PRODUCT',
-  ORDER = 'ORDER',
-  CATEGORY = 'CATEGORY',
-  BANNER = 'BANNER',
-  FLASHSALE = 'FLASHSALE',
-  VOUCHER = 'VOUCHER',
-  POST = 'POST',
-  SETTINGS = 'SETTINGS',
-  AUTH = 'AUTH',
-  PALLET = 'PALLET',
+  USER = "USER",
+  PRODUCT = "PRODUCT",
+  ORDER = "ORDER",
+  CATEGORY = "CATEGORY",
+  BANNER = "BANNER",
+  FLASHSALE = "FLASHSALE",
+  VOUCHER = "VOUCHER",
+  POST = "POST",
+  SETTINGS = "SETTINGS",
+  AUTH = "AUTH",
+  PALLET = "PALLET",
 }
 
 @Injectable()
 export class AuditLogService {
-  constructor(private prisma: PrismaService) { }
+  constructor(private prisma: PrismaService) {}
 
   async create(createAuditLogDto: CreateAuditLogDto) {
     return this.prisma.auditLog.create({
@@ -85,7 +85,7 @@ export class AuditLogService {
         userId: createAuditLogDto.userId,
         action: createAuditLogDto.action,
         entity: createAuditLogDto.entity,
-        entityId: createAuditLogDto.entityId ?? '',
+        entityId: createAuditLogDto.entityId ?? "",
         oldData: createAuditLogDto.detail, // Store detail as oldData for backward compatibility
         ipAddress: createAuditLogDto.ipAddress,
       },
@@ -111,7 +111,16 @@ export class AuditLogService {
   }
 
   async findAll(query: QueryAuditLogDto) {
-    const { userId, action, entity, entityId, startDate, endDate, page = 1, limit = 20 } = query;
+    const {
+      userId,
+      action,
+      entity,
+      entityId,
+      startDate,
+      endDate,
+      page = 1,
+      limit = 20,
+    } = query;
 
     const where: any = {};
 
@@ -138,7 +147,7 @@ export class AuditLogService {
             },
           },
         },
-        orderBy: { createdAt: 'desc' },
+        orderBy: { createdAt: "desc" },
         skip: (page - 1) * limit,
         take: limit,
       }),
@@ -168,14 +177,14 @@ export class AuditLogService {
           },
         },
       },
-      orderBy: { createdAt: 'desc' },
+      orderBy: { createdAt: "desc" },
     });
   }
 
   async findByUser(userId: string, limit = 50) {
     return this.prisma.auditLog.findMany({
       where: { userId },
-      orderBy: { createdAt: 'desc' },
+      orderBy: { createdAt: "desc" },
       take: limit,
     });
   }
@@ -186,12 +195,12 @@ export class AuditLogService {
 
     // Get action counts
     const actionCounts = await this.prisma.auditLog.groupBy({
-      by: ['action'],
+      by: ["action"],
       where: {
         createdAt: { gte: startDate },
       },
       _count: { id: true },
-      orderBy: { _count: { id: 'desc' } },
+      orderBy: { _count: { id: "desc" } },
       take: 10,
     });
 
@@ -207,20 +216,22 @@ export class AuditLogService {
 
     // Group by day
     const dailyActivity: Record<string, number> = {};
-    dailyLogs.forEach(log => {
-      const day = log.createdAt.toISOString().split('T')[0];
+    dailyLogs.forEach((log) => {
+      const day = log.createdAt.toISOString().split("T")[0];
       dailyActivity[day] = (dailyActivity[day] || 0) + 1;
     });
 
     return {
-      topActions: actionCounts.map(a => ({
+      topActions: actionCounts.map((a) => ({
         action: a.action,
         count: a._count.id,
       })),
-      dailyActivity: Object.entries(dailyActivity).map(([date, count]) => ({
-        date,
-        count,
-      })).sort((a, b) => a.date.localeCompare(b.date)),
+      dailyActivity: Object.entries(dailyActivity)
+        .map(([date, count]) => ({
+          date,
+          count,
+        }))
+        .sort((a, b) => a.date.localeCompare(b.date)),
     };
   }
 

@@ -1,50 +1,59 @@
-import { IsString, IsOptional, IsArray, ValidateNested, IsInt, IsEnum, Min, IsNumber } from 'class-validator';
-import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { Type } from 'class-transformer';
+import {
+  IsString,
+  IsOptional,
+  IsArray,
+  ValidateNested,
+  IsInt,
+  IsEnum,
+  Min,
+  IsNumber,
+} from "class-validator";
+import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
+import { Type } from "class-transformer";
 
 export enum StockMovementType {
-  IMPORT = 'IMPORT',
-  EXPORT = 'EXPORT',
-  TRANSFER_IN = 'TRANSFER_IN',
-  TRANSFER_OUT = 'TRANSFER_OUT',
-  ADJUSTMENT = 'ADJUSTMENT',
-  RETURN = 'RETURN',
-  DAMAGE = 'DAMAGE',
-  SALE = 'SALE',
-  RESERVE = 'RESERVE',
-  RELEASE = 'RELEASE',
+  IMPORT = "IMPORT",
+  EXPORT = "EXPORT",
+  TRANSFER_IN = "TRANSFER_IN",
+  TRANSFER_OUT = "TRANSFER_OUT",
+  ADJUSTMENT = "ADJUSTMENT",
+  RETURN = "RETURN",
+  DAMAGE = "DAMAGE",
+  SALE = "SALE",
+  RESERVE = "RESERVE",
+  RELEASE = "RELEASE",
 }
 
 export enum StockMovementStatus {
-  PENDING = 'PENDING',
-  COMPLETED = 'COMPLETED',
-  CANCELLED = 'CANCELLED',
+  PENDING = "PENDING",
+  COMPLETED = "COMPLETED",
+  CANCELLED = "CANCELLED",
 }
 
 // ============== STOCK MOVEMENT ITEM DTO ==============
 
 export class StockMovementItemDto {
-  @ApiProperty({ description: 'ID của variant' })
+  @ApiProperty({ description: "ID của variant" })
   @IsString()
   variantId: string;
 
-  @ApiProperty({ description: 'Số lượng' })
+  @ApiProperty({ description: "Số lượng" })
   @IsInt()
   @Min(1)
   quantity: number;
 
-  @ApiPropertyOptional({ description: 'Giá nhập (cho nhập kho)' })
+  @ApiPropertyOptional({ description: "Giá nhập (cho nhập kho)" })
   @IsOptional()
   @IsNumber()
   @Min(0)
   unitPrice?: number;
 
-  @ApiPropertyOptional({ description: 'Ghi chú' })
+  @ApiPropertyOptional({ description: "Ghi chú" })
   @IsOptional()
   @IsString()
   notes?: string;
 
-  @ApiPropertyOptional({ description: 'Số lượng đặt theo PO (để đối chiếu)' })
+  @ApiPropertyOptional({ description: "Số lượng đặt theo PO (để đối chiếu)" })
   @IsOptional()
   @IsInt()
   @Min(1)
@@ -54,40 +63,45 @@ export class StockMovementItemDto {
 // ============== CREATE STOCK MOVEMENT DTO ==============
 
 export class CreateStockMovementDto {
-  @ApiProperty({ enum: StockMovementType, description: 'Loại phiếu' })
+  @ApiProperty({ enum: StockMovementType, description: "Loại phiếu" })
   @IsEnum(StockMovementType)
   type: StockMovementType;
 
-  @ApiProperty({ description: 'ID kho hàng' })
+  @ApiProperty({ description: "ID kho hàng" })
   @IsString()
   warehouseId: string;
 
-  @ApiPropertyOptional({ description: 'ID nhà cung cấp (cho nhập kho)' })
+  @ApiPropertyOptional({ description: "ID nhà cung cấp (cho nhập kho)" })
   @IsOptional()
   @IsString()
   supplierId?: string;
 
-  @ApiPropertyOptional({ description: 'ID kho đích (cho chuyển kho)' })
+  @ApiPropertyOptional({ description: "ID kho đích (cho chuyển kho)" })
   @IsOptional()
   @IsString()
   toWarehouseId?: string;
 
-  @ApiPropertyOptional({ description: 'ID đơn hàng (cho xuất bán)' })
+  @ApiPropertyOptional({ description: "ID đơn hàng (cho xuất bán)" })
   @IsOptional()
   @IsString()
   orderId?: string;
 
-  @ApiPropertyOptional({ description: 'ID purchase order (phiếu nhập theo PO)' })
+  @ApiPropertyOptional({
+    description: "ID purchase order (phiếu nhập theo PO)",
+  })
   @IsOptional()
   @IsString()
   purchaseOrderId?: string;
 
-  @ApiPropertyOptional({ description: 'Ghi chú' })
+  @ApiPropertyOptional({ description: "Ghi chú" })
   @IsOptional()
   @IsString()
   notes?: string;
 
-  @ApiProperty({ type: [StockMovementItemDto], description: 'Danh sách sản phẩm' })
+  @ApiProperty({
+    type: [StockMovementItemDto],
+    description: "Danh sách sản phẩm",
+  })
   @IsArray()
   @ValidateNested({ each: true })
   @Type(() => StockMovementItemDto)
@@ -97,12 +111,12 @@ export class CreateStockMovementDto {
 // ============== UPDATE STOCK MOVEMENT DTO ==============
 
 export class UpdateStockMovementDto {
-  @ApiPropertyOptional({ description: 'Ghi chú' })
+  @ApiPropertyOptional({ description: "Ghi chú" })
   @IsOptional()
   @IsString()
   notes?: string;
 
-  @ApiPropertyOptional({ enum: StockMovementStatus, description: 'Trạng thái' })
+  @ApiPropertyOptional({ enum: StockMovementStatus, description: "Trạng thái" })
   @IsOptional()
   @IsEnum(StockMovementStatus)
   status?: StockMovementStatus;
@@ -131,7 +145,7 @@ export class QueryStockMovementDto {
   @IsString()
   status?: string;
 
-  @ApiPropertyOptional({ description: 'Tìm theo mã phiếu' })
+  @ApiPropertyOptional({ description: "Tìm theo mã phiếu" })
   @IsOptional()
   @IsString()
   search?: string;

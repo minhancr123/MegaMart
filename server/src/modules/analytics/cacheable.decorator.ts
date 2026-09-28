@@ -21,10 +21,10 @@ export function Cacheable(ttlMs: number, keyPrefix: string) {
             a instanceof Date
               ? a.toISOString()
               : a === undefined || a === null
-                ? ''
+                ? ""
                 : String(a),
           )
-          .join('|');
+          .join("|");
       const now = Date.now();
       const hit = cache.get(key);
       if (hit && hit.exp > now) return hit.data;

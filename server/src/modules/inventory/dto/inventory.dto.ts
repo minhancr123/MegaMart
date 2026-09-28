@@ -1,29 +1,36 @@
-import { IsString, IsOptional, IsBoolean, IsInt, Min } from 'class-validator';
-import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { Type } from 'class-transformer';
+import {
+  IsString,
+  IsOptional,
+  IsBoolean,
+  IsInt,
+  IsNumber,
+  Min,
+} from "class-validator";
+import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
+import { Type } from "class-transformer";
 
 // ============== WAREHOUSE DTOs ==============
 
 export class CreateWarehouseDto {
-  @ApiProperty({ description: 'Tên kho' })
+  @ApiProperty({ description: "Tên kho" })
   @IsString()
   name: string;
 
-  @ApiProperty({ description: 'Mã kho', example: 'KHO-HCM' })
+  @ApiProperty({ description: "Mã kho", example: "KHO-HCM" })
   @IsString()
   code: string;
 
-  @ApiPropertyOptional({ description: 'Địa chỉ kho' })
+  @ApiPropertyOptional({ description: "Địa chỉ kho" })
   @IsOptional()
   @IsString()
   address?: string;
 
-  @ApiPropertyOptional({ description: 'Số điện thoại' })
+  @ApiPropertyOptional({ description: "Số điện thoại" })
   @IsOptional()
   @IsString()
   phone?: string;
 
-  @ApiPropertyOptional({ description: 'Trạng thái hoạt động', default: true })
+  @ApiPropertyOptional({ description: "Trạng thái hoạt động", default: true })
   @IsOptional()
   @IsBoolean()
   isActive?: boolean;
@@ -54,40 +61,65 @@ export class UpdateWarehouseDto {
 // ============== SUPPLIER DTOs ==============
 
 export class CreateSupplierDto {
-  @ApiProperty({ description: 'Tên nhà cung cấp' })
+  @ApiProperty({ description: "Tên nhà cung cấp" })
   @IsString()
   name: string;
 
-  @ApiProperty({ description: 'Mã nhà cung cấp', example: 'NCC-001' })
+  @ApiProperty({ description: "Mã nhà cung cấp", example: "NCC-001" })
   @IsString()
   code: string;
 
-  @ApiPropertyOptional({ description: 'Email' })
+  @ApiPropertyOptional({ description: "Email" })
   @IsOptional()
   @IsString()
   email?: string;
 
-  @ApiPropertyOptional({ description: 'Số điện thoại' })
+  @ApiPropertyOptional({ description: "Số điện thoại" })
   @IsOptional()
   @IsString()
   phone?: string;
 
-  @ApiPropertyOptional({ description: 'Địa chỉ' })
+  @ApiPropertyOptional({ description: "Địa chỉ" })
   @IsOptional()
   @IsString()
   address?: string;
 
-  @ApiPropertyOptional({ description: 'Mã số thuế' })
+  @ApiPropertyOptional({ description: "Tỉnh/Thành phố" })
+  @IsOptional()
+  @IsString()
+  province?: string;
+
+  @ApiPropertyOptional({ description: "Quận/Huyện" })
+  @IsOptional()
+  @IsString()
+  district?: string;
+
+  @ApiPropertyOptional({ description: "Phường/Xã" })
+  @IsOptional()
+  @IsString()
+  ward?: string;
+
+  @ApiPropertyOptional({ description: "Vĩ độ Google Maps" })
+  @IsOptional()
+  @IsNumber()
+  lat?: number;
+
+  @ApiPropertyOptional({ description: "Kinh độ Google Maps" })
+  @IsOptional()
+  @IsNumber()
+  lng?: number;
+
+  @ApiPropertyOptional({ description: "Mã số thuế" })
   @IsOptional()
   @IsString()
   taxCode?: string;
 
-  @ApiPropertyOptional({ description: 'Người liên hệ' })
+  @ApiPropertyOptional({ description: "Người liên hệ" })
   @IsOptional()
   @IsString()
   contactName?: string;
 
-  @ApiPropertyOptional({ description: 'Ghi chú' })
+  @ApiPropertyOptional({ description: "Ghi chú" })
   @IsOptional()
   @IsString()
   notes?: string;
@@ -117,6 +149,31 @@ export class UpdateSupplierDto {
   @ApiPropertyOptional()
   @IsOptional()
   @IsString()
+  province?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  district?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  ward?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsNumber()
+  lat?: number;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsNumber()
+  lng?: number;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
   taxCode?: string;
 
   @ApiPropertyOptional()
@@ -138,24 +195,24 @@ export class UpdateSupplierDto {
 // ============== WAREHOUSE INVENTORY DTOs ==============
 
 export class UpdateInventoryDto {
-  @ApiProperty({ description: 'Số lượng tồn' })
+  @ApiProperty({ description: "Số lượng tồn" })
   @IsInt()
   @Min(0)
   quantity: number;
 
-  @ApiPropertyOptional({ description: 'Số lượng tối thiểu cảnh báo' })
+  @ApiPropertyOptional({ description: "Số lượng tối thiểu cảnh báo" })
   @IsOptional()
   @IsInt()
   @Min(0)
   minQuantity?: number;
 
-  @ApiPropertyOptional({ description: 'Số lượng tối đa' })
+  @ApiPropertyOptional({ description: "Số lượng tối đa" })
   @IsOptional()
   @IsInt()
   @Min(0)
   maxQuantity?: number;
 
-  @ApiPropertyOptional({ description: 'Vị trí trong kho', example: 'A1-01' })
+  @ApiPropertyOptional({ description: "Vị trí trong kho", example: "A1-01" })
   @IsOptional()
   @IsString()
   location?: string;
@@ -167,23 +224,27 @@ export class QueryInventoryDto {
   @IsString()
   warehouseId?: string;
 
-  @ApiPropertyOptional({ description: 'Lọc theo 1 biến thể (card tồn kho trang sửa SP)' })
+  @ApiPropertyOptional({
+    description: "Lọc theo 1 biến thể (card tồn kho trang sửa SP)",
+  })
   @IsOptional()
   @IsString()
   variantId?: string;
 
-  @ApiPropertyOptional({ description: 'Lọc theo 1 sản phẩm (mọi biến thể của nó)' })
+  @ApiPropertyOptional({
+    description: "Lọc theo 1 sản phẩm (mọi biến thể của nó)",
+  })
   @IsOptional()
   @IsString()
   productId?: string;
 
-  @ApiPropertyOptional({ description: 'Lọc sản phẩm sắp hết' })
+  @ApiPropertyOptional({ description: "Lọc sản phẩm sắp hết" })
   @IsOptional()
   @IsBoolean()
   @Type(() => Boolean)
   lowStock?: boolean;
 
-  @ApiPropertyOptional({ description: 'Tìm theo SKU' })
+  @ApiPropertyOptional({ description: "Tìm theo SKU" })
   @IsOptional()
   @IsString()
   search?: string;

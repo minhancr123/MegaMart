@@ -1,13 +1,13 @@
-import { Injectable, UnauthorizedException } from '@nestjs/common';
-import { PassportStrategy } from '@nestjs/passport';
-import { Strategy } from 'passport-local';
-import { AuthService } from '../modules/auth/auth.service';
+import { Injectable, UnauthorizedException } from "@nestjs/common";
+import { PassportStrategy } from "@nestjs/passport";
+import { Strategy } from "passport-local";
+import { AuthService } from "../modules/auth/auth.service";
 
 @Injectable()
 export class LocalStrategy extends PassportStrategy(Strategy) {
   constructor(private authService: AuthService) {
     super({
-      usernameField: 'email', // Sử dụng email thay vì username
+      usernameField: "email", // Sử dụng email thay vì username
     });
   }
 
@@ -15,12 +15,12 @@ export class LocalStrategy extends PassportStrategy(Strategy) {
     try {
       const user = await this.authService.validateUser(email, password);
       if (!user) {
-        throw new UnauthorizedException('Thông tin đăng nhập không hợp lệ');
+        throw new UnauthorizedException("Thông tin đăng nhập không hợp lệ");
       }
       console.log("Strategy test: ", user);
       return user;
     } catch (error) {
-      throw new UnauthorizedException('Thông tin đăng nhập không hợp lệ');
+      throw new UnauthorizedException("Thông tin đăng nhập không hợp lệ");
     }
   }
 }

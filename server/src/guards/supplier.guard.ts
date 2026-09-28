@@ -1,5 +1,10 @@
-import { Injectable, CanActivate, ExecutionContext, ForbiddenException } from '@nestjs/common';
-import { PrismaService } from 'src/prismaClient/prisma.service';
+import {
+  Injectable,
+  CanActivate,
+  ExecutionContext,
+  ForbiddenException,
+} from "@nestjs/common";
+import { PrismaService } from "src/prismaClient/prisma.service";
 
 /**
  * Chỉ tài khoản role SUPPLIER đã link nhà cung cấp mới qua được.
@@ -13,8 +18,10 @@ export class SupplierGuard implements CanActivate {
     const request = context.switchToHttp().getRequest();
     const user = request.user;
 
-    if (!user || user.role !== 'SUPPLIER') {
-      throw new ForbiddenException('Chỉ tài khoản nhà cung cấp mới có quyền truy cập');
+    if (!user || user.role !== "SUPPLIER") {
+      throw new ForbiddenException(
+        "Chỉ tài khoản nhà cung cấp mới có quyền truy cập",
+      );
     }
 
     const dbUser = await this.prisma.user.findUnique({
@@ -22,8 +29,8 @@ export class SupplierGuard implements CanActivate {
       select: { id: true, supplierId: true, role: true },
     });
 
-    if (!dbUser || dbUser.role !== 'SUPPLIER' || !dbUser.supplierId) {
-      throw new ForbiddenException('Tài khoản chưa được gắn nhà cung cấp');
+    if (!dbUser || dbUser.role !== "SUPPLIER" || !dbUser.supplierId) {
+      throw new ForbiddenException("Tài khoản chưa được gắn nhà cung cấp");
     }
 
     request.supplierId = dbUser.supplierId;

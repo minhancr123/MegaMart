@@ -5,8 +5,8 @@ import {
   HttpException,
   HttpStatus,
   Logger,
-} from '@nestjs/common';
-import { Request, Response } from 'express';
+} from "@nestjs/common";
+import { Request, Response } from "express";
 
 @Catch()
 export class GlobalExceptionFilter implements ExceptionFilter {
@@ -24,30 +24,28 @@ export class GlobalExceptionFilter implements ExceptionFilter {
     if (exception instanceof HttpException) {
       status = exception.getStatus();
       const exceptionResponse = exception.getResponse();
-      
-      if (typeof exceptionResponse === 'object' && exceptionResponse !== null) {
+
+      if (typeof exceptionResponse === "object" && exceptionResponse !== null) {
         message = (exceptionResponse as any).message || exception.message;
-        error = (exceptionResponse as any).error || 'Error';
+        error = (exceptionResponse as any).error || "Error";
       } else {
         message = exception.message;
-        error = 'Error';
+        error = "Error";
       }
     } else if (exception instanceof Error) {
       status = HttpStatus.INTERNAL_SERVER_ERROR;
-      message = process.env.NODE_ENV === 'production' 
-        ? 'Internal server error' 
-        : exception.message;
-      error = 'Internal Server Error';
-      
+      message =
+        process.env.NODE_ENV === "production"
+          ? "Internal server error"
+          : exception.message;
+      error = "Internal Server Error";
+
       // Log full error in development
-      this.logger.error(
-        `${request.method} ${request.url}`,
-        exception.stack,
-      );
+      this.logger.error(`${request.method} ${request.url}`, exception.stack);
     } else {
       status = HttpStatus.INTERNAL_SERVER_ERROR;
-      message = 'Internal server error';
-      error = 'Internal Server Error';
+      message = "Internal server error";
+      error = "Internal Server Error";
     }
 
     // Log request info
@@ -66,5 +64,3 @@ export class GlobalExceptionFilter implements ExceptionFilter {
     });
   }
 }
-
-

@@ -19,6 +19,7 @@ import { Switch } from "@/components/ui/switch";
 import { ArrowLeft, Loader2 } from "lucide-react";
 import { createCategory, fetchAllCategories } from "@/lib/categoryApi";
 import { toast } from "sonner";
+import { getErrorMessage } from "@/lib/utils";
 import Link from "next/link";
 
 const categorySchema = z.object({
@@ -65,7 +66,7 @@ export default function CreateCategoryPage() {
   const loadCategories = async () => {
     try {
       const data = await fetchAllCategories();
-      setCategories(data);
+      setCategories((data || []) as Category[]);
     } catch (error) {
       console.error("Error loading categories:", error);
     }
@@ -97,7 +98,7 @@ export default function CreateCategoryPage() {
       router.push("/admin/categories");
     } catch (error: unknown) {
       console.error("Error creating category:", error);
-      toast.error(error instanceof Error ? error.message : "Có lỗi xảy ra khi tạo danh mục");
+      toast.error(getErrorMessage(error, "Có lỗi xảy ra khi tạo danh mục"));
     } finally {
       setLoading(false);
     }

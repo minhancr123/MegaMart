@@ -1,5 +1,12 @@
 // Google Analytics utilities
-import { GAItem } from "@/interfaces/product";
+export interface GAItem {
+  item_id?: string;
+  item_name?: string;
+  price: number;
+  quantity?: number;
+  item_category?: string;
+  [key: string]: unknown;
+}
 
 export const GA_TRACKING_ID = process.env.NEXT_PUBLIC_GA_ID || '';
 

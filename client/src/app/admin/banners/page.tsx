@@ -49,7 +49,7 @@ import {
   BannerDisplayStatus,
 } from "@/lib/marketingApi";
 import { toast } from "sonner";
-import { cn } from "@/lib/utils";
+import { cn, formatDate } from "@/lib/utils";
 
 const POSITION_LABELS: Record<string, string> = {
   HOME_SLIDER: "Slider Trang chủ",
@@ -90,8 +90,6 @@ function ctrOf(b: Banner): string {
 
 const fmtNum = (n?: number | null) =>
   new Intl.NumberFormat("vi-VN").format(n || 0);
-
-const fmtDate = (d?: string) => (d ? new Date(d).toLocaleDateString("vi-VN") : "");
 
 export default function BannersPage() {
   const [banners, setBanners] = useState<Banner[]>([]);
@@ -447,7 +445,10 @@ export default function BannersPage() {
                     <p className="mt-1 flex items-center gap-1.5 text-xs text-muted-foreground">
                       <CalendarDays className="h-3.5 w-3.5" />
                       {banner.startDate || banner.endDate
-                        ? `${fmtDate(banner.startDate)} - ${fmtDate(banner.endDate)}`
+                        ? [banner.startDate, banner.endDate]
+                            .filter(Boolean)
+                            .map((d) => formatDate(d))
+                            .join(" - ")
                         : "Chạy vô thời hạn"}
                     </p>
                   </div>

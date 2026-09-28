@@ -1,4 +1,5 @@
 import axiosClient from "./axiosClient";
+import { getErrorMessage } from "./utils";
 import { Product, Category } from "@/interfaces/product";
 
 interface ApiResponse<T = unknown> {
@@ -131,7 +132,11 @@ export const fetchProductById = async (id: string) => {
     console.log("Product detail response:", res);
 
     // res đã được transform bởi interceptor thành ApiResponse
-    const apiRes = res as unknown as ApiResponse;
+    const apiRes = res as unknown as ApiResponse<Product>;
+    // Phòng hờ server/proxy trả object Product phẳng, không bọc success/data.
+    if ((res as any)?.id && !(apiRes as any)?.data) {
+      return res as unknown as Product;
+    }
 
     if (apiRes.success && apiRes.data) {
       return apiRes.data;
@@ -140,8 +145,7 @@ export const fetchProductById = async (id: string) => {
     throw new Error("Product not found");
   } catch (error: unknown) {
     console.error("Fetch product by ID error:", error);
-    const errorMessage = error instanceof Error ? error.message : "Failed to fetch product";
-    throw new Error(errorMessage);
+    throw new Error(getErrorMessage(error, "Failed to fetch product"));
   }
 };
 

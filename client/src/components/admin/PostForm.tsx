@@ -70,8 +70,9 @@ export default function PostForm({ initialData }: PostFormProps) {
   useEffect(() => {
     const fetchPopularTags = async () => {
       try {
-        const tags = await tagsApi.getPopular(10);
-        setPopularTags(tags.map(t => t.name));
+        const res = await tagsApi.getPopular(10);
+        const tagList = (Array.isArray(res) ? res : (res as any)?.data || []) as { name: string }[];
+        setPopularTags(tagList.map((t: { name: string }) => t.name));
       } catch (error) {
         console.error("Error fetching popular tags:", error);
       }

@@ -39,7 +39,7 @@ function boxColor(box: CanvasBox, selected: boolean): string {
 }
 
 /** Xếp thùng theo tầng, mỗi tầng tối đa 4 ô theo slotIndex/boxCode. */
-function useLayout(boxes: CanvasBox[], maxLevels: number) {
+function useLayout(boxes: CanvasBox[], maxLevels?: number) {
   return useMemo(() => {
     const byLevel = new Map<number, CanvasBox[]>();
     for (const b of boxes) {

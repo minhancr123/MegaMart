@@ -187,6 +187,11 @@ export interface Supplier {
   email?: string;
   phone?: string;
   address?: string;
+  province?: string;
+  district?: string;
+  ward?: string;
+  lat?: number | null;
+  lng?: number | null;
   taxCode?: string;
   contactName?: string;
   notes?: string;
@@ -314,6 +319,11 @@ export interface CreateSupplierDto {
   email?: string;
   phone?: string;
   address?: string;
+  province?: string;
+  district?: string;
+  ward?: string;
+  lat?: number | null;
+  lng?: number | null;
   taxCode?: string;
   contactName?: string;
   notes?: string;

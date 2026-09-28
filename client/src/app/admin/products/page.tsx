@@ -346,7 +346,7 @@ export default function ProductsPage() {
             {/* Clone Dialog */}
             {productToClone && (
                 <CloneProduct
-                    product={productToClone}
+                    product={productToClone as any}
                     open={cloneDialogOpen}
                     onOpenChange={setCloneDialogOpen}
                     onSuccess={loadProducts}

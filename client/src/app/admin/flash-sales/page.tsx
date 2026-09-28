@@ -39,6 +39,8 @@ import { Badge } from "@/components/ui/badge";
 import { Plus, Pencil, Trash2, Eye, EyeOff, Zap, Clock, CheckCircle, Package } from "lucide-react";
 import { flashSaleApi, FlashSale, CreateFlashSaleDto } from "@/lib/marketingApi";
 import { toast } from "sonner";
+import { formatDate } from "@/lib/utils";
+import { AdminPageHeader } from "@/components/admin/AdminPageHeader";
 import { useRouter } from "next/navigation";
 
 export default function FlashSalesPage() {
@@ -99,13 +101,20 @@ export default function FlashSalesPage() {
     }
   };
 
+  // ISO UTC từ server -> giá trị datetime-local (giờ VN), tránh lệch 7 tiếng khi sửa.
+  const toLocalInput = (iso: string) => {
+    const d = new Date(iso);
+    if (Number.isNaN(d.getTime())) return "";
+    return new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
+  };
+
   const handleEdit = (flashSale: FlashSale) => {
     setEditingFlashSale(flashSale);
     setFormData({
       name: flashSale.name,
       description: flashSale.description || "",
-      startTime: flashSale.startTime.slice(0, 16),
-      endTime: flashSale.endTime.slice(0, 16),
+      startTime: toLocalInput(flashSale.startTime),
+      endTime: toLocalInput(flashSale.endTime),
       active: flashSale.active,
     });
     setDialogOpen(true);
@@ -168,33 +177,24 @@ export default function FlashSalesPage() {
     </Badge>;
   };
 
-  const formatDateTime = (dateStr: string) => {
-    return new Date(dateStr).toLocaleString("vi-VN", {
-      day: "2-digit",
-      month: "2-digit",
-      year: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-    });
-  };
-
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <div>
-          <h1 className="text-2xl font-bold text-foreground">Quản lý Flash Sale</h1>
-          <p className="mt-1 text-sm text-muted-foreground">Tạo và quản lý các chương trình Flash Sale</p>
-        </div>
         <Dialog open={dialogOpen} onOpenChange={(open) => {
           setDialogOpen(open);
           if (!open) resetForm();
         }}>
-          <DialogTrigger asChild>
-            <Button className="gap-2">
-              <Zap className="w-4 h-4" />
-              Tạo Flash Sale
-            </Button>
-          </DialogTrigger>
+          <AdminPageHeader
+            title="Quản lý Flash Sale"
+            description="Tạo và quản lý các chương trình Flash Sale"
+            actions={
+              <DialogTrigger asChild>
+                <Button className="gap-2">
+                  <Zap className="w-4 h-4" />
+                  Tạo Flash Sale
+                </Button>
+              </DialogTrigger>
+            }
+          />
           <DialogContent className="max-w-lg">
             <DialogHeader>
               <DialogTitle>
@@ -266,8 +266,7 @@ export default function FlashSalesPage() {
               </div>
             </form>
           </DialogContent>
-        </Dialog>
-      </div>
+      </Dialog>
 
       <Card>
         <CardHeader>
@@ -324,8 +323,8 @@ export default function FlashSalesPage() {
                     </TableCell>
                     <TableCell>
                       <div className="text-sm">
-                        <p>Từ: {formatDateTime(flashSale.startTime)}</p>
-                        <p>Đến: {formatDateTime(flashSale.endTime)}</p>
+                        <p>Từ: {formatDate(flashSale.startTime, { withTime: true })}</p>
+                        <p>Đến: {formatDate(flashSale.endTime, { withTime: true })}</p>
                       </div>
                     </TableCell>
                     <TableCell>{getStatusBadge(flashSale)}</TableCell>

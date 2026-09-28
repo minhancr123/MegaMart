@@ -321,6 +321,8 @@ export default function ShipmentSimulator({
   poCode,
   supplierName,
   supplierAddress,
+  supplierLat,
+  supplierLng,
   warehouseName,
   warehouseCode,
   syncedProgress,
@@ -331,6 +333,8 @@ export default function ShipmentSimulator({
   poCode: string;
   supplierName: string;
   supplierAddress?: string;
+  supplierLat?: number | null;
+  supplierLng?: number | null;
   warehouseName: string;
   warehouseCode?: string;
   /** Tiến độ từ server (phía kia đẩy lên), % 0-100. */
@@ -625,8 +629,19 @@ export default function ShipmentSimulator({
 
     void (async () => {
       try {
+        const hasSupplierCoords =
+          supplierLat != null &&
+          supplierLng != null &&
+          Number.isFinite(Number(supplierLat)) &&
+          Number.isFinite(Number(supplierLng)) &&
+          Number(supplierLat) !== 0 &&
+          Number(supplierLng) !== 0;
         const address = supplierAddress?.trim();
-        const from = address ? await geocodeAddress(address) : null;
+        const from: LngLat | null = hasSupplierCoords
+          ? [Number(supplierLng), Number(supplierLat)]
+          : address
+            ? await geocodeAddress(address)
+            : null;
 
         if (!alive) return;
 
@@ -667,7 +682,7 @@ export default function ShipmentSimulator({
     return () => {
       alive = false;
     };
-  }, [supplierAddress, warehouseCode]);
+  }, [supplierAddress, supplierLat, supplierLng, warehouseCode]);
 
   // Khởi tạo MapLibre đúng một lần.
   useEffect(() => {

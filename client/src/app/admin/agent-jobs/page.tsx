@@ -20,13 +20,14 @@ import {
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
-import { Bot, Save } from "lucide-react";
+import { Save } from "lucide-react";
 import {
   agentJobsApi,
   apiErrorMessage,
   type AgentJobRow,
 } from "@/lib/agentAdminApi";
 import { toast } from "sonner";
+import { AdminPageHeader } from "@/components/admin/AdminPageHeader";
 
 /** Đếm ngược kỳ cron tới (cron chạy theo giờ UTC — Inngest chốt vậy). */
 function nextRunAt(cron: string): Date | null {
@@ -153,16 +154,10 @@ export default function AgentJobsPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold flex items-center gap-2">
-          <Bot className="w-6 h-6 text-[#fc4c00]" />
-          Điều khiển Agent Jobs
-        </h1>
-        <p className="text-sm text-muted-foreground">
-          Bật/tắt và chỉnh batch có hiệu lực ngay kỳ cron tới, không cần restart.
-          Cron trong code chạy giờ UTC — cột Kỳ tới đã quy ra giờ VN (UTC+7).
-        </p>
-      </div>
+      <AdminPageHeader
+        title="Điều khiển Agent Jobs"
+        description="Bật/tắt và chỉnh batch có hiệu lực ngay kỳ cron tới, không cần restart. Cron trong code chạy giờ UTC — cột Kỳ tới đã quy ra giờ VN (UTC+7)."
+      />
 
       <Card>
         <CardHeader>

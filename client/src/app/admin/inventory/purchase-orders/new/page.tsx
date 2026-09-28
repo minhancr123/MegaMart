@@ -18,6 +18,7 @@ import {
 import { ArrowLeft, Plus, Trash2, Loader2 } from "lucide-react";
 import { inventoryApi, type Warehouse, type Supplier } from "@/lib/inventoryApi";
 import { toast } from "sonner";
+import { formatPrice } from "@/lib/utils";
 
 interface PoItem {
   variantId: string;
@@ -89,9 +90,6 @@ export default function NewPurchaseOrderPage() {
     setSearchInput("");
     setSearchResults([]);
   };
-
-  const formatCurrency = (n: number) =>
-    new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND", maximumFractionDigits: 0 }).format(n || 0);
 
   const totalAmount = items.reduce((s, i) => s + (i.unitPrice || 0) * i.orderedQty, 0);
 
@@ -179,7 +177,7 @@ export default function NewPurchaseOrderPage() {
             </div>
             <div className="rounded-xl bg-muted/60 p-3 text-sm flex justify-between">
               <span className="text-muted-foreground">Tạm tính</span>
-              <strong>{formatCurrency(totalAmount)}</strong>
+              <strong>{formatPrice(totalAmount, "0 ₫")}</strong>
             </div>
           </CardContent>
         </Card>

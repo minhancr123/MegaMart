@@ -30,26 +30,11 @@ import { inventoryApi, type PurchaseOrder } from "@/lib/inventoryApi";
 import ShipmentSimulator from "@/components/admin/ShipmentSimulator";
 import { toast } from "sonner";
 
-const STATUS_STYLE: Record<string, string> = {
-  DRAFT: "bg-zinc-100 text-zinc-600 border-zinc-200",
-  SENT: "bg-blue-50 text-blue-700 border-blue-200",
-  PARTIAL: "bg-amber-50 text-amber-700 border-amber-200",
-  COMPLETED: "bg-green-50 text-green-700 border-green-200",
-  CANCELLED: "bg-red-50 text-red-500 border-red-200",
-};
-
-const STATUS_LABEL: Record<string, string> = {
-  DRAFT: "Nháp",
-  SENT: "Đã gửi NCC",
-  PARTIAL: "Nhập một phần",
-  COMPLETED: "Nhập đủ",
-  CANCELLED: "Đã hủy",
-};
-
-const formatCurrency = (n: number) =>
-  new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND", maximumFractionDigits: 0 }).format(
-    Number(n || 0)
-  );
+import {
+  PO_STATUS_STYLE as STATUS_STYLE,
+  PO_STATUS_LABEL_ADMIN as STATUS_LABEL,
+} from "@/lib/inventoryStatus";
+import { formatPrice } from "@/lib/utils";
 
 export default function PurchaseOrderDetailPage() {
   const params = useParams();
@@ -242,7 +227,9 @@ export default function PurchaseOrderDetailPage() {
           poId={po.id}
           poCode={po.code}
           supplierName={po.supplier?.name || "Nhà cung cấp"}
-          supplierAddress={(po.supplier as any)?.address}
+          supplierAddress={po.supplier?.address}
+          supplierLat={po.supplier?.lat}
+          supplierLng={po.supplier?.lng}
           warehouseName={po.warehouse?.name || "Kho nhận"}
           warehouseCode={po.warehouse?.code}
           syncedProgress={po.shipmentProgress ?? null}
@@ -284,7 +271,7 @@ export default function PurchaseOrderDetailPage() {
                   <TableCell className={`text-center font-bold ${missing > 0 ? "text-amber-600" : "text-muted-foreground"}`}>
                     {missing}
                   </TableCell>
-                  <TableCell className="text-right">{item.unitPrice ? formatCurrency(item.unitPrice) : "-"}</TableCell>
+                  <TableCell className="text-right">{item.unitPrice ? formatPrice(item.unitPrice) : "-"}</TableCell>
                 </TableRow>
               );
             })}

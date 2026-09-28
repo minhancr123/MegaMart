@@ -6,6 +6,12 @@ export interface SupplierProfile {
   code: string;
   email?: string;
   phone?: string;
+  address?: string;
+  province?: string;
+  district?: string;
+  ward?: string;
+  lat?: number | null;
+  lng?: number | null;
   contactName?: string;
   openPurchaseOrders: number;
   totalPurchaseOrders: number;
@@ -17,7 +23,17 @@ export interface SupplierPurchaseOrder {
   status: string;
   warehouseId: string;
   warehouse?: { id: string; name: string; code: string };
-  supplier?: { id: string; name: string; code: string; address?: string };
+  supplier?: {
+    id: string;
+    name: string;
+    code: string;
+    address?: string;
+    province?: string;
+    district?: string;
+    ward?: string;
+    lat?: number | null;
+    lng?: number | null;
+  };
   expectedDate?: string;
   notes?: string;
   totalAmount?: number;

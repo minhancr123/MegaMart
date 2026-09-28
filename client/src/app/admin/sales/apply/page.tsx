@@ -27,6 +27,7 @@ import { ArrowLeft, Tag, Search, Plus } from "lucide-react";
 import { salesApi } from "@/lib/salesApi";
 import { fetchAllProducts } from "@/lib/productApi";
 import { toast } from "sonner";
+import { formatPrice } from "@/lib/utils";
 import Image from "next/image";
 
 interface Product {
@@ -128,13 +129,6 @@ export default function ApplySalePage() {
     } finally {
       setApplying(false);
     }
-  };
-
-  const formatPrice = (price: string | number) => {
-    return new Intl.NumberFormat("vi-VN", {
-      style: "currency",
-      currency: "VND",
-    }).format(Number(price));
   };
 
   const calculateSalePrice = (originalPrice: string | number) => {

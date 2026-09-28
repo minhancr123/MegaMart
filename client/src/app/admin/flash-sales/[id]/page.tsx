@@ -33,9 +33,10 @@ import { ArrowLeft, Plus, Trash2, Search, Circle, Edit } from "lucide-react";
 import { flashSaleApi, FlashSale, FlashSaleItem } from "@/lib/marketingApi";
 import { Product } from "@/interfaces/product";
 import { toast } from "sonner";
+import { formatDate, getErrorMessage } from "@/lib/utils";
 import axiosClient from "@/lib/axiosClient";
 
-interface Variant {
+interface FlashSaleCandidateVariant {
   id: string;
   sku: string;
   price: number;
@@ -43,7 +44,7 @@ interface Variant {
   product: {
     id: string;
     name: string;
-    images: Array<{ url: string }>;
+    images: Array<{ url: string } | string>;
   };
 }
 
@@ -79,8 +80,8 @@ export default function FlashSaleDetailPage() {
 
   // Add item form
   const [searchQuery, setSearchQuery] = useState("");
-  const [searchResults, setSearchResults] = useState<Variant[]>([]);
-  const [selectedVariant, setSelectedVariant] = useState<Variant | null>(null);
+  const [searchResults, setSearchResults] = useState<FlashSaleCandidateVariant[]>([]);
+  const [selectedVariant, setSelectedVariant] = useState<FlashSaleCandidateVariant | null>(null);
   const [salePrice, setSalePrice] = useState("");
   const [discountPercent, setDiscountPercent] = useState("");
   const [quantity, setQuantity] = useState("");
@@ -129,10 +130,10 @@ export default function FlashSaleDetailPage() {
       console.log('Products found:', products.length);
 
       // Flatten variants from all products
-      const variants: Variant[] = [];
+      const variants: FlashSaleCandidateVariant[] = [];
       products.forEach((product: Product) => {
         if (product.variants && Array.isArray(product.variants)) {
-          product.variants.forEach((variant: Variant) => {
+          (product.variants as any[]).forEach((variant: any) => {
             variants.push({
               id: variant.id,
               sku: variant.sku,
@@ -156,11 +157,11 @@ export default function FlashSaleDetailPage() {
       }
     } catch (error: unknown) {
       console.error('Search error:', error);
-      toast.error(error instanceof Error ? error.message : "Không thể tìm kiếm sản phẩm");
+      toast.error(getErrorMessage(error, "Không thể tìm kiếm sản phẩm"));
     }
   };
 
-  const handleSelectVariant = (variant: Variant) => {
+  const handleSelectVariant = (variant: FlashSaleCandidateVariant) => {
     setSelectedVariant(variant);
     const defaultDiscount = 20;
     setDiscountPercent(defaultDiscount.toString());
@@ -286,9 +287,11 @@ export default function FlashSaleDetailPage() {
     setEditItemQuantity(item.quantity.toString());
     
     // Calculate discount percent from original and sale price
-    const originalPrice = parseFloat(item.variant.price);
-    const itemSalePrice = parseFloat(item.salePrice);
-    const calculatedPercent = ((originalPrice - itemSalePrice) / originalPrice * 100).toFixed(0);
+    const originalPrice = Number(item.variant?.price || 0);
+    const itemSalePrice = Number(item.salePrice || 0);
+    const calculatedPercent = originalPrice > 0
+      ? ((originalPrice - itemSalePrice) / originalPrice * 100).toFixed(0)
+      : "0";
     setEditItemDiscountPercent(calculatedPercent);
     
     setEditItemDialogOpen(true);
@@ -298,8 +301,8 @@ export default function FlashSaleDetailPage() {
     setEditItemSalePrice(value);
     
     if (editingItem && value) {
-      const originalPrice = parseFloat(editingItem.variant.price);
-      const newSalePrice = parseFloat(value);
+      const originalPrice = Number(editingItem.variant?.price || 0);
+      const newSalePrice = Number(value);
       
       if (newSalePrice > 0 && newSalePrice < originalPrice) {
         const percent = ((originalPrice - newSalePrice) / originalPrice * 100).toFixed(0);
@@ -312,8 +315,8 @@ export default function FlashSaleDetailPage() {
     setEditItemDiscountPercent(value);
     
     if (editingItem && value) {
-      const originalPrice = parseFloat(editingItem.variant.price);
-      const percent = parseFloat(value);
+      const originalPrice = Number(editingItem.variant?.price || 0);
+      const percent = Number(value);
       
       if (percent > 0 && percent < 100) {
         const newSalePrice = (originalPrice * (1 - percent / 100)).toFixed(0);
@@ -391,7 +394,7 @@ export default function FlashSaleDetailPage() {
           <div>
             <h1 className="text-2xl font-bold">{flashSale.name}</h1>
             <p className="text-muted-500 text-sm">
-              {new Date(flashSale.startTime).toLocaleString('vi-VN')} - {new Date(flashSale.endTime).toLocaleString('vi-VN')}
+              {formatDate(flashSale.startTime, { withTime: true })} - {formatDate(flashSale.endTime, { withTime: true })}
             </p>
           </div>
         </div>
@@ -474,16 +477,20 @@ export default function FlashSaleDetailPage() {
                           {searchResults.map((variant) => (
                             <TableRow key={variant.id}>
                               <TableCell>
-                                <div className="flex items-center gap-2">
-                                  {variant.product.images[0] && (
+                              <div className="flex items-center gap-2">
+                                {(() => {
+                                  const rawImg = variant.product.images[0];
+                                  const imgUrl = typeof rawImg === 'string' ? rawImg : rawImg?.url;
+                                  return imgUrl ? (
                                     <img
-                                      src={variant.product.images[0].url}
+                                      src={imgUrl}
                                       alt={variant.product.name}
                                       className="w-10 h-10 object-cover rounded"
                                     />
-                                  )}
-                                  <span className="text-sm">{variant.product.name}</span>
-                                </div>
+                                  ) : null;
+                                })()}
+                                <span className="text-sm">{variant.product.name}</span>
+                              </div>
                               </TableCell>
                               <TableCell>{variant.sku}</TableCell>
                               <TableCell>{variant.price.toLocaleString('vi-VN')}đ</TableCell>
@@ -509,13 +516,17 @@ export default function FlashSaleDetailPage() {
                     <div className="border rounded-lg p-4 space-y-4 bg-muted/50">
                       <h4 className="font-semibold">Sản phẩm đã chọn:</h4>
                       <div className="flex items-center gap-2">
-                        {selectedVariant.product.images[0] && (
-                          <img
-                            src={selectedVariant.product.images[0].url}
-                            alt={selectedVariant.product.name}
-                            className="w-16 h-16 object-cover rounded"
-                          />
-                        )}
+                        {(() => {
+                          const rawImg = selectedVariant.product.images[0];
+                          const imgUrl = typeof rawImg === 'string' ? rawImg : rawImg?.url;
+                          return imgUrl ? (
+                            <img
+                              src={imgUrl}
+                              alt={selectedVariant.product.name}
+                              className="w-16 h-16 object-cover rounded"
+                            />
+                          ) : null;
+                        })()}
                         <div>
                           <p className="font-medium">{selectedVariant.product.name}</p>
                           <p className="text-sm text-muted-500">SKU: {selectedVariant.sku}</p>
@@ -595,7 +606,8 @@ export default function FlashSaleDetailPage() {
                 {flashSale.items.map((item: FlashSaleItem) => {
                   const originalPrice = item.variant?.price || 0;
                   const discount = originalPrice > 0 ? Math.round(((originalPrice - item.salePrice) / originalPrice) * 100) : 0;
-                  const imageUrl = item.variant?.product?.images?.[0]?.url || '';
+                  const rawImage = item.variant?.product?.images?.[0];
+                  const imageUrl = (typeof rawImage === 'string' ? rawImage : (rawImage as any)?.url) || '';
 
                   return (
                     <TableRow key={item.id}>
@@ -611,7 +623,7 @@ export default function FlashSaleDetailPage() {
                           <span className="text-sm">{item.variant?.product?.name || 'N/A'}</span>
                         </div>
                       </TableCell>
-                      <TableCell>{item.variant?.sku || 'N/A'}</TableCell>
+                      <TableCell>{(item.variant as any)?.sku || 'N/A'}</TableCell>
                       <TableCell>{originalPrice.toLocaleString('vi-VN')}đ</TableCell>
                       <TableCell className="font-bold text-primary">
                         {item.salePrice.toLocaleString('vi-VN')}đ
@@ -734,18 +746,22 @@ export default function FlashSaleDetailPage() {
             <div className="space-y-4">
               {/* Product Info */}
               <div className="flex items-center gap-3 p-3 bg-muted/50 rounded-lg">
-                {editingItem.variant?.product?.images?.[0]?.url && (
-                  <img
-                    src={editingItem.variant.product.images[0].url}
-                    alt={editingItem.variant.product.name}
-                    className="w-16 h-16 object-cover rounded"
-                  />
-                )}
+                {(() => {
+                  const raw = editingItem.variant?.product?.images?.[0];
+                  const url = (typeof raw === 'string' ? raw : (raw as any)?.url) || '';
+                  return url ? (
+                    <img
+                      src={url}
+                      alt={editingItem.variant?.product?.name || ''}
+                      className="w-16 h-16 object-cover rounded"
+                    />
+                  ) : null;
+                })()}
                 <div>
                   <div className="font-medium">{editingItem.variant?.product?.name}</div>
-                  <div className="text-sm text-muted-500">SKU: {editingItem.variant?.sku}</div>
+                  <div className="text-sm text-muted-500">SKU: {(editingItem.variant as any)?.sku}</div>
                   <div className="text-sm text-muted-700 mt-1">
-                    Giá gốc: <span className="font-medium">{parseFloat(editingItem.variant?.price || 0).toLocaleString('vi-VN')}đ</span>
+                    Giá gốc: <span className="font-medium">{Number(editingItem.variant?.price || 0).toLocaleString('vi-VN')}đ</span>
                   </div>
                 </div>
               </div>
@@ -795,11 +811,11 @@ export default function FlashSaleDetailPage() {
                   <div className="text-sm font-medium text-primary900 mb-1">Xem trước:</div>
                   <div className="flex justify-between text-sm">
                     <span>Giá gốc:</span>
-                    <span className="line-through">{parseFloat(editingItem.variant?.price || 0).toLocaleString('vi-VN')}đ</span>
+                    <span className="line-through">{Number(editingItem.variant?.price || 0).toLocaleString('vi-VN')}đ</span>
                   </div>
                   <div className="flex justify-between text-sm mt-1">
                     <span>Giá sale:</span>
-                    <span className="font-bold text-primary">{parseFloat(editItemSalePrice).toLocaleString('vi-VN')}đ</span>
+                    <span className="font-bold text-primary">{Number(editItemSalePrice || 0).toLocaleString('vi-VN')}đ</span>
                   </div>
                   <div className="flex justify-between text-sm mt-1">
                     <span>Giảm giá:</span>

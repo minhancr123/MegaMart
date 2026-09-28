@@ -25,6 +25,9 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
+import { AdminTableSkeleton } from "@/components/admin/AdminTableSkeleton";
+import { AdminEmptyState } from "@/components/admin/AdminEmptyState";
+import { AdminPageHeader } from "@/components/admin/AdminPageHeader";
 import { Pagination } from "@/components/ui/pagination";
 import { Package, Search, AlertTriangle } from "lucide-react";
 import {
@@ -35,6 +38,7 @@ import {
 import { getWarehouseRegion, regionBadgeClass } from "@/lib/warehouseRegion";
 import { visibleAttributes, formatAttributeValue } from "@/lib/productAttributes";
 import { toast } from "sonner";
+import { formatPrice } from "@/lib/utils";
 import { useSearchParams } from "next/navigation";
 
 export default function StockPage() {
@@ -48,6 +52,8 @@ export default function StockPage() {
   const [filters, setFilters] = useState({
     warehouseId: "",
     search: "",
+    // Chỉ đọc param URL 1 lần lúc mount; user đổi filter sau đó không bị URL ép ngược lại.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     lowStock: searchParams.get('lowStock') === 'true',
   });
 
@@ -64,10 +70,16 @@ export default function StockPage() {
         }),
         inventoryApi.getWarehouses(),
       ]);
-      setInventory(inventoryRes.data?.data || []);
-      setTotal(inventoryRes.data?.meta?.total || 0);
-      setTotalPages(inventoryRes.data?.meta?.totalPages || 1);
-      setWarehouses(warehousesRes.data || []);
+      const rawInv = inventoryRes as any;
+      const items = Array.isArray(rawInv) ? rawInv : (rawInv?.data || []);
+      const meta = rawInv?.meta || {};
+
+      setInventory(Array.isArray(items) ? items : []);
+      setTotal(meta.total ?? (Array.isArray(items) ? items.length : 0));
+      setTotalPages(meta.totalPages ?? 1);
+
+      const rawWh = warehousesRes as any;
+      setWarehouses(Array.isArray(rawWh) ? rawWh : (rawWh?.data || []));
     } catch {
       toast.error("Không thể tải dữ liệu tồn kho");
       setInventory([]);
@@ -86,9 +98,7 @@ export default function StockPage() {
     setPage(1);
   };
 
-  const formatCurrency = (value: number) => {
-    return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(value);
-  };
+  const formatCurrency = (value: number) => formatPrice(value, "0 ₫");
 
   const isLowStock = (item: WarehouseInventory) => {
     return item.quantity <= item.minQuantity;
@@ -96,12 +106,10 @@ export default function StockPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <div>
-          <h1 className="text-2xl font-bold text-foreground">Tồn kho</h1>
-          <p className="text-muted-foreground mt-1">Theo dõi số lượng tồn kho theo từng kho</p>
-        </div>
-      </div>
+      <AdminPageHeader
+        title="Tồn kho"
+        description="Theo dõi số lượng tồn kho theo từng kho"
+      />
 
       {/* Filters */}
       <Card>
@@ -171,15 +179,7 @@ export default function StockPage() {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          {loading ? (
-            <div className="flex justify-center py-8">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-            </div>
-          ) : inventory.length === 0 ? (
-            <div className="text-center py-8 text-muted-foreground">
-              Không có dữ liệu tồn kho
-            </div>
-          ) : (
+          {(!loading && inventory.length > 0) ? (
             <>
               <Table>
                 <TableHeader>
@@ -293,6 +293,37 @@ export default function StockPage() {
                 />
               </div>
             </>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Sản phẩm</TableHead>
+                  <TableHead>SKU</TableHead>
+                  <TableHead>Kho</TableHead>
+                  <TableHead>Miền</TableHead>
+                  <TableHead>Vị trí</TableHead>
+                  <TableHead>Pallet</TableHead>
+                  <TableHead className="text-center">Tồn kho</TableHead>
+                  <TableHead className="text-center">Tối thiểu</TableHead>
+                  <TableHead className="text-right">Giá trị</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {loading ? (
+                  <AdminTableSkeleton columns={9} rows={5} />
+                ) : (
+                  <TableRow>
+                    <TableCell colSpan={9} className="p-0">
+                      <AdminEmptyState
+                        icon={Package}
+                        title="Không có dữ liệu tồn kho"
+                        description="Dữ liệu tồn kho sẽ hiện ở đây khi có hàng trong kho."
+                      />
+                    </TableCell>
+                  </TableRow>
+                )}
+              </TableBody>
+            </Table>
           )}
         </CardContent>
       </Card>

@@ -16,6 +16,9 @@ import {
   Package
 } from "lucide-react";
 import axiosClient from "@/lib/axiosClient";
+import { toast } from "sonner";
+import { getErrorMessage } from "@/lib/utils";
+import { AdminPageHeader } from "@/components/admin/AdminPageHeader";
 
 interface EventStats {
   totalEvents: number;
@@ -73,6 +76,7 @@ export default function AnalyticsPage() {
       setSearchTerms(searchRes?.data ?? searchRes ?? []);
     } catch (error) {
       console.error('Failed to fetch analytics:', error);
+      toast.error(getErrorMessage(error, "Không tải được dữ liệu analytics"));
     } finally {
       setLoading(false);
     }
@@ -142,26 +146,29 @@ export default function AnalyticsPage() {
 
   return (
     <div className="p-4 sm:p-6 space-y-6">
-      <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-        <h1 className="text-2xl sm:text-2xl font-bold">Analytics Dashboard</h1>
-        <div className="flex flex-col sm:flex-row gap-2 sm:gap-4 w-full md:w-auto">
-          <div className="flex items-center gap-2 w-full sm:w-auto">
+      <AdminPageHeader
+        title="Analytics Dashboard"
+        description="Thống kê lưu lượng, hành vi khách hàng và tỷ lệ chuyển đổi"
+        actions={
+          <div className="flex flex-col sm:flex-row gap-2 sm:gap-4 w-full md:w-auto">
+            <div className="flex items-center gap-2 w-full sm:w-auto">
+              <input
+                type="date"
+                value={dateRange.startDate}
+                onChange={(e) => setDateRange({ ...dateRange, startDate: e.target.value })}
+                className="px-3 py-2 border rounded w-full sm:w-auto"
+              />
+              <span className="hidden sm:inline self-center">đến</span>
+            </div>
             <input
               type="date"
-              value={dateRange.startDate}
-              onChange={(e) => setDateRange({ ...dateRange, startDate: e.target.value })}
+              value={dateRange.endDate}
+              onChange={(e) => setDateRange({ ...dateRange, endDate: e.target.value })}
               className="px-3 py-2 border rounded w-full sm:w-auto"
             />
-            <span className="hidden sm:inline self-center">đến</span>
           </div>
-          <input
-            type="date"
-            value={dateRange.endDate}
-            onChange={(e) => setDateRange({ ...dateRange, endDate: e.target.value })}
-            className="px-3 py-2 border rounded w-full sm:w-auto"
-          />
-        </div>
-      </div>
+        }
+      />
 
       <Tabs defaultValue="overview" className="w-full">
         <TabsList className="w-full flex flex-wrap gap-2 justify-start">

@@ -33,21 +33,10 @@ import {
 } from "@/lib/inventoryApi";
 import { toast } from "sonner";
 
-const STATUS_STYLE: Record<string, string> = {
-  DRAFT: "bg-zinc-100 text-zinc-600 border-zinc-200",
-  SENT: "bg-blue-50 text-blue-700 border-blue-200",
-  PARTIAL: "bg-amber-50 text-amber-700 border-amber-200",
-  COMPLETED: "bg-green-50 text-green-700 border-green-200",
-  CANCELLED: "bg-red-50 text-red-500 border-red-200",
-};
-
-const STATUS_LABEL: Record<string, string> = {
-  DRAFT: "Nháp",
-  SENT: "Đã gửi NCC",
-  PARTIAL: "Nhập một phần",
-  COMPLETED: "Nhập đủ",
-  CANCELLED: "Đã hủy",
-};
+import {
+  PO_STATUS_STYLE as STATUS_STYLE,
+  PO_STATUS_LABEL_ADMIN as STATUS_LABEL,
+} from "@/lib/inventoryStatus";
 
 const ITEMS_PER_PAGE = 20;
 

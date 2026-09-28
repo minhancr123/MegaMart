@@ -21,12 +21,10 @@ import { getWarehouseRegion, regionBadgeClass } from "@/lib/warehouseRegion";
 import { Boxes, Check, Clipboard, Copy, Eye, Grid2X2, Layers, List, Loader2, LockKeyhole, MapPin, PackageCheck, Plus, RotateCcw, Search, Warehouse as WarehouseIcon, X } from "lucide-react";
 import { toast } from "sonner";
 
-const STATUS_STYLE: Record<string, string> = {
-  ACTIVE: "border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300",
-  EMPTY: "border-zinc-200 bg-zinc-100 text-zinc-600 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-300",
-  LOCKED: "border-red-200 bg-red-50 text-red-600 dark:border-red-900 dark:bg-red-950/40 dark:text-red-300",
-};
-const STATUS_LABEL: Record<string, string> = { ACTIVE: "Đang dùng", EMPTY: "Trống", LOCKED: "Đang khóa" };
+import {
+  PALLET_STATUS_STYLE as STATUS_STYLE,
+  PALLET_STATUS_LABEL as STATUS_LABEL,
+} from "@/lib/inventoryStatus";
 const ITEMS_PER_PAGE = 20;
 
 function getMetrics(pallet: Pallet) {

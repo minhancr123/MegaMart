@@ -35,6 +35,7 @@ const SHIPPING_STATUS_NAMES: Record<string, string> = {
   // Event nội bộ của MegaMart
   note: "Ghi chú vận hành",
   pod: "Ảnh xác nhận giao hàng",
+  shipper_location: "Vị trí giao hàng (Shipper)",
 };
 
 function normalizeStatus(status?: string | null): string {

@@ -29,6 +29,8 @@ import {
   Supplier,
 } from "@/lib/inventoryApi";
 import { toast } from "sonner";
+import { formatPrice } from "@/lib/utils";
+import { AdminPageHeader } from "@/components/admin/AdminPageHeader";
 
 export default function InventoryPage() {
   const [warehouses, setWarehouses] = useState<WarehouseType[]>([]);
@@ -68,9 +70,7 @@ export default function InventoryPage() {
     fetchData();
   }, []);
 
-  const formatCurrency = (value: number) => {
-    return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(value);
-  };
+
 
   if (loading) {
     return (
@@ -82,20 +82,18 @@ export default function InventoryPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <div>
-          <h1 className="text-2xl font-bold text-foreground">Quản lý Kho</h1>
-          <p className="text-muted-foreground mt-1">Theo dõi tồn kho, nhập xuất và nhà cung cấp</p>
-        </div>
-        <div className="flex gap-2">
+      <AdminPageHeader
+        title="Quản lý Kho"
+        description="Theo dõi tồn kho, nhập xuất và nhà cung cấp"
+        actions={
           <Link href="/admin/inventory/movements/new">
             <Button className="gap-2">
               <Plus className="w-4 h-4" />
               Tạo phiếu kho
             </Button>
           </Link>
-        </div>
-      </div>
+        }
+      />
 
       {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
@@ -131,7 +129,7 @@ export default function InventoryPage() {
             <TrendingUp className="h-4 w-4 text-green-500" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{formatCurrency(stats?.totalValue || 0)}</div>
+            <div className="text-2xl font-bold">{formatPrice(stats?.totalValue || 0, "0 ₫")}</div>
             <p className="text-xs text-muted-foreground">
               Tổng giá trị hàng hóa
             </p>

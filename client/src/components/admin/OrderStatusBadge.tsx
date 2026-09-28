@@ -29,6 +29,38 @@ export function getOrderStatusConfig(status: string): StatusConfig {
   return ORDER_STATUS_CONFIG[status] ?? { label: status, tone: "secondary" };
 }
 
+/**
+ * Map trạng thái THANH TOÁN (Payment.status) -> nhãn + tone.
+ * Tách riêng vì PENDING của payment nghĩa là "Chưa thanh toán",
+ * không phải "Chờ xử lý" như trạng thái đơn hàng.
+ */
+export const PAYMENT_STATUS_CONFIG: Record<string, StatusConfig> = {
+  PENDING: { label: "Chưa thanh toán", tone: "warning" },
+  PAID: { label: "Đã thanh toán", tone: "success" },
+  FAILED: { label: "Thất bại", tone: "destructive" },
+  REFUNDED: { label: "Đã hoàn tiền", tone: "secondary" },
+};
+
+export function getPaymentStatusConfig(status?: string | null): StatusConfig {
+  if (!status) return { label: "—", tone: "secondary" };
+  return PAYMENT_STATUS_CONFIG[status] ?? { label: status, tone: "secondary" };
+}
+
+export function PaymentStatusBadge({
+  status,
+  className,
+}: {
+  status?: string | null;
+  className?: string;
+}) {
+  const config = getPaymentStatusConfig(status);
+  return (
+    <Badge variant={config.tone} className={cn(className)}>
+      {config.label}
+    </Badge>
+  );
+}
+
 interface OrderStatusBadgeProps {
   status: string;
   className?: string;

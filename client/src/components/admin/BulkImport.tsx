@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Loader2, Upload, FileSpreadsheet, Download, CheckCircle, XCircle } from "lucide-react";
 import { toast } from "sonner";
 import axiosClient from "@/lib/axiosClient";
+import { getErrorMessage } from "@/lib/utils";
 
 interface BulkImportProps {
   open: boolean;
@@ -123,7 +124,7 @@ MacBook Pro M3,Laptop chuyên nghiệp,category-id-here,MBP2024,45000000,30,"{""
           success++;
         } catch (error: unknown) {
           failed++;
-          errors.push(`${product.name}: ${error.response?.data?.message || 'Unknown error'}`);
+          errors.push(`${product.name}: ${getErrorMessage(error, 'Unknown error')}`);
         }
       }
 

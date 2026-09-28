@@ -4,8 +4,8 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState, type ComponentType } from "react";
 import {
-  Activity, Bot, FileText, FolderTree, Gift, History, Image as ImageIcon,
-  LayoutDashboard, LogOut, Menu, Package, Settings, ShieldCheck, ShoppingCart,
+  Activity, Bot, CalendarDays, FileText, FolderTree, Gift, History, Image as ImageIcon,
+  LayoutDashboard, LogOut, Megaphone, Menu, Package, Settings, ShieldCheck, ShoppingCart,
   Tag, Users, Warehouse, Zap,
 } from "lucide-react";
 
@@ -25,8 +25,11 @@ const mainItems: NavItem[] = [
   { title: "Danh mục", href: "/admin/categories", icon: FolderTree },
   { title: "Đơn hàng", href: "/admin/orders", icon: ShoppingCart },
   { title: "Người dùng", href: "/admin/users", icon: Users },
+  { title: "Khách hàng & phân khúc", href: "/admin/crm", icon: Activity },
+  { title: "Chiến dịch giữ chân", href: "/admin/campaigns", icon: Megaphone },
   { title: "Kho hàng", href: "/admin/inventory", icon: Warehouse },
   { title: "Khuyến mãi", href: "/admin/sales", icon: Tag },
+  { title: "Chiến dịch bán hàng", href: "/admin/commercial-campaigns", icon: CalendarDays },
   { title: "Flash Sales", href: "/admin/flash-sales", icon: Zap },
   { title: "Loyalty AI", href: "/admin/loyalty-nurture", icon: Gift },
   { title: "Voucher AI", href: "/admin/voucher-governance", icon: ShieldCheck },

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -8,6 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Loader2, Copy } from "lucide-react";
 import { toast } from "sonner";
 import axiosClient from "@/lib/axiosClient";
+import { getErrorMessage } from "@/lib/utils";
 
 interface ProductVariant {
   sku: string;
@@ -18,13 +19,14 @@ interface ProductVariant {
 }
 
 interface ProductCategory {
+  id?: string;
   name: string;
 }
 
 interface Product {
   name: string;
-  description: string;
-  categoryId: string;
+  description?: string;
+  categoryId?: string;
   category?: ProductCategory;
   variants?: ProductVariant[];
 }
@@ -40,6 +42,11 @@ export function CloneProduct({ product, open, onOpenChange, onSuccess }: ClonePr
   const [loading, setLoading] = useState(false);
   const [newName, setNewName] = useState(`${product?.name} (Copy)`);
 
+  // Dialog không unmount khi đóng nên phải sync lại tên theo sản phẩm mới chọn.
+  useEffect(() => {
+    setNewName(`${product?.name} (Copy)`);
+  }, [product]);
+
   const handleClone = async () => {
     if (!product || !newName) {
       toast.error("Vui lòng nhập tên sản phẩm mới");
@@ -50,10 +57,24 @@ export function CloneProduct({ product, open, onOpenChange, onSuccess }: ClonePr
       setLoading(true);
       
       // Clone product data
+      const slugBase = newName
+        .toLowerCase()
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .replace(/đ/g, "d")
+        .replace(/[^a-z0-9\s-]/g, "")
+        .replace(/\s+/g, "-")
+        .replace(/-+/g, "-")
+        .replace(/^-+|-+$/g, "") || "san-pham";
       const clonedData = {
         name: newName,
+        slug: `${slugBase}-copy-${Date.now()}`,
         description: product.description,
-        categoryId: product.categoryId,
+        brand: (product as any).brand,
+        categoryId: product.categoryId || product.category?.id,
+        images: ((product as any).images || [])
+          .map((img: any) => (typeof img === "string" ? img : img?.url))
+          .filter(Boolean),
         variants: product.variants?.map((v: ProductVariant) => ({
           sku: `${v.sku}-COPY-${Date.now()}`,
           price: v.price,
@@ -65,12 +86,12 @@ export function CloneProduct({ product, open, onOpenChange, onSuccess }: ClonePr
 
       await axiosClient.post("/products", clonedData);
       toast.success("Sao chép sản phẩm thành công!");
-      
+
       onSuccess();
       onOpenChange(false);
     } catch (error: unknown) {
       console.error("Failed to clone product", error);
-      toast.error(error?.response?.data?.message || "Không thể sao chép sản phẩm");
+      toast.error(getErrorMessage(error, "Không thể sao chép sản phẩm"));
     } finally {
       setLoading(false);
     }

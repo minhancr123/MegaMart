@@ -19,6 +19,7 @@ import { Switch } from "@/components/ui/switch";
 import { ArrowLeft, Loader2 } from "lucide-react";
 import { fetchCategoryById, updateCategory, fetchAllCategories } from "@/lib/categoryApi";
 import { toast } from "sonner";
+import { getErrorMessage } from "@/lib/utils";
 import Link from "next/link";
 
 const categorySchema = z.object({
@@ -75,14 +76,15 @@ export default function EditCategoryPage() {
         fetchAllCategories(),
       ]);
 
-      setCategories(allCategories.filter((c: Category) => c.id !== id)); // Exclude self from parent options
+      const cat = categoryData as Category;
+      setCategories(((allCategories as Category[]) || []).filter((c: Category) => c.id !== id)); // Exclude self from parent options
 
       reset({
-        name: categoryData.name,
-        slug: categoryData.slug,
-        description: categoryData.description || "",
-        parentId: categoryData.parentId || undefined,
-        active: categoryData.active ?? true,
+        name: cat.name,
+        slug: cat.slug,
+        description: cat.description || "",
+        parentId: cat.parentId || undefined,
+        active: cat.active ?? true,
       });
     } catch (error) {
       console.error("Error loading category:", error);
@@ -119,7 +121,7 @@ export default function EditCategoryPage() {
       router.push("/admin/categories");
     } catch (error: unknown) {
       console.error("Error updating category:", error);
-      toast.error(error instanceof Error ? error.message : "Có lỗi xảy ra khi cập nhật danh mục");
+      toast.error(getErrorMessage(error, "Có lỗi xảy ra khi cập nhật danh mục"));
     } finally {
       setLoading(false);
     }

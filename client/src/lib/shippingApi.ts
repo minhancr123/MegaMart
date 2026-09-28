@@ -99,6 +99,24 @@ export const cancelGhnShipment = async (orderId: string): Promise<any> => {
   return res?.data ?? res;
 };
 
+/** Admin: lấy link in vận đơn GHN A5. */
+export const printGhnShipment = async (orderId: string): Promise<{ token: string; printUrl: string }> => {
+  const res: any = await axiosClient.post(`/orders/${orderId}/print-ghn`);
+  return (res?.data ?? res) as { token: string; printUrl: string };
+};
+
+/** Admin: bàn giao đơn đã in vận đơn cho shipper, chuyển sang SHIPPING. */
+export const handoverGhnShipment = async (orderId: string, shipperId?: string): Promise<any> => {
+  const res: any = await axiosClient.post(`/orders/${orderId}/handover-shipper`, { shipperId });
+  return res?.data ?? res;
+};
+
+/** Admin: phân công lại shipper ngẫu nhiên. */
+export const reassignShipper = async (orderId: string): Promise<any> => {
+  const res: any = await axiosClient.post(`/orders/${orderId}/reassign-shipper`);
+  return res?.data ?? res;
+};
+
 export interface ShipmentTimelineEvent {
   id: string;
   ghnCode?: string | null;
@@ -147,6 +165,14 @@ export const addShipmentNote = async (orderId: string, message: string): Promise
 };
 
 /** Shipper/Admin chụp ảnh xác nhận đã giao (multipart, tối đa 5 ảnh). */
+export const updateShipperLocation = async (
+  orderId: string,
+  dto: { lat: number; lng: number; accuracy?: number | null },
+): Promise<ShipmentTimelineEvent> => {
+  const res: any = await axiosClient.patch(`/orders/${orderId}/shipper-location`, dto);
+  return (res?.data ?? res) as ShipmentTimelineEvent;
+};
+
 export const uploadDeliveryProof = async (orderId: string, photos: File[], note?: string): Promise<DeliveryProofItem> => {
   const form = new FormData();
   photos.slice(0, 5).forEach((f) => form.append('photos', f));
@@ -181,6 +207,16 @@ export const reviewRefundRequest = async (
   return (res?.data ?? res) as RefundRequestItem;
 };
 
+export interface DeliveryQueueItem {
+  id: string;
+  productName: string;
+  quantity: number;
+  price?: string | number | null;
+  sku?: string | null;
+  attributes?: Record<string, unknown> | null;
+  imageUrl?: string | null;
+}
+
 export interface DeliveryQueueOrder {
   id: string;
   code: string;
@@ -196,6 +232,8 @@ export interface DeliveryQueueOrder {
     province?: string;
     district?: string;
     ward?: string;
+    lat?: number | null;
+    lng?: number | null;
     note?: string;
   } | null;
   createdAt: string;
@@ -207,7 +245,9 @@ export interface DeliveryQueueOrder {
     vehiclePlate: string | null;
     avatarUrl: string | null;
   } | null;
-  payments?: Array<{ provider: string; status: string }>;
+  payments?: Array<{ provider: string; status: string; amount?: string | number }>;
+  items?: DeliveryQueueItem[];
+  proofs?: DeliveryProofItem[];
   _count?: { items: number };
 }
 

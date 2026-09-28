@@ -88,12 +88,10 @@ interface PalletDetail {
 }
 interface VariantSearchResult { variantId: string; sku: string; productName: string; imageUrl?: string; stock?: number; }
 
-const STATUS_STYLE: Record<string, string> = {
-  ACTIVE: "border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300",
-  EMPTY: "border-zinc-200 bg-zinc-100 text-zinc-600 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-300",
-  LOCKED: "border-red-200 bg-red-50 text-red-600 dark:border-red-900 dark:bg-red-950/40 dark:text-red-300",
-};
-const STATUS_LABEL: Record<string, string> = { ACTIVE: "Đang dùng", EMPTY: "Trống", LOCKED: "Đang khóa" };
+import {
+  PALLET_STATUS_STYLE as STATUS_STYLE,
+  PALLET_STATUS_LABEL as STATUS_LABEL,
+} from "@/lib/inventoryStatus";
 
 function DetailSkeleton() {
   return <div className="space-y-6"><Skeleton className="h-5 w-56" /><Card className="gap-0 p-6"><div className="flex gap-4"><Skeleton className="h-14 w-14 rounded-2xl" /><div className="flex-1 space-y-3"><Skeleton className="h-8 w-52" /><Skeleton className="h-4 w-72" /></div></div></Card><div className="grid grid-cols-2 gap-3 xl:grid-cols-4">{Array.from({ length: 4 }).map((_, index) => <Card key={index} className="gap-3 p-4"><Skeleton className="h-4 w-24" /><Skeleton className="h-8 w-16" /><Skeleton className="h-3 w-full" /></Card>)}</div><Skeleton className="h-11 w-80" /><Skeleton className="h-[420px] w-full rounded-2xl" /></div>;

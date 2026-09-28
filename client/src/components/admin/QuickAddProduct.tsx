@@ -8,6 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Loader2, Zap } from "lucide-react";
 import { toast } from "sonner";
+import { getErrorMessage } from "@/lib/utils";
 import axiosClient from "@/lib/axiosClient";
 
 interface Category {
@@ -95,7 +96,7 @@ export function QuickAddProduct({ open, onOpenChange, onSuccess }: QuickAddProdu
       onOpenChange(false);
     } catch (error: unknown) {
       console.error("Failed to create product", error);
-      toast.error(error?.response?.data?.message || "Không thể tạo sản phẩm");
+      toast.error(getErrorMessage(error, "Không thể tạo sản phẩm"));
     } finally {
       setLoading(false);
     }

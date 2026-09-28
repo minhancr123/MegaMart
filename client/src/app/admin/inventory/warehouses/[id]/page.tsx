@@ -40,6 +40,7 @@ import { getWarehouseRegion, regionBadgeClass } from "@/lib/warehouseRegion";
 import { visibleAttributes, formatAttributeValue } from "@/lib/productAttributes";
 import { PalletMiniMap } from "@/components/admin/PalletVisual";
 import { toast } from "sonner";
+import { formatPrice } from "@/lib/utils";
 
 const MOVEMENT_LABEL: Record<string, string> = {
   IMPORT: "Nhập kho",
@@ -52,17 +53,10 @@ const MOVEMENT_LABEL: Record<string, string> = {
   SALE: "Bán hàng",
 };
 
-const STATUS_STYLE: Record<string, string> = {
-  PENDING: "bg-amber-50 text-amber-700 border-amber-200",
-  COMPLETED: "bg-green-50 text-green-700 border-green-200",
-  CANCELLED: "bg-zinc-100 text-zinc-500 border-zinc-200",
-};
-
-const STATUS_LABEL: Record<string, string> = {
-  PENDING: "Chờ duyệt",
-  COMPLETED: "Hoàn thành",
-  CANCELLED: "Đã hủy",
-};
+import {
+  STOCK_MOVEMENT_STATUS_STYLE as STATUS_STYLE,
+  STOCK_MOVEMENT_STATUS_LABEL as STATUS_LABEL,
+} from "@/lib/inventoryStatus";
 
 const ITEMS_PER_PAGE = 10;
 
@@ -118,10 +112,7 @@ export default function WarehouseDetailPage() {
     if (id) loadAll();
   }, [id, loadAll]);
 
-  const formatCurrency = (value: number) =>
-    new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND", maximumFractionDigits: 0 }).format(
-      Number(value || 0)
-    );
+
 
   if (loading && !warehouse) {
     return (
@@ -232,7 +223,7 @@ export default function WarehouseDetailPage() {
               <Boxes className="w-5 h-5" />
             </span>
             <div>
-              <p className="text-2xl font-black text-foreground">{formatCurrency(stats?.totalValue ?? 0)}</p>
+              <p className="text-2xl font-black text-foreground">{formatPrice(stats?.totalValue ?? 0, "0 ₫")}</p>
               <p className="text-xs text-muted-foreground">Giá trị tồn kho</p>
             </div>
           </CardContent>

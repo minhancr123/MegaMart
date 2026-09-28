@@ -26,6 +26,7 @@ import {
   type GovProposal,
 } from "@/lib/agentAdminApi";
 import { toast } from "sonner";
+import { formatDate } from "@/lib/utils";
 
 const ACTION_LABEL: Record<GovProposal["action"], string> = {
   extend: "Gia hạn",
@@ -75,9 +76,6 @@ function canApply(p: GovProposal): boolean {
       return false;
   }
 }
-
-const fmtDate = (s: string | null) =>
-  s ? new Date(s).toLocaleString("vi-VN") : "—";
 
 export default function VoucherGovernancePage() {
   const [rows, setRows] = useState<GovProposal[]>([]);
@@ -190,7 +188,7 @@ export default function VoucherGovernancePage() {
                       <p className="text-xs line-clamp-3">{p.reason}</p>
                     </TableCell>
                     <TableCell className="text-xs">
-                      {fmtDate(p.createdAt)}
+                      {formatDate(p.createdAt, { withTime: true })}
                     </TableCell>
                     <TableCell>
                       {p.applied ? (

@@ -9,6 +9,8 @@ export interface Address {
   province?: string;
   district?: string;
   ward?: string;
+  lat?: number | null;
+  lng?: number | null;
   provinceId?: number | null;
   districtId?: number | null;
   wardCode?: string | null;
@@ -26,6 +28,8 @@ export interface CreateAddressDto {
   province?: string;
   district?: string;
   ward?: string;
+  lat?: number | null;
+  lng?: number | null;
   provinceId?: number | null;
   districtId?: number | null;
   wardCode?: string | null;

@@ -1,5 +1,6 @@
 "use client";
 import { useState, useEffect, useCallback } from "react";
+import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -17,22 +18,18 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import { ConfirmDialog } from "@/components/ConfirmDialog";
+import { AdminPageHeader } from "@/components/admin/AdminPageHeader";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tag, Search, Plus, Edit, Trash2, Calendar } from "lucide-react";
 import { salesApi, SaleVariant } from "@/lib/salesApi";
 import { toast } from "sonner";
+import { formatDate, formatPrice, getErrorMessage } from "@/lib/utils";
 import Image from "next/image";
 
 export default function SalesManagementPage() {
+  const router = useRouter();
   const [sales, setSales] = useState<SaleVariant[]>([]);
   const [filteredSales, setFilteredSales] = useState<SaleVariant[]>([]);
   const [loading, setLoading] = useState(true);
@@ -73,15 +70,18 @@ export default function SalesManagementPage() {
     }
   }, [searchTerm, sales]);
 
-  const handleRemoveSale = async () => {
-    if (!selectedSale) return;
+  const [removing, setRemoving] = useState(false);
 
+  const handleRemoveSale = async () => {
+    if (!selectedSale || removing) return;
+
+    setRemoving(true);
     try {
       await salesApi.removeSale([selectedSale.id]);
       toast.success("Đã xóa sale thành công");
       setShowRemoveDialog(false);
       setSelectedSale(null);
-      
+
       // Reload sales after removal
       const response = await salesApi.getActiveSales();
       const data = Array.isArray(response) ? response : [];
@@ -89,25 +89,14 @@ export default function SalesManagementPage() {
       setFilteredSales(data);
     } catch (error: unknown) {
       console.error("Error removing sale:", error);
-      toast.error("Không thể xóa sale");
+      toast.error(getErrorMessage(error, "Không thể xóa sale"));
+    } finally {
+      setRemoving(false);
     }
   };
 
-  const formatPrice = (price: string) => {
-    return new Intl.NumberFormat("vi-VN", {
-      style: "currency",
-      currency: "VND",
-    }).format(Number(price));
-  };
-
-  const formatDate = (dateString: string | null | undefined) => {
-    if (!dateString) return "Không giới hạn";
-    return new Date(dateString).toLocaleDateString("vi-VN", {
-      day: "2-digit",
-      month: "2-digit",
-      year: "numeric",
-    });
-  };
+  const formatSaleDate = (dateString: string | null | undefined) =>
+    dateString ? formatDate(dateString) : "Không giới hạn";
 
   const isExpiringSoon = (endDate: string | null | undefined) => {
     if (!endDate) return false;
@@ -130,18 +119,16 @@ export default function SalesManagementPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Quản lý Sale</h1>
-          <p className="text-gray-500 dark:text-gray-400 mt-1">
-            Quản lý giảm giá cho sản phẩm (khác với Flash Sale)
-          </p>
-        </div>
-        <Button className="gap-2" onClick={() => (window.location.href = "/admin/sales/apply")}>
-          <Plus className="w-4 h-4" />
-          Áp dụng Sale
-        </Button>
-      </div>
+      <AdminPageHeader
+        title="Quản lý Sale"
+        description="Quản lý giảm giá cho sản phẩm (khác với Flash Sale)"
+        actions={
+          <Button className="gap-2" onClick={() => router.push("/admin/sales/apply")}>
+            <Plus className="w-4 h-4" />
+            Áp dụng Sale
+          </Button>
+        }
+      />
 
       {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
@@ -312,11 +299,11 @@ export default function SalesManagementPage() {
                         <div className="text-sm">
                           <div className="flex items-center gap-1 text-gray-600 dark:text-gray-300">
                             <Calendar className="w-3 h-3" />
-                            {formatDate(sale.saleStartDate)}
+                            {formatSaleDate(sale.saleStartDate)}
                           </div>
                           <div className="flex items-center gap-1 text-gray-600 dark:text-gray-300 mt-1">
                             <Calendar className="w-3 h-3" />
-                            {formatDate(sale.saleEndDate)}
+                            {formatSaleDate(sale.saleEndDate)}
                           </div>
                         </div>
                       </TableCell>
@@ -325,9 +312,7 @@ export default function SalesManagementPage() {
                           <Button
                             size="sm"
                             variant="outline"
-                            onClick={() =>
-                              (window.location.href = `/admin/sales/edit/${sale.id}`)
-                            }
+                            onClick={() => router.push(`/admin/sales/edit/${sale.id}`)}
                           >
                             <Edit className="w-4 h-4" />
                           </Button>
@@ -338,6 +323,7 @@ export default function SalesManagementPage() {
                               setSelectedSale(sale);
                               setShowRemoveDialog(true);
                             }}
+                            disabled={removing}
                           >
                             <Trash2 className="w-4 h-4" />
                           </Button>
@@ -353,27 +339,16 @@ export default function SalesManagementPage() {
       </Card>
 
       {/* Remove Confirmation Dialog */}
-      <Dialog open={showRemoveDialog} onOpenChange={setShowRemoveDialog}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Xác nhận xóa sale</DialogTitle>
-            <DialogDescription>
-              Bạn có chắc muốn xóa sale cho sản phẩm{" "}
-              <span className="font-semibold">{selectedSale?.productName}</span>?
-              <br />
-              Sản phẩm sẽ trở về giá gốc.
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setShowRemoveDialog(false)}>
-              Hủy
-            </Button>
-            <Button variant="destructive" onClick={handleRemoveSale}>
-              Xóa sale
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <ConfirmDialog
+        open={showRemoveDialog}
+        onOpenChange={(open) => !open && !removing && setShowRemoveDialog(false)}
+        onConfirm={handleRemoveSale}
+        title="Xác nhận xóa sale"
+        description={`Bạn có chắc muốn xóa sale cho sản phẩm ${selectedSale?.productName ?? ""}? Sản phẩm sẽ trở về giá gốc.`}
+        confirmText="Xóa sale"
+        variant="destructive"
+        isLoading={removing}
+      />
     </div>
   );
 }

@@ -107,6 +107,16 @@ export const cancelOrder = async (orderId: string) => {
   }
 };
 
+export const confirmReceipt = async (orderId: string) => {
+  try {
+    const res = await axiosClient.post(`/orders/${orderId}/confirm-receipt`, {});
+    return res;
+  } catch (error: unknown) {
+    console.error('Confirm receipt error:', error);
+    throw error;
+  }
+};
+
 export const updateOrderPaymentMethod = async (orderId: string, paymentMethod: string) => {
   try {
     const res = await axiosClient.patch(`/orders/${orderId}/payment-method`, {

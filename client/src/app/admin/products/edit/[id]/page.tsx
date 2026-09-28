@@ -53,14 +53,23 @@ export default function EditProductPage() {
             const product = await fetchProductById(id);
 
             // Transform data to match form structure
+            const slugFallback = product.name
+                .toLowerCase()
+                .normalize("NFD")
+                .replace(/[\u0300-\u036f]/g, "")
+                .replace(/đ/g, "d")
+                .replace(/[^a-z0-9\s-]/g, "")
+                .replace(/\s+/g, "-")
+                .replace(/-+/g, "-")
+                .replace(/^-+|-+$/g, "") || "san-pham";
             const formData = {
                 id: product.id, // Add product ID for image upload
                 name: product.name,
-                slug: product.slug,
+                slug: product.slug || slugFallback,
                 description: product.description || "",
                 brand: product.brand || "",
                 categoryId: product.category?.id || "",
-                variants: product.variants?.map((v: ProductVariant) => {
+                variants: product.variants?.map((v: any) => {
                     const attributes = v.attributes || {};
                     // Sync all colors to attributes.color (comma-separated)
                     if (v.colors && Array.isArray(v.colors) && v.colors.length > 0) {

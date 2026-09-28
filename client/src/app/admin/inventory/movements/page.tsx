@@ -47,7 +47,16 @@ import {
   stockMovementTypeLabels,
   stockMovementStatusLabels,
 } from "@/lib/inventoryApi";
+import {
+  STOCK_MOVEMENT_STATUS_STYLE,
+  STOCK_MOVEMENT_STATUS_LABEL,
+} from "@/lib/inventoryStatus";
 import { toast } from "sonner";
+import { formatDate, formatPrice, getErrorMessage } from "@/lib/utils";
+import { AdminTableSkeleton } from "@/components/admin/AdminTableSkeleton";
+import { AdminEmptyState } from "@/components/admin/AdminEmptyState";
+import { ConfirmDialog } from "@/components/ConfirmDialog";
+import { AdminPageHeader } from "@/components/admin/AdminPageHeader";
 
 export default function MovementsPage() {
   const [movements, setMovements] = useState<StockMovement[]>([]);
@@ -62,6 +71,8 @@ export default function MovementsPage() {
     status: "",
     search: "",
   });
+  const [confirmAction, setConfirmAction] = useState<{ type: "complete" | "cancel"; id: string } | null>(null);
+  const [actingId, setActingId] = useState<string | null>(null);
 
   const ITEMS_PER_PAGE = 20;
 
@@ -120,33 +131,33 @@ export default function MovementsPage() {
   };
 
   const handleComplete = async (id: string) => {
-    if (!confirm("Xác nhận hoàn thành phiếu này? Tồn kho sẽ được cập nhật.")) return;
+    if (actingId) return;
+    setActingId(id);
     try {
       await inventoryApi.completeMovement(id);
       toast.success("Đã hoàn thành phiếu kho");
+      setConfirmAction(null);
       fetchData();
-    } catch (error: unknown) {
-      toast.error(error.response?.data?.message || "Không thể hoàn thành");
+    } catch (error: any) {
+      toast.error(getErrorMessage(error, "Không thể hoàn thành"));
+    } finally {
+      setActingId(null);
     }
   };
 
   const handleCancel = async (id: string) => {
-    if (!confirm("Bạn có chắc muốn hủy phiếu này?")) return;
+    if (actingId) return;
+    setActingId(id);
     try {
       await inventoryApi.cancelMovement(id);
       toast.success("Đã hủy phiếu");
+      setConfirmAction(null);
       fetchData();
-    } catch (error: unknown) {
-      toast.error(error.response?.data?.message || "Không thể hủy phiếu");
+    } catch (error: any) {
+      toast.error(getErrorMessage(error, "Không thể hủy phiếu"));
+    } finally {
+      setActingId(null);
     }
-  };
-
-  const formatCurrency = (value: number) => {
-    return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(value);
-  };
-
-  const formatDate = (dateStr: string) => {
-    return new Date(dateStr).toLocaleString("vi-VN");
   };
 
   const getTypeIcon = (type: StockMovementType) => {
@@ -166,30 +177,35 @@ export default function MovementsPage() {
   };
 
   const getStatusBadge = (status: StockMovementStatus) => {
-    switch (status) {
-      case StockMovementStatus.COMPLETED:
-        return <Badge className="bg-green-500"><CheckCircle className="w-3 h-3 mr-1" /> Hoàn thành</Badge>;
-      case StockMovementStatus.CANCELLED:
-        return <Badge variant="destructive"><XCircle className="w-3 h-3 mr-1" /> Đã hủy</Badge>;
-      default:
-        return <Badge variant="outline"><Clock className="w-3 h-3 mr-1" /> Chờ xử lý</Badge>;
-    }
+    const style = STOCK_MOVEMENT_STATUS_STYLE[status] ?? STOCK_MOVEMENT_STATUS_STYLE.PENDING;
+    const label = STOCK_MOVEMENT_STATUS_LABEL[status] ?? status;
+    const Icon =
+      status === StockMovementStatus.COMPLETED
+        ? CheckCircle
+        : status === StockMovementStatus.CANCELLED
+          ? XCircle
+          : Clock;
+    return (
+      <Badge variant="outline" className={style}>
+        <Icon className="w-3 h-3 mr-1" /> {label}
+      </Badge>
+    );
   };
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <div>
-          <h1 className="text-2xl font-bold text-foreground">Phiếu Nhập/Xuất kho</h1>
-          <p className="text-muted-foreground mt-1">Quản lý các phiếu nhập, xuất, chuyển kho</p>
-        </div>
-        <Link href="/admin/inventory/movements/new">
-          <Button className="gap-2">
-            <Plus className="w-4 h-4" />
-            Tạo phiếu mới
-          </Button>
-        </Link>
-      </div>
+      <AdminPageHeader
+        title="Phiếu Nhập/Xuất kho"
+        description="Quản lý các phiếu nhập, xuất, chuyển kho"
+        actions={
+          <Link href="/admin/inventory/movements/new">
+            <Button className="gap-2">
+              <Plus className="w-4 h-4" />
+              Tạo phiếu mới
+            </Button>
+          </Link>
+        }
+      />
 
       {/* Filters */}
       <Card>
@@ -269,18 +285,7 @@ export default function MovementsPage() {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          {loading ? (
-            <div className="flex justify-center py-8">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-            </div>
-          ) : movements.length === 0 ? (
-            <div className="text-center py-8 text-muted-foreground">
-              Chưa có phiếu kho nào.
-              <Link href="/admin/inventory/movements/new" className="text-primary ml-1">
-                Tạo phiếu mới
-              </Link>
-            </div>
-          ) : (
+          {(!loading && movements.length > 0) ? (
             <>
               <Table>
                 <TableHeader>
@@ -327,7 +332,7 @@ export default function MovementsPage() {
                       </TableCell>
                       <TableCell className="text-right font-medium">
                         {movement.totalAmount 
-                          ? formatCurrency(Number(movement.totalAmount))
+                          ? formatPrice(Number(movement.totalAmount))
                           : "-"
                         }
                       </TableCell>
@@ -335,7 +340,7 @@ export default function MovementsPage() {
                         {getStatusBadge(movement.status)}
                       </TableCell>
                       <TableCell className="text-sm">
-                        {formatDate(movement.createdAt)}
+                        {formatDate(movement.createdAt, { withTime: true })}
                       </TableCell>
                       <TableCell className="text-right">
                         <div className="flex justify-end gap-1">
@@ -350,8 +355,9 @@ export default function MovementsPage() {
                                 variant="ghost"
                                 size="icon"
                                 className="text-green-600"
-                                onClick={() => handleComplete(movement.id)}
+                                onClick={() => setConfirmAction({ type: "complete", id: movement.id })}
                                 title="Hoàn thành"
+                                disabled={actingId !== null}
                               >
                                 <CheckCircle className="w-4 h-4" />
                               </Button>
@@ -359,8 +365,9 @@ export default function MovementsPage() {
                                 variant="ghost"
                                 size="icon"
                                 className="text-primary"
-                                onClick={() => handleCancel(movement.id)}
+                                onClick={() => setConfirmAction({ type: "cancel", id: movement.id })}
                                 title="Hủy"
+                                disabled={actingId !== null}
                               >
                                 <XCircle className="w-4 h-4" />
                               </Button>
@@ -383,9 +390,65 @@ export default function MovementsPage() {
                 />
               </div>
             </>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Mã phiếu</TableHead>
+                  <TableHead>Loại</TableHead>
+                  <TableHead>Kho</TableHead>
+                  <TableHead>NCC/Kho đích</TableHead>
+                  <TableHead className="text-center">Sản phẩm</TableHead>
+                  <TableHead className="text-right">Tổng tiền</TableHead>
+                  <TableHead>Trạng thái</TableHead>
+                  <TableHead>Ngày tạo</TableHead>
+                  <TableHead className="text-right">Thao tác</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {loading ? (
+                  <AdminTableSkeleton columns={9} rows={5} />
+                ) : (
+                  <TableRow>
+                    <TableCell colSpan={9} className="p-0">
+                      <AdminEmptyState
+                        icon={Clock}
+                        title="Chưa có phiếu kho nào"
+                        description="Tạo phiếu nhập, xuất hoặc chuyển kho đầu tiên."
+                        action={
+                          <Button asChild>
+                            <Link href="/admin/inventory/movements/new">Tạo phiếu mới</Link>
+                          </Button>
+                        }
+                      />
+                    </TableCell>
+                  </TableRow>
+                )}
+              </TableBody>
+            </Table>
           )}
         </CardContent>
       </Card>
+
+      <ConfirmDialog
+        open={confirmAction !== null}
+        onOpenChange={(open) => !open && !actingId && setConfirmAction(null)}
+        onConfirm={() =>
+          confirmAction &&
+          (confirmAction.type === "complete"
+            ? handleComplete(confirmAction.id)
+            : handleCancel(confirmAction.id))
+        }
+        title={confirmAction?.type === "complete" ? "Xác nhận hoàn thành phiếu" : "Xác nhận hủy phiếu"}
+        description={
+          confirmAction?.type === "complete"
+            ? "Xác nhận hoàn thành phiếu này? Tồn kho sẽ được cập nhật."
+            : "Bạn có chắc muốn hủy phiếu này?"
+        }
+        confirmText={confirmAction?.type === "complete" ? "Hoàn thành" : "Hủy phiếu"}
+        variant={confirmAction?.type === "cancel" ? "destructive" : "default"}
+        isLoading={actingId !== null}
+      />
     </div>
   );
 }

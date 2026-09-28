@@ -1,6 +1,7 @@
 export interface Product {
   id: string;
   name: string;
+  slug?: string;
   description?: string;
   brand?: string;
   price: number;
@@ -71,6 +72,7 @@ export interface CartItem {
     id: string;
     sku: string;
     price: number;
+    salePrice?: number | null;
     stock: number;
     attributes?: any;
     product: {

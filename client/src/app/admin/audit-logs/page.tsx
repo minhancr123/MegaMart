@@ -46,11 +46,8 @@ import {
   auditEntityLabels
 } from "@/lib/auditLogApi";
 import { toast } from "sonner";
-
-// Helper function for price formatting since formatPrice might not be exported fromutils
-const formatPriceValue = (value: number) => {
-  return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(value);
-};
+import { formatDate, formatPrice as formatPriceValue } from "@/lib/utils";
+import { AdminPageHeader } from "@/components/admin/AdminPageHeader";
 
 // Dictionary for field translations
 const fieldLabels: Record<string, string> = {
@@ -247,17 +244,6 @@ export default function AuditLogsPage() {
     }
   };
 
-  const formatDate = (dateStr: string) => {
-    return new Date(dateStr).toLocaleString("vi-VN", {
-      day: "2-digit",
-      month: "2-digit",
-      year: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-      second: "2-digit",
-    });
-  };
-
   const getActionColor = (action: string) => {
     if (action.includes("DELETE") || action.includes("CANCEL")) return "destructive";
     if (action.includes("CREATE")) return "default";
@@ -309,20 +295,20 @@ export default function AuditLogsPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Nhật ký hệ thống</h1>
-          <p className="text-gray-500 dark:text-gray-400 mt-1">Theo dõi tất cả hoạt động trong hệ thống</p>
-        </div>
-        <Button
-          variant="outline"
-          className="gap-2 text-red-600 hover:text-red-700"
-          onClick={() => setShowCleanupConfirm(true)}
-        >
-          <Trash2 className="w-4 h-4" />
-          Dọn dẹp log cũ
-        </Button>
-      </div>
+      <AdminPageHeader
+        title="Nhật ký hệ thống"
+        description="Theo dõi tất cả hoạt động trong hệ thống"
+        actions={
+          <Button
+            variant="outline"
+            className="gap-2 text-red-600 hover:text-red-700"
+            onClick={() => setShowCleanupConfirm(true)}
+          >
+            <Trash2 className="w-4 h-4" />
+            Dọn dẹp log cũ
+          </Button>
+        }
+      />
 
       {/* Marketing Quick Filters */}
       <Card>
@@ -526,7 +512,7 @@ export default function AuditLogsPage() {
                   {logs.map((log) => (
                     <TableRow key={log.id}>
                       <TableCell className="whitespace-nowrap text-sm dark:text-gray-300">
-                        {formatDate(log.createdAt)}
+                        {formatDate(log.createdAt, { withTime: true })}
                       </TableCell>
                       <TableCell>
                         {log.user ? (
@@ -597,7 +583,7 @@ export default function AuditLogsPage() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <h4 className="font-semibold text-sm mb-1 text-gray-500 dark:text-gray-400">Thời gian</h4>
-                <p className="text-sm font-medium dark:text-white">{selectedLog && formatDate(selectedLog.createdAt)}</p>
+                <p className="text-sm font-medium dark:text-white">{selectedLog && formatDate(selectedLog.createdAt, { withTime: true })}</p>
               </div>
               <div>
                 <h4 className="font-semibold text-sm mb-1 text-gray-500 dark:text-gray-400">IP Address</h4>

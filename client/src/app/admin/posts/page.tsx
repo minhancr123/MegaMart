@@ -85,7 +85,7 @@ export default function PostsPage() {
                     meta = responseMeta;
                 }
             } else {
-                postsData = res as Post[];
+                postsData = Array.isArray(res) ? (res as Post[]) : [];
             }
             
             setPosts(postsData);

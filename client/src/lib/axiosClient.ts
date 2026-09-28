@@ -77,7 +77,8 @@ axiosClient.interceptors.response.use((response) => {
         return result;
     }
 
-    return Promise.reject({ status: "Error", errormassage: root?.message || nested?.message || "Lỗi không xác định", data: root });
+    const fallbackMassage = root?.message || nested?.message || "Lỗi không xác định";
+    return Promise.reject({ status: "Error", errormassage: fallbackMassage, message: fallbackMassage, data: root, response: { data: root } });
 }, (error) => {
 
     if (error.response) {
@@ -103,11 +104,11 @@ axiosClient.interceptors.response.use((response) => {
             }
         }
 
-        return Promise.reject({ status, errormassage, data: error.response.data })
+        return Promise.reject({ status, errormassage, message: errormassage, data: error.response.data, response: error.response })
     }
 
     console.error("API call error:", error);
-    return Promise.reject({ status: "Network Error", errormassage: "Lỗi kết nối mạng" });
+    return Promise.reject({ status: "Network Error", errormassage: "Lỗi kết nối mạng", message: "Lỗi kết nối mạng" });
 });
 
 export default axiosClient;

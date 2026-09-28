@@ -28,13 +28,21 @@ import {
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import Link from "next/link";
-import { Plus, Pencil, Trash2, Eye, Warehouse as WarehouseIcon } from "lucide-react";
+import { Plus, Pencil, Trash2, Eye, Warehouse as WarehouseIcon, Loader2 } from "lucide-react";
 import { inventoryApi, Warehouse, CreateWarehouseDto } from "@/lib/inventoryApi";
 import { toast } from "sonner";
+import { getErrorMessage } from "@/lib/utils";
+import { ConfirmDialog } from "@/components/ConfirmDialog";
+import { AdminPageHeader } from "@/components/admin/AdminPageHeader";
+import { AdminTableSkeleton } from "@/components/admin/AdminTableSkeleton";
+import { AdminEmptyState } from "@/components/admin/AdminEmptyState";
 
 export default function WarehousesPage() {
   const [warehouses, setWarehouses] = useState<Warehouse[]>([]);
   const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingWarehouse, setEditingWarehouse] = useState<Warehouse | null>(null);
   const [formData, setFormData] = useState<CreateWarehouseDto>({
@@ -64,9 +72,12 @@ export default function WarehousesPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (saving) return;
+    setSaving(true);
     try {
       if (editingWarehouse) {
-        await inventoryApi.updateWarehouse(editingWarehouse.id, formData);
+        const { code, ...updatePayload } = formData;
+        await inventoryApi.updateWarehouse(editingWarehouse.id, updatePayload);
         toast.success("Cập nhật kho thành công");
       } else {
         await inventoryApi.createWarehouse(formData);
@@ -75,8 +86,10 @@ export default function WarehousesPage() {
       setDialogOpen(false);
       resetForm();
       fetchWarehouses();
-    } catch (error: unknown) {
-      toast.error(error.response?.data?.message || "Có lỗi xảy ra");
+    } catch (error: any) {
+      toast.error(getErrorMessage(error, "Có lỗi xảy ra"));
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -93,13 +106,17 @@ export default function WarehousesPage() {
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm("Bạn có chắc chắn muốn tạm ngưng kho này?")) return;
+    if (deletingId) return;
+    setDeletingId(id);
     try {
       await inventoryApi.deleteWarehouse(id);
       toast.success("Đã tạm ngưng kho");
+      setConfirmDeleteId(null);
       fetchWarehouses();
-    } catch {
-      toast.error("Không thể xóa kho");
+    } catch (error: any) {
+      toast.error(getErrorMessage(error, "Không thể xóa kho"));
+    } finally {
+      setDeletingId(null);
     }
   };
 
@@ -116,21 +133,23 @@ export default function WarehousesPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <div>
-          <h1 className="text-2xl font-bold text-foreground">Quản lý Kho hàng</h1>
-          <p className="text-muted-foreground mt-1">Quản lý các chi nhánh kho trong hệ thống</p>
-        </div>
-        <Dialog open={dialogOpen} onOpenChange={(open) => {
+      <Dialog open={dialogOpen} onOpenChange={(open) => {
+          if (saving && !open) return;
           setDialogOpen(open);
           if (!open) resetForm();
         }}>
-          <DialogTrigger asChild>
-            <Button className="gap-2">
-              <Plus className="w-4 h-4" />
-              Thêm Kho mới
-            </Button>
-          </DialogTrigger>
+          <AdminPageHeader
+            title="Quản lý Kho hàng"
+            description="Quản lý các chi nhánh kho trong hệ thống"
+            actions={
+              <DialogTrigger asChild>
+                <Button className="gap-2">
+                  <Plus className="w-4 h-4" />
+                  Thêm Kho mới
+                </Button>
+              </DialogTrigger>
+            }
+          />
           <DialogContent className="max-w-lg">
             <DialogHeader>
               <DialogTitle>
@@ -147,6 +166,7 @@ export default function WarehousesPage() {
                     onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                     placeholder="VD: Kho Quận 7"
                     required
+                    disabled={saving}
                   />
                 </div>
                 <div className="space-y-2">
@@ -157,7 +177,7 @@ export default function WarehousesPage() {
                     onChange={(e) => setFormData({ ...formData, code: e.target.value.toUpperCase() })}
                     placeholder="VD: KHO-Q7"
                     required
-                    disabled={!!editingWarehouse}
+                    disabled={!!editingWarehouse || saving}
                   />
                 </div>
               </div>
@@ -169,6 +189,7 @@ export default function WarehousesPage() {
                   value={formData.address}
                   onChange={(e) => setFormData({ ...formData, address: e.target.value })}
                   placeholder="Địa chỉ đầy đủ của kho"
+                  disabled={saving}
                 />
               </div>
 
@@ -179,6 +200,7 @@ export default function WarehousesPage() {
                   value={formData.phone}
                   onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
                   placeholder="0901234567"
+                  disabled={saving}
                 />
               </div>
 
@@ -192,17 +214,17 @@ export default function WarehousesPage() {
               </div>
 
               <div className="flex justify-end gap-2 pt-4">
-                <Button type="button" variant="outline" onClick={() => setDialogOpen(false)}>
+                <Button type="button" variant="outline" onClick={() => setDialogOpen(false)} disabled={saving}>
                   Hủy
                 </Button>
-                <Button type="submit">
-                  {editingWarehouse ? "Cập nhật" : "Tạo mới"}
+                <Button type="submit" disabled={saving}>
+                  {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                  {saving ? "Đang lưu..." : editingWarehouse ? "Cập nhật" : "Tạo mới"}
                 </Button>
               </div>
             </form>
           </DialogContent>
-        </Dialog>
-      </div>
+      </Dialog>
 
       <Card>
         <CardHeader>
@@ -213,15 +235,7 @@ export default function WarehousesPage() {
           <CardDescription>Tất cả kho hàng trong hệ thống</CardDescription>
         </CardHeader>
         <CardContent>
-          {loading ? (
-            <div className="flex justify-center py-8">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-            </div>
-          ) : warehouses.length === 0 ? (
-            <div className="text-center py-8 text-muted-foreground">
-              Chưa có kho nào. Hãy tạo kho đầu tiên!
-            </div>
-          ) : (
+          {(!loading && warehouses.length > 0) ? (
             <Table>
               <TableHeader>
                 <TableRow>
@@ -275,6 +289,7 @@ export default function WarehousesPage() {
                           variant="ghost"
                           size="icon"
                           onClick={() => handleEdit(warehouse)}
+                          disabled={!!deletingId}
                         >
                           <Pencil className="w-4 h-4" />
                         </Button>
@@ -282,9 +297,14 @@ export default function WarehousesPage() {
                           variant="ghost"
                           size="icon"
                           className="text-primary hover:text-red-700"
-                          onClick={() => handleDelete(warehouse.id)}
+                          onClick={() => setConfirmDeleteId(warehouse.id)}
+                          disabled={!!deletingId}
                         >
-                          <Trash2 className="w-4 h-4" />
+                          {deletingId === warehouse.id ? (
+                            <Loader2 className="w-4 h-4 animate-spin" />
+                          ) : (
+                            <Trash2 className="w-4 h-4" />
+                          )}
                         </Button>
                       </div>
                     </TableCell>
@@ -292,9 +312,58 @@ export default function WarehousesPage() {
                 ))}
               </TableBody>
             </Table>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Mã kho</TableHead>
+                  <TableHead>Tên kho</TableHead>
+                  <TableHead>Địa chỉ</TableHead>
+                  <TableHead>Điện thoại</TableHead>
+                  <TableHead>Sản phẩm</TableHead>
+                  <TableHead>Trạng thái</TableHead>
+                  <TableHead className="text-right">Thao tác</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {loading ? (
+                  <AdminTableSkeleton columns={7} rows={5} />
+                ) : (
+                  <TableRow>
+                    <TableCell colSpan={7} className="p-0">
+                      <AdminEmptyState
+                        icon={WarehouseIcon}
+                        title="Chưa có kho nào"
+                        description="Hãy tạo kho đầu tiên để bắt đầu quản lý tồn kho."
+                        action={
+                          <Button
+                            onClick={() => setDialogOpen(true)}
+                            className="gap-2"
+                          >
+                            <Plus className="h-4 w-4" />
+                            Thêm kho mới
+                          </Button>
+                        }
+                      />
+                    </TableCell>
+                  </TableRow>
+                )}
+              </TableBody>
+            </Table>
           )}
         </CardContent>
       </Card>
+
+      <ConfirmDialog
+        open={confirmDeleteId !== null}
+        onOpenChange={(open) => !open && !deletingId && setConfirmDeleteId(null)}
+        onConfirm={() => confirmDeleteId && handleDelete(confirmDeleteId)}
+        title="Tạm ngưng kho hàng"
+        description="Bạn có chắc chắn muốn tạm ngưng kho này?"
+        confirmText="Tạm ngưng"
+        variant="destructive"
+        isLoading={deletingId !== null}
+      />
     </div>
   );
 }

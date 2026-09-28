@@ -106,17 +106,4 @@ export const agentJobsApi = {
   },
 };
 
-export function apiErrorMessage(error: any, fallback: string): string {
-  // axiosClient reject dạng { status, errormassage, data } (KHÔNG có .response).
-  // data.message của Nest có thể là string hoặc string[] (ValidationPipe).
-  const raw =
-    error?.data?.message ??
-    error?.errormassage ??
-    error?.response?.data?.message ??
-    error?.message;
-  if (Array.isArray(raw)) {
-    const joined = raw.filter(Boolean).join(", ");
-    return joined.length > 0 ? joined : fallback;
-  }
-  return typeof raw === "string" && raw.length > 0 ? raw : fallback;
-}
+export { getErrorMessage as apiErrorMessage } from "./utils";

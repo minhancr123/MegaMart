@@ -36,8 +36,14 @@ import {
   StockMovementType,
   stockMovementTypeLabels,
 } from "@/lib/inventoryApi";
+import {
+  STOCK_MOVEMENT_STATUS_STYLE,
+  STOCK_MOVEMENT_STATUS_LABEL,
+} from "@/lib/inventoryStatus";
 import { toast } from "sonner";
+import { formatDate, formatPrice, getErrorMessage } from "@/lib/utils";
 import { visibleAttributes, formatAttributeValue } from "@/lib/productAttributes";
+import { ConfirmDialog } from "@/components/ConfirmDialog";
 import MovementQcCard from "@/components/admin/MovementQcCard";
 
 export default function MovementDetailPage() {
@@ -46,6 +52,8 @@ export default function MovementDetailPage() {
   const [movement, setMovement] = useState<StockMovement | null>(null);
   const [loading, setLoading] = useState(true);
   const [reloadTick, setReloadTick] = useState(0);
+  const [confirmAction, setConfirmAction] = useState<"complete" | "cancel" | null>(null);
+  const [acting, setActing] = useState(false);
 
   useEffect(() => {
     const fetchMovement = async () => {
@@ -77,49 +85,43 @@ export default function MovementDetailPage() {
   }, [params.id, reloadTick]);
 
   const handleComplete = async () => {
-    if (!confirm("Xác nhận hoàn thành phiếu này? Tồn kho sẽ được cập nhật.")) return;
+    if (acting) return;
+    setActing(true);
     try {
       await inventoryApi.completeMovement(params.id as string);
       toast.success("Đã hoàn thành phiếu kho");
+      setConfirmAction(null);
       router.push("/admin/inventory/movements");
     } catch (error: unknown) {
-      toast.error(error.response?.data?.message || "Không thể hoàn thành");
+      toast.error(getErrorMessage(error, "Không thể hoàn thành"));
+    } finally {
+      setActing(false);
     }
   };
 
   const handleCancel = async () => {
-    if (!confirm("Bạn có chắc muốn hủy phiếu này?")) return;
+    if (acting) return;
+    setActing(true);
     try {
       await inventoryApi.cancelMovement(params.id as string);
       toast.success("Đã hủy phiếu");
+      setConfirmAction(null);
       router.push("/admin/inventory/movements");
     } catch (error: unknown) {
-      toast.error(error.response?.data?.message || "Không thể hủy phiếu");
+      toast.error(getErrorMessage(error, "Không thể hủy phiếu"));
+    } finally {
+      setActing(false);
     }
   };
 
-  const formatCurrency = (value: number) => {
-    return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(value);
-  };
-
-  const formatDate = (date: string) => {
-    return new Date(date).toLocaleString('vi-VN', {
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit',
-      hour: '2-digit',
-      minute: '2-digit',
-    });
-  };
-
   const getStatusBadge = (status: StockMovementStatus) => {
-    const config = {
-      [StockMovementStatus.PENDING]: { variant: "secondary" as const, label: "Chờ xử lý" },
-      [StockMovementStatus.COMPLETED]: { variant: "default" as const, label: "Hoàn thành" },
-      [StockMovementStatus.CANCELLED]: { variant: "destructive" as const, label: "Đã hủy" },
-    };
-    const { variant, label } = config[status] || config[StockMovementStatus.PENDING];
-    return <Badge variant={variant}>{label}</Badge>;
+    const style = STOCK_MOVEMENT_STATUS_STYLE[status] ?? STOCK_MOVEMENT_STATUS_STYLE.PENDING;
+    const label = STOCK_MOVEMENT_STATUS_LABEL[status] ?? status;
+    return (
+      <Badge variant="outline" className={style}>
+        {label}
+      </Badge>
+    );
   };
 
   if (loading) {
@@ -168,11 +170,11 @@ export default function MovementDetailPage() {
         <div className="flex gap-2">
           {movement.status === StockMovementStatus.PENDING && (
             <>
-              <Button onClick={handleComplete} className="gap-2">
+              <Button onClick={() => setConfirmAction("complete")} className="gap-2" disabled={acting}>
                 <CheckCircle className="w-4 h-4" />
                 Hoàn thành
               </Button>
-              <Button onClick={handleCancel} variant="destructive" className="gap-2">
+              <Button onClick={() => setConfirmAction("cancel")} variant="destructive" className="gap-2" disabled={acting}>
                 <XCircle className="w-4 h-4" />
                 Hủy phiếu
               </Button>
@@ -215,7 +217,7 @@ export default function MovementDetailPage() {
               <Calendar className="w-5 h-5 text-muted-foreground mt-0.5" />
               <div>
                 <p className="text-sm text-muted-foreground">Ngày tạo</p>
-                <p className="font-medium">{formatDate(movement.createdAt)}</p>
+                <p className="font-medium">{formatDate(movement.createdAt, { withTime: true })}</p>
               </div>
             </div>
             {movement.notes && (
@@ -273,7 +275,7 @@ export default function MovementDetailPage() {
                 <div className="w-full">
                   <p className="text-sm text-muted-foreground">Tổng tiền</p>
                   <p className="text-xl font-bold text-primary">
-                    {formatCurrency(movement.totalAmount)}
+                    {formatPrice(movement.totalAmount)}
                   </p>
                 </div>
               </div>
@@ -353,16 +355,16 @@ export default function MovementDetailPage() {
                   </TableCell>
                   <TableCell className="text-right">
                     {item.unitPrice !== null && item.unitPrice !== undefined 
-                      ? formatCurrency(Number(item.unitPrice)) 
+                      ? formatPrice(Number(item.unitPrice)) 
                       : item.variant?.price 
-                      ? formatCurrency(Number(item.variant.price))
+                      ? formatPrice(Number(item.variant.price))
                       : '-'}
                   </TableCell>
                   <TableCell className="text-right font-medium">
                     {item.unitPrice !== null && item.unitPrice !== undefined
-                      ? formatCurrency(Number(item.unitPrice) * item.quantity)
+                      ? formatPrice(Number(item.unitPrice) * item.quantity)
                       : item.variant?.price
-                      ? formatCurrency(Number(item.variant.price) * item.quantity)
+                      ? formatPrice(Number(item.variant.price) * item.quantity)
                       : '-'
                     }
                   </TableCell>
@@ -379,6 +381,21 @@ export default function MovementDetailPage() {
           </Table>
         </CardContent>
       </Card>
+
+      <ConfirmDialog
+        open={confirmAction !== null}
+        onOpenChange={(open) => !open && !acting && setConfirmAction(null)}
+        onConfirm={() => (confirmAction === "complete" ? handleComplete() : handleCancel())}
+        title={confirmAction === "complete" ? "Xác nhận hoàn thành phiếu" : "Xác nhận hủy phiếu"}
+        description={
+          confirmAction === "complete"
+            ? "Xác nhận hoàn thành phiếu này? Tồn kho sẽ được cập nhật."
+            : "Bạn có chắc muốn hủy phiếu này?"
+        }
+        confirmText={confirmAction === "complete" ? "Hoàn thành" : "Hủy phiếu"}
+        variant={confirmAction === "cancel" ? "destructive" : "default"}
+        isLoading={acting}
+      />
     </div>
   );
 }

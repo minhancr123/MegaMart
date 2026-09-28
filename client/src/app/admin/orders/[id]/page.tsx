@@ -3,17 +3,21 @@
 import { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { fetchOrderById } from "@/lib/orderApi";
+import { canFastProcess } from "@/lib/orderHelpers";
 import { updateOrderStatus } from "@/lib/adminApi";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Loader2, Package, User, CreditCard, ArrowLeft, Truck, Edit, RefreshCw } from "lucide-react";
+import { Loader2, Package, User, CreditCard, ArrowLeft, Truck, Edit, RefreshCw, Play, Settings2, MapPin } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { AdminEmptyState } from "@/components/admin/AdminEmptyState";
-import { OrderStatusBadge } from "@/components/admin/OrderStatusBadge";
+import { OrderStatusBadge, PaymentStatusBadge } from "@/components/admin/OrderStatusBadge";
 import { GhnShipmentCard } from "@/components/admin/GhnShipmentCard";
 import { toast } from "sonner";
+import { getErrorMessage } from "@/lib/utils";
 import { visibleAttributes, formatAttributeValue } from "@/lib/productAttributes";
 import { paymentProviderName } from "@/lib/paymentLabels";
+import { reassignShipper } from "@/lib/shippingApi";
+import { ShipperLocationMap } from "@/components/admin/ShipperLocationMap";
 import {
   Dialog,
   DialogContent,
@@ -46,6 +50,8 @@ interface OrderShippingAddress {
     ward?: string;
     district?: string;
     province?: string;
+    lat?: number | null;
+    lng?: number | null;
     provinceId?: number | null;
     districtId?: number | null;
     wardCode?: string | null;
@@ -67,6 +73,8 @@ interface OrderItem {
     variant?: {
         id: string;
         name: string;
+        price?: number | null;
+        salePrice?: number | null;
         attributes?: Record<string, unknown>;
         product?: {
             id: string;
@@ -90,11 +98,22 @@ interface Order {
     shippingCarrier?: string | null;
     shippingOrderCode?: string | null;
     shippingStatus?: string | null;
+    shippingFee?: number | null;
     shippingFeeReal?: number | null;
     discountAmount?: number | null;
     voucherCode?: string | null;
     vatAmount?: number | null;
     serials?: Array<{ id: string; variantId?: string | null; serial: string; status: string }>;
+    assignedShipperId?: string | null;
+    assignedShipper?: {
+      id: string;
+      name?: string | null;
+      email?: string | null;
+      avatarUrl?: string | null;
+      phone?: string | null;
+      vehiclePlate?: string | null;
+      shipperProfile?: { phone?: string | null; vehiclePlate?: string | null; vehicleType?: string | null } | null;
+    } | null;
 }
 
 export default function AdminOrderDetailPage() {
@@ -111,12 +130,49 @@ export default function AdminOrderDetailPage() {
   const [reason, setReason] = useState("");
   const [note, setNote] = useState("");
   const [updating, setUpdating] = useState(false);
+  const [reassigning, setReassigning] = useState(false);
 
   useEffect(() => {
     if (params.id) {
       loadOrder(params.id as string);
     }
   }, [params.id]);
+
+  // Đơn PENDING (chờ khách chuyển khoản/quét QR) thì poll nền 5s:
+  // khách trả xong là nút "Tiến hành xử lý" tự hiện, không cần F5.
+  useEffect(() => {
+    if (!order || order.status !== "PENDING") return;
+    const orderId = order.id;
+    let alive = true;
+    let inFlight = false;
+    const timer = setInterval(async () => {
+      if (inFlight) return;
+      inFlight = true;
+      try {
+        const res = await fetchOrderById(orderId);
+        if (!alive) return;
+        const fresh = ((res as Order)?.id ? res : (res as { data: Order })?.data ?? res) as Order;
+        if (!fresh?.id) return;
+        if (fresh.status && fresh.status !== "PENDING") {
+          setOrder(fresh);
+          if (fresh.status === "PAID") {
+            toast.success(`Đơn #${fresh.code} vừa thanh toán thành công. Có thể tiến hành xử lý.`);
+          } else {
+            toast.info(`Đơn #${fresh.code} chuyển sang: ${fresh.status}`);
+          }
+        }
+      } catch {
+        // Lỗi thoáng qua thì bỏ qua, lần sau poll tiếp
+      } finally {
+        inFlight = false;
+      }
+    }, 5000);
+    return () => {
+      alive = false;
+      clearInterval(timer);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [order?.id, order?.status]);
 
   useEffect(() => {
     if (!statusDialogOpen) {
@@ -167,6 +223,21 @@ export default function AdminOrderDetailPage() {
     setStatusDialogOpen(true);
   };
 
+  const handleReassignShipper = async () => {
+    if (!order) return;
+    if (!confirm("Xác nhận đổi shipper phụ trách? Hệ thống sẽ tự động chọn shipper mới.")) return;
+    try {
+      setReassigning(true);
+      await reassignShipper(order.id);
+      toast.success("Đã phân công lại shipper");
+      await loadOrder(order.id, { background: true });
+    } catch (error: any) {
+      toast.error(getErrorMessage(error, "Lỗi khi đổi shipper"));
+    } finally {
+      setReassigning(false);
+    }
+  };
+
   const handleUpdateStatus = async () => {
     if (!order || !newStatus) return;
     if (newStatus === order.status) {
@@ -187,8 +258,24 @@ export default function AdminOrderDetailPage() {
       await loadOrder(order.id, { background: true }); // Reload order without unmounting dialogs
     } catch (error: unknown) {
       console.error("Failed to update status", error);
-      const errorMessage = (error as { response?: { data?: { message?: string } } })?.response?.data?.message || "Không thể cập nhật trạng thái";
-      toast.error(errorMessage);
+      toast.error(getErrorMessage(error, "Không thể cập nhật trạng thái"));
+    } finally {
+      setUpdating(false);
+    }
+  };
+
+  const handleFastProcess = async () => {
+    if (!order) return;
+    try {
+      setUpdating(true);
+      await updateOrderStatus(order.id, "PROCESSING", {
+        reason: "Admin tiến hành xử lý đơn hàng",
+        changedBy: "admin",
+      });
+      toast.success("Đã chuyển sang Đang xử lý");
+      await loadOrder(order.id, { background: true });
+    } catch (error: any) {
+      toast.error(getErrorMessage(error, "Không thể chuyển trạng thái"));
     } finally {
       setUpdating(false);
     }
@@ -255,6 +342,12 @@ export default function AdminOrderDetailPage() {
     return value;
   };
   const shippingAddr = parseShippingAddress(order.shippingAddress);
+  const shippingDestinationAddress = [
+    shippingAddr.address,
+    shippingAddr.ward,
+    shippingAddr.district,
+    shippingAddr.province,
+  ].filter(Boolean).join(", ");
   const subtotal = order.items?.reduce((sum: number, item: OrderItem) => 
     sum + (Number(item.price) * item.quantity), 0) || 0;
   const getProductImageUrl = (item: OrderItem) => {
@@ -287,6 +380,16 @@ export default function AdminOrderDetailPage() {
           </p>
         </div>
         <div className="flex shrink-0 flex-wrap items-center gap-3">
+          {canFastProcess(order) && (
+            <Button
+              onClick={handleFastProcess}
+              disabled={updating}
+              className="gap-2 shadow-md transition-all animate-in fade-in slide-in-from-right-2"
+            >
+              {updating ? <Loader2 className="w-4 h-4 animate-spin" /> : <Play className="w-4 h-4" />}
+              Tiến hành xử lý
+            </Button>
+          )}
           <OrderStatusBadge status={order.status} className="px-3 py-1 text-sm" />
           <Button onClick={handleOpenStatusDialog} className="gap-2 cursor-pointer">
             <Edit className="w-4 h-4" /> Cập nhật trạng thái
@@ -351,12 +454,41 @@ export default function AdminOrderDetailPage() {
                           ))}
                       </div>
                     )}
-                    <p className="text-sm text-muted-foreground">
-                      Đơn giá: {new Intl.NumberFormat('vi-VN', {
-                        style: 'currency',
-                        currency: 'VND'
-                      }).format(Number(item.price))}
-                    </p>
+                    {(() => {
+                      const paid = Number(item.price);
+                      const list = Number(item.variant?.price);
+                      const onSale =
+                        Number.isFinite(paid) &&
+                        Number.isFinite(list) &&
+                        list > paid;
+                      const pct = onSale
+                        ? Math.round(((list - paid) / list) * 100)
+                        : 0;
+                      return (
+                        <p className="text-sm text-muted-foreground">
+                          Đơn giá:{" "}
+                          <span className="font-semibold text-foreground">
+                            {new Intl.NumberFormat('vi-VN', {
+                              style: 'currency',
+                              currency: 'VND'
+                            }).format(paid)}
+                          </span>
+                          {onSale && (
+                            <>
+                              <span className="ml-2 line-through">
+                                {new Intl.NumberFormat('vi-VN', {
+                                  style: 'currency',
+                                  currency: 'VND'
+                                }).format(list)}
+                              </span>
+                              <span className="ml-1.5 rounded bg-destructive/10 px-1.5 py-0.5 text-[11px] font-bold text-destructive">
+                                -{pct}%
+                              </span>
+                            </>
+                          )}
+                        </p>
+                      );
+                    })()}
                   </div>
                   
                   <div className="text-right">
@@ -381,7 +513,7 @@ export default function AdminOrderDetailPage() {
                 </span>
               </div>
               
-              {order.discountAmount && Number(order.discountAmount) > 0 && (
+              {Number(order.discountAmount || 0) > 0 && (
                 <div className="flex justify-between text-sm">
                   <span className="text-muted-foreground">Giảm giá {order.voucherCode ? `(${order.voucherCode})` : ''}:</span>
                   <span className="font-medium text-[var(--success)]">
@@ -396,6 +528,29 @@ export default function AdminOrderDetailPage() {
                   {new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(Number(order.vatAmount || 0))}
                 </span>
               </div>
+
+              {Number(order.shippingFee || 0) > 0 && (
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">Phí vận chuyển:</span>
+                  <span className="font-medium text-foreground">
+                    {new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(Number(order.shippingFee))}
+                  </span>
+                </div>
+              )}
+
+              {(() => {
+                const walletPaid = Number(
+                  (order.payments || []).find((p: OrderPayment) => p.provider === "WALLET")?.amount || 0,
+                );
+                return walletPaid > 0 ? (
+                  <div className="flex justify-between text-sm">
+                    <span className="text-muted-foreground">Đã trừ ví MegaMart:</span>
+                    <span className="font-medium text-[var(--success)]">
+                      -{new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(walletPaid)}
+                    </span>
+                  </div>
+                ) : null;
+              })()}
               
               <div className="flex justify-between font-bold text-lg pt-3 border-t">
                 <span className="text-foreground font-medium">Tổng cộng:</span>
@@ -463,6 +618,73 @@ export default function AdminOrderDetailPage() {
             </div>
           </Card>
 
+          {/* Assigned Shipper */}
+          <Card className="p-6">
+            <div className="flex items-center gap-2 mb-4">
+              <Truck className="h-5 w-5 text-primary" />
+              <h2 className="text-xl font-bold text-foreground">Shipper phụ trách</h2>
+            </div>
+            {order.assignedShipper ? (
+              <div className="space-y-4 text-sm">
+                <div className="space-y-3">
+                  <div>
+                    <p className="text-xs text-muted-foreground mb-1">Họ tên</p>
+                    <p className="font-semibold text-foreground">{order.assignedShipper.name || 'Đang cập nhật'}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground mb-1">Số điện thoại</p>
+                    <p className="font-semibold text-foreground">
+                      {order.assignedShipper.phone || order.assignedShipper.shipperProfile?.phone || 'Đang cập nhật'}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground mb-1">Phương tiện / biển số</p>
+                    <p className="font-semibold text-foreground">
+                      {order.assignedShipper.shipperProfile?.vehicleType || 'Phương tiện'} · {order.assignedShipper.vehiclePlate || order.assignedShipper.shipperProfile?.vehiclePlate || 'Đang cập nhật'}
+                    </p>
+                  </div>
+                </div>
+
+                {(order as any).shippingMetadata?.currentLocation && (
+                  <div className="pt-3 border-t">
+                    <ShipperLocationMap
+                      lat={(order as any).shippingMetadata.currentLocation.lat}
+                      lng={(order as any).shippingMetadata.currentLocation.lng}
+                      destLat={shippingAddr.lat}
+                      destLng={shippingAddr.lng}
+                      destinationAddress={shippingDestinationAddress}
+                      updatedAt={(order as any).shippingMetadata.currentLocation.updatedAt}
+                    />
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="w-full h-8 mt-3 text-[11px] font-bold border-primary/30 text-primary hover:bg-primary/5"
+                      onClick={() => {
+                        const { lat, lng } = (order as any).shippingMetadata.currentLocation;
+                        window.open(`https://www.google.com/maps?q=${lat},${lng}`, "_blank");
+                      }}
+                    >
+                      Mở Google Maps (Tab mới)
+                    </Button>
+                  </div>
+                )}
+
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  disabled={reassigning || order.status === "DELIVERED" || order.status === "COMPLETED"}
+                  onClick={handleReassignShipper}
+                  className="w-full h-8 text-xs text-muted-foreground hover:text-primary gap-1.5 border border-dashed border-border"
+                >
+                  {reassigning ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <RefreshCw className="w-3.5 h-3.5" />}
+                  Đổi shipper phụ trách
+                </Button>
+              </div>
+            ) : (
+              <p className="text-sm text-muted-foreground">Chưa phân công shipper. Khi bàn giao đơn, hệ thống sẽ tự chọn shipper đang hoạt động ít đơn nhất.</p>
+            )}
+          </Card>
+
           {/* GHN Shipment */}
           <GhnShipmentCard
             orderId={order.id}
@@ -491,7 +713,7 @@ export default function AdminOrderDetailPage() {
               </div>
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Trạng thái:</span>
-                <OrderStatusBadge status={order.status} />
+                <PaymentStatusBadge status={order.payments?.[0]?.status} />
               </div>
             </div>
           </Card>

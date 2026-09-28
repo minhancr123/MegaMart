@@ -30,6 +30,7 @@ import { AdminTableSkeleton } from "@/components/admin/AdminTableSkeleton";
 import { AdminEmptyState } from "@/components/admin/AdminEmptyState";
 import { fetchAllCategories, deleteCategory } from "@/lib/categoryApi";
 import { toast } from "sonner";
+import { getErrorMessage } from "@/lib/utils";
 
 interface Category {
   id: string;
@@ -56,7 +57,7 @@ export default function CategoriesPage() {
     setLoading(true);
     try {
       const data = await fetchAllCategories();
-      setCategories(data);
+      setCategories((data || []) as Category[]);
     } catch (error) {
       console.error("Error loading categories:", error);
       toast.error("Không thể tải danh sách danh mục");
@@ -74,7 +75,7 @@ export default function CategoriesPage() {
       loadCategories();
     } catch (error: unknown) {
       console.error("Error deleting category:", error);
-      toast.error(error instanceof Error ? error.message : "Không thể xóa danh mục");
+      toast.error(getErrorMessage(error, "Không thể xóa danh mục"));
     } finally {
       setDeleteId(null);
     }

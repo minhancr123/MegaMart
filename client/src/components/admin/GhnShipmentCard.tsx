@@ -16,9 +16,12 @@ import {
 } from "@/components/ui/dialog";
 import { Truck, Copy, Loader2, PackageX, Camera, AlertTriangle, RotateCcw, Banknote, History, Zap } from "lucide-react";
 import { toast } from "sonner";
+import { getErrorMessage } from "@/lib/utils";
 import {
   createGhnShipment,
   cancelGhnShipment,
+  printGhnShipment,
+  handoverGhnShipment,
   getGhnProvinces,
   getGhnDistricts,
   getGhnWards,
@@ -71,6 +74,8 @@ export function GhnShipmentCard({
   const [open, setOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const [cancelling, setCancelling] = useState(false);
+  const [printing, setPrinting] = useState(false);
+  const [handoverLoading, setHandoverLoading] = useState(false);
   const [weight, setWeight] = useState("1000");
   const [note, setNote] = useState("");
   const [provinces, setProvinces] = useState<GhnProvince[]>([]);
@@ -147,7 +152,7 @@ export function GhnShipmentCard({
       toast.success(`Đã đánh dấu đơn bị ${label}`);
       await refreshAll();
     } catch (err: any) {
-      toast.error(err?.response?.data?.message || err?.message || "Cập nhật thất bại");
+      toast.error(getErrorMessage(err, "Cập nhật thất bại"));
     } finally {
       setIncidentSaving(null);
     }
@@ -165,7 +170,7 @@ export function GhnShipmentCard({
       toast.success("Đã ghi chú lên timeline");
       await loadTimeline();
     } catch (err: any) {
-      toast.error(err?.response?.data?.message || err?.message || "Ghi chú thất bại");
+      toast.error(getErrorMessage(err, "Ghi chú thất bại"));
     } finally {
       setNoteSaving(false);
     }
@@ -184,7 +189,7 @@ export function GhnShipmentCard({
       toast.success("Đã lưu ảnh xác nhận, đơn tự chuyển sang Đã giao");
       await refreshAll();
     } catch (err: any) {
-      toast.error(err?.response?.data?.message || err?.message || "Lưu ảnh POD thất bại");
+      toast.error(getErrorMessage(err, "Lưu ảnh POD thất bại"));
     } finally {
       setPodSaving(false);
     }
@@ -207,7 +212,7 @@ export function GhnShipmentCard({
       toast.success("Đã tạo yêu cầu hoàn tiền");
       await loadTimeline();
     } catch (err: any) {
-      toast.error(err?.response?.data?.message || err?.message || "Tạo yêu cầu hoàn tiền thất bại");
+      toast.error(getErrorMessage(err, "Tạo yêu cầu hoàn tiền thất bại"));
     } finally {
       setRefundSaving(false);
     }
@@ -245,7 +250,7 @@ export function GhnShipmentCard({
       setConfirmRefund(null);
       await refreshAll();
     } catch (err: any) {
-      toast.error(err?.response?.data?.message || err?.message || "Duyệt hoàn tiền thất bại");
+      toast.error(getErrorMessage(err, "Duyệt hoàn tiền thất bại"));
     } finally {
       setReviewSaving(false);
     }
@@ -262,7 +267,7 @@ export function GhnShipmentCard({
       toast.success(`Đã bắn thử Webhook GHN "${simulatingStatus}"`);
       await refreshAll();
     } catch (err: any) {
-      toast.error(err?.response?.data?.message || err?.message || "Bắn thử webhook thất bại");
+      toast.error(getErrorMessage(err, "Bắn thử webhook thất bại"));
     } finally {
       setSimulatingLoading(false);
     }
@@ -309,7 +314,7 @@ export function GhnShipmentCard({
       releasePointerEvents();
       window.setTimeout(() => onChanged?.(), 0);
     } catch (err: any) {
-      toast.error(err?.response?.data?.message || err?.errormassage || err?.message || "Tạo đơn GHN thất bại");
+      toast.error(getErrorMessage(err, "Tạo đơn GHN thất bại"));
     } finally {
       setSaving(false);
     }
@@ -323,9 +328,37 @@ export function GhnShipmentCard({
       toast.success("Đã hủy đơn GHN");
       onChanged?.();
     } catch (err: any) {
-      toast.error(err?.response?.data?.message || err?.errormassage || err?.message || "Hủy đơn GHN thất bại");
+      toast.error(getErrorMessage(err, "Hủy đơn GHN thất bại"));
     } finally {
       setCancelling(false);
+    }
+  };
+
+  const handlePrint = async () => {
+    setPrinting(true);
+    try {
+      const res = await printGhnShipment(orderId);
+      if (res.printUrl) window.open(res.printUrl, "_blank", "noopener,noreferrer");
+      toast.success("Đã mở trang in vận đơn GHN");
+      await refreshAll();
+    } catch (err: any) {
+      toast.error(getErrorMessage(err, "Không tạo được link in vận đơn"));
+    } finally {
+      setPrinting(false);
+    }
+  };
+
+  const handleHandover = async () => {
+    if (!confirm("Xác nhận đã in vận đơn và bàn giao đơn này cho shipper?")) return;
+    setHandoverLoading(true);
+    try {
+      await handoverGhnShipment(orderId);
+      toast.success("Đã chuyển đơn sang Đang giao hàng");
+      await refreshAll();
+    } catch (err: any) {
+      toast.error(getErrorMessage(err, "Bàn giao shipper thất bại"));
+    } finally {
+      setHandoverLoading(false);
     }
   };
 
@@ -367,16 +400,37 @@ export function GhnShipmentCard({
               </span>
             </p>
           )}
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={handleCancel}
-            disabled={cancelling}
-            className="gap-2 text-destructive border-destructive/30 hover:bg-destructive/10"
-          >
-            {cancelling ? <Loader2 className="w-4 h-4 animate-spin" /> : <PackageX className="w-4 h-4" />}
-            Hủy đơn GHN
-          </Button>
+          <div className="flex flex-wrap gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handlePrint}
+              disabled={printing}
+              className="gap-2"
+            >
+              {printing ? <Loader2 className="w-4 h-4 animate-spin" /> : <Truck className="w-4 h-4" />}
+              In vận đơn GHN
+            </Button>
+            <Button
+              size="sm"
+              onClick={handleHandover}
+              disabled={handoverLoading || orderStatus === "SHIPPING" || orderStatus === "DELIVERED"}
+              className="gap-2"
+            >
+              {handoverLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Truck className="w-4 h-4" />}
+              Bàn giao shipper
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleCancel}
+              disabled={cancelling}
+              className="gap-2 text-destructive border-destructive/30 hover:bg-destructive/10"
+            >
+              {cancelling ? <Loader2 className="w-4 h-4 animate-spin" /> : <PackageX className="w-4 h-4" />}
+              Hủy đơn GHN
+            </Button>
+          </div>
 
           {/* Giả lập Webhook GHN (Test Simulator) */}
           <div className="mt-3 rounded-xl border border-dashed border-primary/40 bg-primary/5 p-3 space-y-2">
@@ -490,12 +544,14 @@ export function GhnShipmentCard({
           <p className="text-xs text-muted-foreground">Chưa có sự kiện vận chuyển nào được ghi nhận.</p>
         )}
 
-        <div className="flex gap-2">
-          <Input value={noteText} onChange={(e) => setNoteText(e.target.value)} placeholder="Ghi chú: hẹn giao lại, liên hệ khách..." />
-          <Button size="sm" variant="outline" onClick={handleAddNote} disabled={noteSaving}>
-            {noteSaving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : "Ghi chú"}
-          </Button>
-        </div>
+        {!["COMPLETED", "CANCELED", "FAILED", "REFUNDED"].includes(orderStatus) && (
+          <div className="flex gap-2">
+            <Input value={noteText} onChange={(e) => setNoteText(e.target.value)} placeholder="Ghi chú: hẹn giao lại, liên hệ khách..." />
+            <Button size="sm" variant="outline" onClick={handleAddNote} disabled={noteSaving}>
+              {noteSaving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : "Ghi chú"}
+            </Button>
+          </div>
+        )}
       </div>
 
       {/* Xử lý sự cố */}
@@ -520,30 +576,75 @@ export function GhnShipmentCard({
       )}
 
       {/* Hoàn tiền */}
-      <div className="mt-4 rounded-xl border p-3 space-y-3">
-        <div className="flex items-center gap-2">
-          <Banknote className="h-4 w-4 text-primary" />
-          <p className="text-xs font-bold">Hoàn tiền</p>
-        </div>
-        <p className="text-[11px] leading-relaxed text-muted-foreground">
-          COD đã giao hoàn ngay vào Ví MegaMart · BANK_TRANSFER thử SePay tự động (lỗi 422 unsupported_bank sẽ fallback thủ công) · VNPay/MoMo hoàn tay. Chỉ khi COMPLETED đơn mới sang Hoàn tiền.
-        </p>
-        <div className="grid gap-2">
-          <Input value={refundReason} onChange={(e) => setRefundReason(e.target.value)} placeholder="Lý do hoàn tiền (bắt buộc)" />
-          <div className="grid grid-cols-2 gap-2">
-            <Input value={refundAmount} onChange={(e) => setRefundAmount(e.target.value)} type="number" min={0} placeholder="Số tiền (để trống = toàn bộ đã thu)" />
-            <select value={refundMethod} onChange={(e) => setRefundMethod(e.target.value)} className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 text-sm">
-              <option value="MANUAL">Hoàn thủ công</option>
-              <option value="WALLET">Ví nội bộ (nhận ngay)</option>
-              <option value="ORIGINAL_GATEWAY">Hoàn về cổng thanh toán</option>
-              <option value="BANK_TRANSFER">Chuyển khoản ngân hàng</option>
-            </select>
+      {!["COMPLETED", "CANCELED", "FAILED", "REFUNDED"].includes(orderStatus) && (
+        <div className="mt-4 rounded-xl border p-3 space-y-3">
+          <div className="flex items-center gap-2">
+            <Banknote className="h-4 w-4 text-primary" />
+            <p className="text-xs font-bold">Hoàn tiền</p>
           </div>
-          <Button size="sm" onClick={handleRequestRefund} disabled={refundSaving}>
-            {refundSaving && <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />} Tạo yêu cầu hoàn tiền
-          </Button>
+          <p className="text-[11px] leading-relaxed text-muted-foreground">
+            COD đã giao hoàn ngay vào Ví MegaMart · BANK_TRANSFER thử SePay tự động (fallback thủ công nếu lỗi) · VNPay/MoMo hoàn tay. Đơn đã hoàn thành sẽ không thể tạo yêu cầu hoàn tiền.
+          </p>
+          <div className="grid gap-2">
+            <Input value={refundReason} onChange={(e) => setRefundReason(e.target.value)} placeholder="Lý do hoàn tiền (bắt buộc)" />
+            <div className="grid grid-cols-2 gap-2">
+              <Input value={refundAmount} onChange={(e) => setRefundAmount(e.target.value)} type="number" min={0} placeholder="Số tiền (để trống = toàn bộ đã thu)" />
+              <select value={refundMethod} onChange={(e) => setRefundMethod(e.target.value)} className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 text-sm">
+                <option value="MANUAL">Hoàn thủ công</option>
+                <option value="WALLET">Ví nội bộ (nhận ngay)</option>
+                <option value="ORIGINAL_GATEWAY">Hoàn về cổng thanh toán</option>
+                <option value="BANK_TRANSFER">Chuyển khoản ngân hàng</option>
+              </select>
+            </div>
+            <Button size="sm" onClick={handleRequestRefund} disabled={refundSaving}>
+              {refundSaving && <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />} Tạo yêu cầu hoàn tiền
+            </Button>
+          </div>
+          {refunds.length > 0 && (
+            <div className="space-y-2">
+              {refunds.map((r) => (
+                <div key={r.id} className="rounded-lg bg-muted/50 px-3 py-2 text-xs">
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="font-bold">{new Intl.NumberFormat("vi-VN").format(Number(r.amount))}₫ · {refundMethodName(r.method)} · Kênh: {refundChannelName((r as any).channel)}</p>
+                    <Badge variant={r.status === "COMPLETED" ? "default" : r.status === "REJECTED" ? "destructive" : "info"}>{refundStatusName(r.status)}</Badge>
+                  </div>
+                  <p className="mt-1 text-muted-foreground">{r.reason}</p>
+                  {r.reviewedNote && <p className="mt-1 text-muted-foreground italic">Duyệt: {r.reviewedNote}</p>}
+                  {(r as any).failureReason && (
+                    <p className="mt-1 rounded-md border border-amber-300 bg-amber-50 px-2 py-1 text-[11px] text-amber-800">
+                      {(r as any).failureReason}
+                      {(r as any).channel === "MANUAL" && r.status === "APPROVED" ? " — vui lòng chuyển tiền thủ công rồi bấm hoàn tất." : ""}
+                    </p>
+                  )}
+                  {(r.status === "PENDING" || r.status === "APPROVED") && (
+                    <div className="mt-2 flex flex-wrap gap-2">
+                      {r.status === "PENDING" && (
+                        <>
+                          <Button size="sm" variant="outline" onClick={() => askReviewRefund(r, "approve")}>Duyệt</Button>
+                          <Button size="sm" variant="outline" className="text-destructive" onClick={() => askReviewRefund(r, "reject")}>Từ chối</Button>
+                        </>
+                      )}
+                      {r.status === "APPROVED" && (
+                        <Button size="sm" onClick={() => askReviewRefund(r, "complete")}>
+                          {(r as any).channel === "WALLET" ? "Hoàn vào ví · Hoàn tất" : (r as any).failureReason ? "Xác nhận đã chuyển tiền thủ công" : "Đã chuyển tiền · Hoàn tất"}
+                        </Button>
+                      )}
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
         </div>
-        {refunds.length > 0 && (
+      )}
+
+      {/* Lịch sử hoàn tiền cho đơn đã lock (luôn hiện nếu có dữ liệu) */}
+      {["COMPLETED", "CANCELED", "FAILED", "REFUNDED"].includes(orderStatus) && refunds.length > 0 && (
+        <div className="mt-4 rounded-xl border p-3 space-y-3">
+          <div className="flex items-center gap-2">
+            <Banknote className="h-4 w-4 text-primary" />
+            <p className="text-xs font-bold">Lịch sử hoàn tiền</p>
+          </div>
           <div className="space-y-2">
             {refunds.map((r) => (
               <div key={r.id} className="rounded-lg bg-muted/50 px-3 py-2 text-xs">
@@ -553,32 +654,11 @@ export function GhnShipmentCard({
                 </div>
                 <p className="mt-1 text-muted-foreground">{r.reason}</p>
                 {r.reviewedNote && <p className="mt-1 text-muted-foreground italic">Duyệt: {r.reviewedNote}</p>}
-                {(r as any).failureReason && (
-                  <p className="mt-1 rounded-md border border-amber-300 bg-amber-50 px-2 py-1 text-[11px] text-amber-800">
-                    {(r as any).failureReason}
-                    {(r as any).channel === "MANUAL" && r.status === "APPROVED" ? " — vui lòng chuyển tiền thủ công rồi bấm hoàn tất." : ""}
-                  </p>
-                )}
-                {(r.status === "PENDING" || r.status === "APPROVED") && (
-                  <div className="mt-2 flex flex-wrap gap-2">
-                    {r.status === "PENDING" && (
-                      <>
-                        <Button size="sm" variant="outline" onClick={() => askReviewRefund(r, "approve")}>Duyệt</Button>
-                        <Button size="sm" variant="outline" className="text-destructive" onClick={() => askReviewRefund(r, "reject")}>Từ chối</Button>
-                      </>
-                    )}
-                    {r.status === "APPROVED" && (
-                      <Button size="sm" onClick={() => askReviewRefund(r, "complete")}>
-                        {(r as any).channel === "WALLET" ? "Hoàn vào ví · Hoàn tất" : (r as any).failureReason ? "Xác nhận đã chuyển tiền thủ công" : "Đã chuyển tiền · Hoàn tất"}
-                      </Button>
-                    )}
-                  </div>
-                )}
               </div>
             ))}
           </div>
-        )}
-      </div>
+        </div>
+      )}
 
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="sm:max-w-[480px]">

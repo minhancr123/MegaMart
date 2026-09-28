@@ -1092,13 +1092,13 @@ export function ProductForm({ initialData, onSubmit, loading }: ProductFormProps
                                 <div className="grid grid-cols-2 gap-2 mt-4">
                                     {images.map((image, index) => (
                                         <div key={index} className="relative group aspect-square rounded-md overflow-hidden border-2 bg-gray-100" style={{
-                                            borderColor: image.isPrimary ? '#3b82f6' : '#e5e7eb'
+                                            borderColor: image.isPrimary ? 'var(--primary)' : '#e5e7eb'
                                         }}>
                                             <img src={image.url} alt={image.alt || ""} className="w-full h-full object-cover" />
 
                                             {/* Primary Badge */}
                                             {image.isPrimary && (
-                                                <div className="absolute top-2 left-2 bg-blue-600 text-white text-xs px-2 py-1 rounded-full font-medium flex items-center gap-1">
+                                                <div className="absolute top-2 left-2 bg-primary text-primary-foreground text-xs px-2 py-1 rounded-full font-medium flex items-center gap-1">
                                                     <Star className="w-3 h-3 fill-white" />
                                                     Ảnh chính
                                                 </div>
@@ -1110,7 +1110,7 @@ export function ProductForm({ initialData, onSubmit, loading }: ProductFormProps
                                                     <button
                                                         type="button"
                                                         onClick={() => handleSetPrimaryImage(index)}
-                                                        className="bg-blue-600 hover:bg-blue-700 text-white p-1.5 rounded-full shadow-lg"
+                                                        className="bg-primary hover:bg-primary/90 text-primary-foreground p-1.5 rounded-full shadow-lg"
                                                         title="Đặt làm ảnh chính"
                                                     >
                                                         <Star className="w-3.5 h-3.5" />
@@ -1131,7 +1131,7 @@ export function ProductForm({ initialData, onSubmit, loading }: ProductFormProps
                             </CardContent>
                         </Card>
 
-                        <Button type="submit" className="w-full bg-blue-600 hover:bg-blue-700" disabled={loading}>
+                        <Button type="submit" className="w-full" disabled={loading}>
                             {loading && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
                             {initialData ? "Cập nhật sản phẩm" : "Tạo sản phẩm"}
                         </Button>

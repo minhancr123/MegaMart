@@ -50,6 +50,7 @@ import {
   CreateStockMovementDto,
 } from "@/lib/inventoryApi";
 import { toast } from "sonner";
+import { formatPrice, getErrorMessage } from "@/lib/utils";
 
 interface MovementItem {
   variantId: string;
@@ -313,14 +314,10 @@ export default function NewMovementPage() {
       }, 500);
     } catch (error: unknown) {
       console.error('❌ Create movement error:', error);
-      toast.error(error.response?.data?.message || "Không thể tạo phiếu");
+      toast.error(getErrorMessage(error, "Không thể tạo phiếu"));
     } finally {
       setLoading(false);
     }
-  };
-
-  const formatCurrency = (value: number) => {
-    return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(value);
   };
 
   const totalAmount = items.reduce((sum, item) => sum + (item.unitPrice || 0) * item.quantity, 0);
@@ -499,7 +496,7 @@ export default function NewMovementPage() {
               {showUnitPrice && (
                 <div className="flex justify-between pt-2 border-t">
                   <span className="font-medium">Tổng tiền:</span>
-                  <span className="font-bold text-lg">{formatCurrency(totalAmount)}</span>
+                  <span className="font-bold text-lg">{formatPrice(totalAmount)}</span>
                 </div>
               )}
             </CardContent>
@@ -576,7 +573,7 @@ export default function NewMovementPage() {
                                     <div className="flex-1 min-w-0">
                                       <div className="font-medium truncate">{variant.productName}</div>
                                       <div className="text-xs text-muted-foreground truncate">
-                                        SKU: {variant.sku} | Tồn kho: {variant.stock} | Giá: {new Intl.NumberFormat('vi-VN').format(variant.price)}đ
+                                        SKU: {variant.sku} | Tồn kho: {variant.stock} | Giá: {formatPrice(variant.price)}
                                       </div>
                                     </div>
                                   </div>
@@ -614,7 +611,7 @@ export default function NewMovementPage() {
                     <div className="space-y-1">
                       <Label className="text-xs">Giá hiện tại sản phẩm</Label>
                       <Input
-                        value={new Intl.NumberFormat('vi-VN').format(selectedVariant.price) + 'đ'}
+                        value={formatPrice(selectedVariant.price)}
                         disabled
                         className="bg-muted"
                       />
@@ -659,12 +656,12 @@ export default function NewMovementPage() {
                         <TableCell className="text-center font-medium">{item.quantity}</TableCell>
                         {showUnitPrice && (
                           <TableCell className="text-right">
-                            {formatCurrency(item.unitPrice || 0)}
+                            {formatPrice(item.unitPrice || 0)}
                           </TableCell>
                         )}
                         {showUnitPrice && (
                           <TableCell className="text-right font-medium">
-                            {formatCurrency((item.unitPrice || 0) * item.quantity)}
+                            {formatPrice((item.unitPrice || 0) * item.quantity)}
                           </TableCell>
                         )}
                         <TableCell>

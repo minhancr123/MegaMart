@@ -96,3 +96,29 @@ Nest is an MIT-licensed open source project. It can grow thanks to the sponsors 
 ## License
 
 Nest is [MIT licensed](https://github.com/nestjs/nest/blob/master/LICENSE).
+
+## Webhook SePay ở môi trường Development
+
+Cách chạy:
+
+```bash
+cd server
+npm run dev:tunnel   # chạy server NestJS + tunnel cùng lúc
+# hoặc chạy riêng 2 terminal:
+# Terminal 1: npm run start:dev
+# Terminal 2: npm run tunnel
+```
+
+Mặc định `npm run tunnel` dùng **cloudflared** (random URL mỗi lần chạy, xem URL
+trong log terminal rồi paste vào SePay Dashboard dạng
+`https://xxx.trycloudflare.com/api/payment/webhook`).
+
+Muốn domain cố định `https://megamart-sepay-webhook.loca.lt` thì chạy
+`npm run tunnel:fixed` (localtunnel). Lưu ý: localtunnel.me thỉnh thoảng chặn
+mạng (403) khiến tunnel treo ở "Hết thời gian chờ" — lúc đó dùng cloudflared
+hoặc thử lại sau. Muốn cố định lâu dài thì dùng ngrok domain tĩnh hoặc
+Cloudflare named tunnel.
+
+Lưu ý khi test thủ công bằng curl/Postman qua public URL loca.lt, thêm header
+`bypass-tunnel-reminder: true` để tránh trang nhắc của loca.lt. Webhook thật từ
+SePay (POST JSON) được forward trực tiếp, không cần header này.

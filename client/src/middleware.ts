@@ -72,6 +72,37 @@ export async function middleware(request: NextRequest) {
         return NextResponse.redirect(new URL('/', request.url));
       }
 
+      const isProductRoute =
+        pathname === '/product' ||
+        pathname.startsWith('/product/') ||
+        pathname === '/products' ||
+        pathname.startsWith('/products/');
+      const shoppingBlockedForShipper =
+        payload.role === 'SHIPPER' &&
+        !isShipperRoute &&
+        (pathname === '/' ||
+          isProductRoute ||
+          pathname.startsWith('/cart') ||
+          pathname.startsWith('/checkout') ||
+          pathname.startsWith('/profile/orders') ||
+          pathname.startsWith('/supplier') ||
+          pathname.startsWith('/admin'));
+      if (shoppingBlockedForShipper) {
+        return NextResponse.redirect(new URL('/shipper', request.url));
+      }
+
+      const shoppingBlockedForSupplier =
+        payload.role === 'SUPPLIER' &&
+        !isSupplierRoute &&
+        (pathname === '/' ||
+          isProductRoute ||
+          pathname.startsWith('/cart') ||
+          pathname.startsWith('/checkout') ||
+          pathname.startsWith('/profile/orders'));
+      if (shoppingBlockedForSupplier) {
+        return NextResponse.redirect(new URL('/supplier', request.url));
+      }
+
       // If logged in and trying to access auth page, redirect by role
       if (isAuthRoute) {
         if (payload.role === 'SUPPLIER') {

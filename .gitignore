@@ -63,3 +63,10 @@ next-env.d.ts
 
 # graft's local graph cache — regenerable, not committed (run `graft build`).
 /graft/
+
+# Cấu hình công cụ AI cục bộ (Claude Code, Gemini CLI, opencode, MCP).
+# Tự sinh theo máy từng người, không liên quan tới app -> khỏi commit.
+.claude/
+.gemini/
+.mcp.json
+opencode.json

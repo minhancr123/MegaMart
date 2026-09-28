@@ -1,7 +1,11 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
-import { PrismaService } from 'src/prismaClient/prisma.service';
-import { CreateBannerDto, UpdateBannerDto } from './dto/banner.dto';
-import { AuditLogService, AuditAction, AuditEntity } from 'src/modules/audit-log/audit-log.service';
+import { Injectable, NotFoundException } from "@nestjs/common";
+import { PrismaService } from "src/prismaClient/prisma.service";
+import { CreateBannerDto, UpdateBannerDto } from "./dto/banner.dto";
+import {
+  AuditLogService,
+  AuditAction,
+  AuditEntity,
+} from "src/modules/audit-log/audit-log.service";
 
 @Injectable()
 export class BannerService {
@@ -12,10 +16,10 @@ export class BannerService {
 
   async findAll(includeInactive = false) {
     const where = includeInactive ? {} : { active: true };
-    
+
     return this.prisma.banner.findMany({
       where,
-      orderBy: { displayOrder: 'asc' },
+      orderBy: { displayOrder: "asc" },
     });
   }
 
@@ -36,14 +40,23 @@ export class BannerService {
           { startDate: { lte: now }, endDate: { gte: now } },
         ],
       },
-      orderBy: { displayOrder: 'asc' },
+      orderBy: { displayOrder: "asc" },
     });
 
     // Nạp thông tin sản phẩm nổi cho banner động (giới hạn 4 SP/banner)
-    const ids = [...new Set(
-      banners.flatMap((b) => (Array.isArray(b.featuredProductIds) ? b.featuredProductIds.slice(0, 4) : []))
-        .filter((id): id is string => typeof id === 'string' && id.length > 0),
-    )];
+    const ids = [
+      ...new Set(
+        banners
+          .flatMap((b) =>
+            Array.isArray(b.featuredProductIds)
+              ? b.featuredProductIds.slice(0, 4)
+              : [],
+          )
+          .filter(
+            (id): id is string => typeof id === "string" && id.length > 0,
+          ),
+      ),
+    ];
     let productMap: Record<string, any> = {};
     if (ids.length > 0) {
       const products = await this.prisma.product.findMany({
@@ -51,23 +64,39 @@ export class BannerService {
         select: {
           id: true,
           name: true,
-          images: { take: 1, orderBy: { displayOrder: 'asc' } },
-          variants: { take: 1, orderBy: { price: 'asc' }, select: { price: true, salePrice: true } },
+          images: { take: 1, orderBy: { displayOrder: "asc" } },
+          variants: {
+            take: 1,
+            orderBy: { price: "asc" },
+            select: { price: true, salePrice: true },
+          },
         },
       });
-      productMap = Object.fromEntries(products.map((p) => [p.id, {
-        id: p.id,
-        name: p.name,
-        imageUrl: p.images[0]?.url || null,
-        price: p.variants[0]?.price != null ? Number(p.variants[0].price) : null,
-        salePrice: p.variants[0]?.salePrice != null ? Number(p.variants[0].salePrice) : null,
-      }]));
+      productMap = Object.fromEntries(
+        products.map((p) => [
+          p.id,
+          {
+            id: p.id,
+            name: p.name,
+            imageUrl: p.images[0]?.url || null,
+            price:
+              p.variants[0]?.price != null ? Number(p.variants[0].price) : null,
+            salePrice:
+              p.variants[0]?.salePrice != null
+                ? Number(p.variants[0].salePrice)
+                : null,
+          },
+        ]),
+      );
     }
 
     return banners.map((b) => ({
       ...b,
-      featuredProducts: (Array.isArray(b.featuredProductIds) ? b.featuredProductIds.slice(0, 4) : [])
-        .filter((id): id is string => typeof id === 'string' && id.length > 0)
+      featuredProducts: (Array.isArray(b.featuredProductIds)
+        ? b.featuredProductIds.slice(0, 4)
+        : []
+      )
+        .filter((id): id is string => typeof id === "string" && id.length > 0)
         .map((id) => productMap[id])
         .filter(Boolean),
     }));
@@ -97,9 +126,14 @@ export class BannerService {
         where: { endDate: { lt: now } },
       }),
       this.prisma.banner.count({
-        where: { active: false, OR: [{ endDate: null }, { endDate: { gte: now } }] },
+        where: {
+          active: false,
+          OR: [{ endDate: null }, { endDate: { gte: now } }],
+        },
       }),
-      this.prisma.banner.aggregate({ _sum: { clicks: true, impressions: true } }),
+      this.prisma.banner.aggregate({
+        _sum: { clicks: true, impressions: true },
+      }),
     ]);
     return {
       active,
@@ -117,7 +151,7 @@ export class BannerService {
     });
 
     if (!banner) {
-      throw new NotFoundException('Banner not found');
+      throw new NotFoundException("Banner not found");
     }
 
     return banner;
@@ -132,9 +166,14 @@ export class BannerService {
     const banner = await this.prisma.banner.create({
       data: {
         ...createBannerDto,
-        displayOrder: createBannerDto.displayOrder ?? (maxOrder._max.displayOrder ?? 0) + 1,
-        startDate: createBannerDto.startDate ? new Date(createBannerDto.startDate) : null,
-        endDate: createBannerDto.endDate ? new Date(createBannerDto.endDate) : null,
+        displayOrder:
+          createBannerDto.displayOrder ?? (maxOrder._max.displayOrder ?? 0) + 1,
+        startDate: createBannerDto.startDate
+          ? new Date(createBannerDto.startDate)
+          : null,
+        endDate: createBannerDto.endDate
+          ? new Date(createBannerDto.endDate)
+          : null,
       },
     });
 
@@ -178,7 +217,7 @@ export class BannerService {
       AuditEntity.BANNER,
       undefined,
       id,
-      { 
+      {
         before: { title: oldBanner.title, active: oldBanner.active },
         after: { title: updatedBanner.title, active: updatedBanner.active },
       },
@@ -193,7 +232,7 @@ export class BannerService {
       this.prisma.banner.update({
         where: { id },
         data: { displayOrder: index },
-      })
+      }),
     );
 
     return this.prisma.$transaction(updates);
@@ -201,7 +240,7 @@ export class BannerService {
 
   async toggleActive(id: string) {
     const banner = await this.findOne(id);
-    
+
     return this.prisma.banner.update({
       where: { id },
       data: { active: !banner.active },
@@ -224,6 +263,6 @@ export class BannerService {
       { title: banner.title },
     );
 
-    return { message: 'Banner deleted successfully' };
+    return { message: "Banner deleted successfully" };
   }
 }

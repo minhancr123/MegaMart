@@ -4,9 +4,17 @@ import {
   Injectable,
   Logger,
   NotFoundException,
-} from '@nestjs/common';
-import { AuditAction, AuditEntity, AuditLogService } from '../audit-log/audit-log.service';
-import { PrismaService } from '../../prismaClient/prisma.service';
+  Optional,
+  Inject,
+  forwardRef,
+} from "@nestjs/common";
+import {
+  AuditAction,
+  AuditEntity,
+  AuditLogService,
+} from "../audit-log/audit-log.service";
+import { PrismaService } from "../../prismaClient/prisma.service";
+import { EmailService } from "../email/email.service";
 
 /**
  * Admin duyệt hàng chờ nuôi dưỡng loyalty do agent tạo.
@@ -20,19 +28,22 @@ export class LoyaltyNurtureAdminService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly audit: AuditLogService,
+    @Optional()
+    @Inject(forwardRef(() => EmailService))
+    private readonly emailService?: EmailService,
   ) {}
 
   listQueue(status?: string) {
-    const allowed = ['PENDING', 'APPROVED', 'SENT', 'REJECTED'];
+    const allowed = ["PENDING", "APPROVED", "SENT", "REJECTED"];
     // Status lạ → 400 rõ ràng thay vì âm thầm trả tất cả (bẫy UI admin).
     const normalized = status?.trim().toUpperCase();
     if (normalized && !allowed.includes(normalized)) {
-      throw new BadRequestException(`status phải thuộc: ${allowed.join(', ')}`);
+      throw new BadRequestException(`status phải thuộc: ${allowed.join(", ")}`);
     }
     const where = normalized ? { status: normalized } : undefined;
     return this.prisma.loyaltyNurtureQueue.findMany({
       where,
-      orderBy: { createdAt: 'desc' },
+      orderBy: { createdAt: "desc" },
       take: 100,
       select: {
         id: true,
@@ -72,8 +83,8 @@ export class LoyaltyNurtureAdminService {
         user: { select: { email: true, name: true } },
       },
     });
-    if (!row) throw new NotFoundException('Không tìm thấy hàng chờ');
-    if (row.status !== 'PENDING') {
+    if (!row) throw new NotFoundException("Không tìm thấy hàng chờ");
+    if (row.status !== "PENDING") {
       throw new BadRequestException(`Hàng chờ đã ở trạng thái ${row.status}`);
     }
 
@@ -82,12 +93,12 @@ export class LoyaltyNurtureAdminService {
     // 1 request đổi được (count=1), request còn lại nhận Conflict → không mail trùng.
     await this.prisma.$transaction(async (tx) => {
       const r = await tx.loyaltyNurtureQueue.updateMany({
-        where: { id, status: 'PENDING' },
-        data: { status: 'APPROVED', approvedAt: now },
+        where: { id, status: "PENDING" },
+        data: { status: "APPROVED", approvedAt: now },
       });
       if (r.count === 0) {
         throw new ConflictException(
-          'Hàng chờ đã được xử lý bởi người khác (không còn PENDING)',
+          "Hàng chờ đã được xử lý bởi người khác (không còn PENDING)",
         );
       }
       // Bật voucher đúng lúc duyệt (lúc tạo job để active:false).
@@ -106,7 +117,7 @@ export class LoyaltyNurtureAdminService {
       try {
         await this.sendVoucherMail(
           row.user.email,
-          row.user.name ?? 'bạn',
+          row.user.name,
           row.voucher.code,
           row.voucher.value,
           row.message,
@@ -125,14 +136,14 @@ export class LoyaltyNurtureAdminService {
       adminId,
       row.userId,
       {
-        actor: 'admin',
-        source: 'loyalty-nurture-approve',
+        actor: "admin",
+        source: "loyalty-nurture-approve",
         queueId: id,
         voucherCode: row.voucher?.code,
         mailed,
       },
     );
-    return { id, status: 'APPROVED', voucherCode: row.voucher?.code, mailed };
+    return { id, status: "APPROVED", voucherCode: row.voucher?.code, mailed };
   }
 
   async reject(id: string, adminId: string, note?: string) {
@@ -140,13 +151,13 @@ export class LoyaltyNurtureAdminService {
       where: { id },
       select: { id: true, status: true, userId: true },
     });
-    if (!row) throw new NotFoundException('Không tìm thấy hàng chờ');
-    if (row.status !== 'PENDING') {
+    if (!row) throw new NotFoundException("Không tìm thấy hàng chờ");
+    if (row.status !== "PENDING") {
       throw new BadRequestException(`Hàng chờ đã ở trạng thái ${row.status}`);
     }
     await this.prisma.loyaltyNurtureQueue.update({
       where: { id },
-      data: { status: 'REJECTED' },
+      data: { status: "REJECTED" },
     });
     await this.audit.log(
       AuditAction.USER_UPDATE,
@@ -154,48 +165,24 @@ export class LoyaltyNurtureAdminService {
       adminId,
       row.userId,
       {
-        actor: 'admin',
-        source: 'loyalty-nurture-reject',
+        actor: "admin",
+        source: "loyalty-nurture-reject",
         queueId: id,
         note: note ?? null,
       },
     );
-    return { id, status: 'REJECTED' };
+    return { id, status: "REJECTED" };
   }
 
   private async sendVoucherMail(
     to: string,
-    name: string,
+    name: string | null | undefined,
     code: string,
     value: number,
     message: string,
   ): Promise<void> {
-    const { SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS, SMTP_FROM } =
-      process.env;
-    if (!SMTP_HOST || !SMTP_USER || !SMTP_PASS) {
-      throw new Error('Chưa cấu hình SMTP trong server/.env');
-    }
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const nodemailer = require('nodemailer');
-    const port = Number(SMTP_PORT) || 587;
-    const transporter = nodemailer.createTransport({
-      host: SMTP_HOST,
-      port,
-      secure: port === 465,
-      auth: { user: SMTP_USER, pass: SMTP_PASS },
-    });
-    const fmt = new Intl.NumberFormat('vi-VN').format(Number(value || 0)) + 'đ';
-    await transporter.sendMail({
-      from: SMTP_FROM || SMTP_USER,
-      to,
-      subject: `[MegaMart] Quà tặng dành riêng cho ${name} 🎁`,
-      html: `<div style="font-family:Arial,sans-serif;max-width:560px;margin:auto;color:#222;">
-        <h2 style="color:#c53b00;">MegaMart tặng bạn voucher ${fmt}</h2>
-        <p>Chào <strong>${name}</strong>,</p>
-        <p>${message}</p>
-        <p>Mã của bạn: <strong style="font-size:20px;letter-spacing:2px;">${code}</strong></p>
-        <p>Nhập mã ở giỏ hàng để áp dụng. Trân trọng,<br><strong>Đội ngũ MegaMart</strong></p>
-      </div>`,
-    });
+    const voucher: any = { code, type: "FIXED", value };
+    const ok = await this.emailService?.sendVoucher(to, name, voucher, message);
+    if (!ok) throw new Error("Gửi mail voucher thất bại");
   }
 }

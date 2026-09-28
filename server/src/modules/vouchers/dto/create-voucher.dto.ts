@@ -1,6 +1,14 @@
-import { ApiProperty } from '@nestjs/swagger';
-import { VoucherType } from '@prisma/client';
-import { IsBoolean, IsDateString, IsEnum, IsInt, IsOptional, IsString, Min } from 'class-validator';
+import { ApiProperty } from "@nestjs/swagger";
+import { VoucherType } from "@prisma/client";
+import {
+  IsBoolean,
+  IsDateString,
+  IsEnum,
+  IsInt,
+  IsOptional,
+  IsString,
+  Min,
+} from "class-validator";
 
 export class CreateVoucherDto {
   @ApiProperty()
@@ -20,7 +28,7 @@ export class CreateVoucherDto {
   @IsEnum(VoucherType)
   type: VoucherType;
 
-  @ApiProperty({ description: 'percent (1-100) hoặc số tiền VND' })
+  @ApiProperty({ description: "percent (1-100) hoặc số tiền VND" })
   @IsInt()
   @Min(1)
   value: number;

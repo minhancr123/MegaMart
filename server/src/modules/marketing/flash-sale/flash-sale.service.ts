@@ -1,35 +1,49 @@
-import { Injectable, NotFoundException, BadRequestException, OnModuleInit } from '@nestjs/common';
-import { PrismaService } from 'src/prismaClient/prisma.service';
-import { CreateFlashSaleDto, UpdateFlashSaleDto, AddFlashSaleItemsDto, UpdateFlashSaleItemDto } from './dto/flash-sale.dto';
-import { AuditLogService, AuditAction, AuditEntity } from '../../audit-log/audit-log.service';
-import { formatPrice } from 'src/utils/price.util';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+  OnModuleInit,
+} from "@nestjs/common";
+import { PrismaService } from "src/prismaClient/prisma.service";
+import {
+  CreateFlashSaleDto,
+  UpdateFlashSaleDto,
+  AddFlashSaleItemsDto,
+  UpdateFlashSaleItemDto,
+} from "./dto/flash-sale.dto";
+import {
+  AuditLogService,
+  AuditAction,
+  AuditEntity,
+} from "../../audit-log/audit-log.service";
+import { formatPrice } from "src/utils/price.util";
 
 @Injectable()
 export class FlashSaleService {
   constructor(
     private prisma: PrismaService,
     private auditLogService: AuditLogService,
-  ) { }
+  ) {}
 
-  async findAll(status?: 'active' | 'upcoming' | 'ended' | 'all') {
+  async findAll(status?: "active" | "upcoming" | "ended" | "all") {
     const now = new Date();
 
     let where: any = {};
 
     switch (status) {
-      case 'active':
+      case "active":
         where = {
           active: true,
           startTime: { lte: now },
           endTime: { gte: now },
         };
         break;
-      case 'upcoming':
+      case "upcoming":
         where = {
           startTime: { gt: now },
         };
         break;
-      case 'ended':
+      case "ended":
         where = {
           endTime: { lt: now },
         };
@@ -49,10 +63,7 @@ export class FlashSaleService {
                 product: {
                   include: {
                     images: {
-                      orderBy: [
-                        { isPrimary: 'desc' },
-                        { displayOrder: 'asc' }
-                      ]
+                      orderBy: [{ isPrimary: "desc" }, { displayOrder: "asc" }],
                     },
                   },
                 },
@@ -61,7 +72,7 @@ export class FlashSaleService {
           },
         },
       },
-      orderBy: { startTime: 'desc' },
+      orderBy: { startTime: "desc" },
     });
 
     return this.serializeFlashSales(flashSales);
@@ -84,10 +95,7 @@ export class FlashSaleService {
                 product: {
                   include: {
                     images: {
-                      orderBy: [
-                        { isPrimary: 'desc' },
-                        { displayOrder: 'asc' }
-                      ]
+                      orderBy: [{ isPrimary: "desc" }, { displayOrder: "asc" }],
                     },
                   },
                 },
@@ -96,7 +104,7 @@ export class FlashSaleService {
           },
         },
       },
-      orderBy: { endTime: 'asc' },
+      orderBy: { endTime: "asc" },
     });
 
     return this.serializeFlashSales(flashSales);
@@ -113,10 +121,7 @@ export class FlashSaleService {
                 product: {
                   include: {
                     images: {
-                      orderBy: [
-                        { isPrimary: 'desc' },
-                        { displayOrder: 'asc' }
-                      ]
+                      orderBy: [{ isPrimary: "desc" }, { displayOrder: "asc" }],
                     },
                   },
                 },
@@ -128,18 +133,22 @@ export class FlashSaleService {
     });
 
     if (!flashSale) {
-      throw new NotFoundException('Flash sale not found');
+      throw new NotFoundException("Flash sale not found");
     }
 
     return this.serializeFlashSale(flashSale);
   }
 
-  async create(createFlashSaleDto: CreateFlashSaleDto, userId?: string, ipAddress?: string) {
+  async create(
+    createFlashSaleDto: CreateFlashSaleDto,
+    userId?: string,
+    ipAddress?: string,
+  ) {
     const startTime = new Date(createFlashSaleDto.startTime);
     const endTime = new Date(createFlashSaleDto.endTime);
 
     if (startTime >= endTime) {
-      throw new BadRequestException('Start time must be before end time');
+      throw new BadRequestException("Start time must be before end time");
     }
 
     const { items, ...flashSaleData } = createFlashSaleDto;
@@ -149,14 +158,16 @@ export class FlashSaleService {
         ...flashSaleData,
         startTime,
         endTime,
-        items: items ? {
-          create: items.map(item => ({
-            variantId: item.variantId,
-            // Giá lưu thẳng VND (formatPrice lúc đọc không chia 100)
-            salePrice: BigInt(Math.round(item.salePrice)),
-            quantity: item.quantity,
-          })),
-        } : undefined,
+        items: items
+          ? {
+              create: items.map((item) => ({
+                variantId: item.variantId,
+                // Giá lưu thẳng VND (formatPrice lúc đọc không chia 100)
+                salePrice: BigInt(Math.round(item.salePrice)),
+                quantity: item.quantity,
+              })),
+            }
+          : undefined,
       },
       include: {
         items: {
@@ -183,13 +194,18 @@ export class FlashSaleService {
         startTime: flashSale.startTime,
         endTime: flashSale.endTime,
       },
-      ipAddress
+      ipAddress,
     );
 
     return this.serializeFlashSale(flashSale);
   }
 
-  async update(id: string, updateFlashSaleDto: UpdateFlashSaleDto, userId?: string, ipAddress?: string) {
+  async update(
+    id: string,
+    updateFlashSaleDto: UpdateFlashSaleDto,
+    userId?: string,
+    ipAddress?: string,
+  ) {
     const oldFlashSale = await this.findOne(id);
 
     const updateData: any = { ...updateFlashSaleDto };
@@ -204,7 +220,7 @@ export class FlashSaleService {
     // Validate time if both provided
     if (updateData.startTime && updateData.endTime) {
       if (updateData.startTime >= updateData.endTime) {
-        throw new BadRequestException('Start time must be before end time');
+        throw new BadRequestException("Start time must be before end time");
       }
     }
 
@@ -234,7 +250,7 @@ export class FlashSaleService {
         before: { name: oldFlashSale.name, active: oldFlashSale.active },
         after: { name: flashSale.name, active: flashSale.active },
       },
-      ipAddress
+      ipAddress,
     );
 
     return this.serializeFlashSale(flashSale);
@@ -244,7 +260,7 @@ export class FlashSaleService {
     await this.findOne(id);
 
     const created = await this.prisma.flashSaleItem.createMany({
-      data: addItemsDto.items.map(item => ({
+      data: addItemsDto.items.map((item) => ({
         flashSaleId: id,
         variantId: item.variantId,
         salePrice: BigInt(Math.round(item.salePrice)),
@@ -264,14 +280,18 @@ export class FlashSaleService {
     return this.findOne(flashSaleId);
   }
 
-  async updateItem(flashSaleId: string, itemId: string, updateDto: UpdateFlashSaleItemDto) {
+  async updateItem(
+    flashSaleId: string,
+    itemId: string,
+    updateDto: UpdateFlashSaleItemDto,
+  ) {
     // Check if item exists
     const item = await this.prisma.flashSaleItem.findUnique({
       where: { id: itemId },
     });
 
     if (!item) {
-      throw new NotFoundException('Flash sale item not found');
+      throw new NotFoundException("Flash sale item not found");
     }
 
     // Update item
@@ -329,14 +349,16 @@ export class FlashSaleService {
       userId,
       id,
       { name: flashSale.name, itemCount: flashSale.items?.length || 0 },
-      ipAddress
+      ipAddress,
     );
 
-    return { message: 'Flash sale deleted successfully' };
+    return { message: "Flash sale deleted successfully" };
   }
 
   // Check if a variant is currently in an active flash sale
-  async getFlashSalePrice(variantId: string): Promise<{ isOnSale: boolean; salePrice?: bigint; flashSale?: any }> {
+  async getFlashSalePrice(
+    variantId: string,
+  ): Promise<{ isOnSale: boolean; salePrice?: bigint; flashSale?: any }> {
     const now = new Date();
 
     const item = await this.prisma.flashSaleItem.findFirst({
@@ -394,18 +416,21 @@ export class FlashSaleService {
   private serializeFlashSale(flashSale: any) {
     return {
       ...flashSale,
-      items: flashSale.items?.map((item: any) => ({
-        ...item,
-        salePrice: formatPrice(item.salePrice),
-        variant: item.variant ? {
-          ...item.variant,
-          price: formatPrice(item.variant.price),
-        } : undefined,
-      })) || [],
+      items:
+        flashSale.items?.map((item: any) => ({
+          ...item,
+          salePrice: formatPrice(item.salePrice),
+          variant: item.variant
+            ? {
+                ...item.variant,
+                price: formatPrice(item.variant.price),
+              }
+            : undefined,
+        })) || [],
     };
   }
 
   private serializeFlashSales(flashSales: any[]) {
-    return flashSales.map(fs => this.serializeFlashSale(fs));
+    return flashSales.map((fs) => this.serializeFlashSale(fs));
   }
 }

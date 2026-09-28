@@ -1,5 +1,14 @@
-import { IsString, IsOptional, IsBoolean, IsDateString, IsArray, ValidateNested, IsInt, Min } from 'class-validator';
-import { Type } from 'class-transformer';
+import {
+  IsString,
+  IsOptional,
+  IsBoolean,
+  IsDateString,
+  IsArray,
+  ValidateNested,
+  IsInt,
+  Min,
+} from "class-validator";
+import { Type } from "class-transformer";
 
 export class FlashSaleItemDto {
   @IsString()

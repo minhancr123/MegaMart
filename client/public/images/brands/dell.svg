@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 130 40" fill="none">
+  <!-- DELL blue iconic circle -->
+  <g transform="translate(14, 5)">
+    <circle cx="15" cy="15" r="14.5" stroke="#007DB8" stroke-width="2.5" fill="none"/>
+    <text x="15" y="21" text-anchor="middle" font-family="'Helvetica Neue', Arial, sans-serif" font-weight="900" font-size="12" fill="#007DB8">DELL</text>
+  </g>
+  <!-- DELL text -->
+  <text x="50" y="27" font-family="'Helvetica Neue', Arial, sans-serif" font-weight="900" font-size="20" fill="#007DB8" letter-spacing="1.5">DELL</text>
+</svg>

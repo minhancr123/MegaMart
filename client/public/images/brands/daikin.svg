@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 150 40" fill="none">
+  <!-- Daikin cyan triangle icon -->
+  <polygon points="12,32 30,8 30,32" fill="#0097E2"/>
+  <polygon points="30,8 40,20 30,20" fill="#006BB6"/>
+  <!-- DAIKIN Wordmark -->
+  <text x="46" y="27" font-family="'Helvetica Neue', Arial, sans-serif" font-weight="900" font-size="20" fill="#0097E2" letter-spacing="1">DAIKIN</text>
+</svg>

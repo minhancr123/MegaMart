@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { validateVoucher } from "@/lib/voucherApi";
 import { toast } from "sonner";
+import { useAuthStore } from "@/store/authStore";
 
 interface VoucherInputProps {
   subtotal: number;
@@ -22,6 +23,7 @@ export const VoucherInput = ({
 }: VoucherInputProps) => {
   const [code, setCode] = useState("");
   const [loading, setLoading] = useState(false);
+  const { user } = useAuthStore();
 
   const handleApply = async () => {
     const trimmed = code.trim().toUpperCase();
@@ -32,7 +34,7 @@ export const VoucherInput = ({
 
     setLoading(true);
     try {
-      const res = await validateVoucher(trimmed, subtotal);
+      const res = await validateVoucher(trimmed, subtotal, user?.id);
       if (res && res.discount > 0) {
         onApplyVoucher(res.discount, trimmed);
         toast.success(`Áp dụng mã ${trimmed} thành công!`);
@@ -41,7 +43,7 @@ export const VoucherInput = ({
         toast.error("Mã khuyến mãi không hợp lệ hoặc chưa đủ điều kiện");
       }
     } catch (err: any) {
-      const msg = err?.response?.data?.message || err?.message || "Mã khuyến mãi không hợp lệ";
+      const msg = err?.data?.message || err?.errormassage || err?.response?.data?.message || err?.message || "Mã khuyến mãi không hợp lệ";
       toast.error(msg);
     } finally {
       setLoading(false);

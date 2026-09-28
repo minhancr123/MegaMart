@@ -9,6 +9,8 @@ import Footer from "@/components/Footer";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { NewsCardSkeleton } from "@/components/ui/skeleton";
+import { formatDate } from "@/lib/utils";
 
 type NewsPost = {
   id: string;
@@ -36,9 +38,6 @@ const stripHtml = (html?: string | null) =>
   (html || "").replace(/<[^>]*>/g, " ").replace(/&nbsp;/g, " ").replace(/\s+/g, " ").trim();
 
 const imageOf = (post: NewsPost) => post.thumbnail || post.imageUrl || "/images/stitch/hero-appliances.jpg";
-
-const formatDate = (value?: string | null) =>
-  new Date(value || Date.now()).toLocaleDateString("vi-VN", { day: "2-digit", month: "2-digit", year: "numeric" });
 
 const readTime = (post: NewsPost) => Math.max(3, Math.ceil(stripHtml(post.content).split(" ").length / 180));
 
@@ -122,8 +121,10 @@ export default function NewsPage() {
           </div>
 
           {loading ? (
-            <div className="grid min-h-[420px] place-items-center rounded-2xl border border-slate-200 bg-white">
-              <div className="h-10 w-10 animate-spin rounded-full border-4 border-orange-100 border-t-[#fc4c00]" />
+            <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+              <NewsCardSkeleton />
+              <NewsCardSkeleton />
+              <NewsCardSkeleton />
             </div>
           ) : !featured ? (
             <div className="grid min-h-[320px] place-items-center rounded-2xl border border-slate-200 bg-white text-center">

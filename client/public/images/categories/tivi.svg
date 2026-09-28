@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 80 80" fill="none">
+  <!-- Modern Smart TV Illustration -->
+  <rect x="10" y="15" width="60" height="38" rx="4" fill="#1E293B" stroke="#0F172A" stroke-width="2"/>
+  <rect x="13" y="18" width="54" height="32" rx="2" fill="url(#tv_screen)"/>
+  <!-- Stand -->
+  <path d="M34 53L28 65H52L46 53" fill="#64748B"/>
+  <rect x="24" y="65" width="32" height="3" rx="1.5" fill="#475569"/>
+  <!-- Screen Glow/Content -->
+  <path d="M13 38L30 25L45 35L57 24L67 32V50H13V38Z" fill="#38BDF8" fill-opacity="0.3"/>
+  <circle cx="54" cy="24" r="4" fill="#FDE047" fill-opacity="0.8"/>
+  <defs>
+    <linearGradient id="tv_screen" x1="13" y1="18" x2="67" y2="50" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#0F172A"/>
+      <stop offset="1" stop-color="#0284C7"/>
+    </linearGradient>
+  </defs>
+</svg>

@@ -49,7 +49,7 @@ export default function MainContent({
     }
 
     try {
-      const response = await addToCart(user.id, variantId, quantity);
+      const response: any = await addToCart(user.id, variantId, quantity);
       if (response.success) {
         toast.success(response.message || "Đã thêm sản phẩm vào giỏ hàng");
         
@@ -402,8 +402,6 @@ export default function MainContent({
               <ProductCard
                 key={product.id}
                 product={product}
-                onAddToCart={handleAddToCart}
-                onViewDetails={handleViewDetails}
               />
             ))
           )}

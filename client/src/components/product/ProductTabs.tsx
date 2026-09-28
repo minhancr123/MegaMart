@@ -5,6 +5,7 @@ import { Product, SpecRow } from "@/interfaces/product";
 import { Star, CheckCircle2, Loader2, FileText, MessageCircleQuestion } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { getSpecAttributes, getSpecRows } from "@/components/product/ProductSpecsSidebar";
+import { formatDate } from "@/lib/utils";
 
 /**
  * Mô tả cào về là text nhiều dòng: xen kẽ tiêu đề mục và đoạn văn, gạch đầu
@@ -196,11 +197,7 @@ export const ProductTabs = ({
     );
   };
 
-  const formatDate = (value?: string | Date) => {
-    if (!value) return "";
-    const date = typeof value === "string" ? new Date(value) : value;
-    return date.toLocaleDateString("vi-VN");
-  };
+  const formatReviewDate = (value?: string | Date) => (value ? formatDate(value) : "");
 
   return (
     <div className="w-full space-y-6">
@@ -420,7 +417,7 @@ export const ProductTabs = ({
                         </span>
                       </div>
                       <span className="text-xs text-muted-foreground">
-                        {formatDate(review.createdAt)}
+                        {formatReviewDate(review.createdAt)}
                       </span>
                     </div>
 

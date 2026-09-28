@@ -7,31 +7,25 @@ import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { trackShippingOrder, getShipmentTimeline, type ShippingTracking, type DeliveryProofItem, type ShipmentTimelineEvent } from "@/lib/shippingApi";
 import { shippingStatusBadgeTone, shippingStatusName } from "@/lib/shippingLabels";
+import { formatDate } from "@/lib/utils";
 
 interface ShippingCarrierCardProps {
   orderId?: string;
   /** Mã đơn MegaMart, dùng để tra cứu vận đơn thật trên GHN. */
   orderCode?: string;
   carrierName?: string;
+  /** Chỉ hiện nút Hóa đơn điện tử khi đơn đã thanh toán (chưa thu tiền thì chưa xuất hóa đơn). */
+  canShowInvoice?: boolean;
 }
 
-const formatDateTime = (iso: string | null | undefined) => {
-  if (!iso) return "";
-  const d = new Date(iso);
-  if (isNaN(d.getTime())) return "";
-  return d.toLocaleString("vi-VN", {
-    day: "2-digit",
-    month: "2-digit",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
-};
+const formatDateTime = (iso: string | null | undefined) =>
+  iso ? formatDate(iso, { withTime: true }) : "";
 
 export const ShippingCarrierCard = ({
   orderId = "",
   orderCode = "",
   carrierName = "GHN Express",
+  canShowInvoice = false,
 }: ShippingCarrierCardProps) => {
   const [tracking, setTracking] = useState<ShippingTracking | null>(null);
   const [proofs, setProofs] = useState<DeliveryProofItem[]>([]);
@@ -141,15 +135,17 @@ export const ShippingCarrierCard = ({
           {tracking?.found && (tracking.statusName || tracking.status) && (
             <Badge variant={shippingStatusBadgeTone(tracking.status)}>{tracking.statusName || shippingStatusName(tracking.status)}</Badge>
           )}
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => toast.info("Hóa đơn điện tử đang được xử lý và gửi vào email của bạn.")}
-            className="rounded-xl h-9 px-3.5 text-xs font-semibold border-border gap-1.5 hover:bg-muted"
-          >
-            <span>Hóa đơn điện tử</span>
-            <ExternalLink className="w-3.5 h-3.5" />
-          </Button>
+          {canShowInvoice && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => toast.info("Hóa đơn điện tử đang được xử lý và gửi vào email của bạn.")}
+              className="rounded-xl h-9 px-3.5 text-xs font-semibold border-border gap-1.5 hover:bg-muted"
+            >
+              <span>Hóa đơn điện tử</span>
+              <ExternalLink className="w-3.5 h-3.5" />
+            </Button>
+          )}
         </div>
       </div>
 
@@ -208,13 +204,13 @@ export const ShippingCarrierCard = ({
       )}
 
       {/* Ghi chú vận hành / cập nhật hẹn giao lại */}
-      {events.filter((e) => e.kind === "NOTE" || e.kind === "INCIDENT").length > 0 && (
+      {events.filter((e) => e.kind === "NOTE" || e.kind === "INCIDENT" || e.kind === "TRACKING").length > 0 && (
         <div className="border-t border-border pt-3 space-y-1.5">
           <p className="text-xs font-semibold text-foreground">Cập nhật vận chuyển &amp; ghi chú giao hàng</p>
           <div className="space-y-1.5">
-            {events.filter((e) => e.kind === "NOTE" || e.kind === "INCIDENT").map((ev) => (
+            {events.filter((e) => e.kind === "NOTE" || e.kind === "INCIDENT" || e.kind === "TRACKING").map((ev) => (
               <div key={ev.id} className="text-xs text-muted-foreground bg-muted/40 rounded-lg p-2.5 flex items-start gap-2 border border-border/50">
-                <span className={`h-1.5 w-1.5 rounded-full mt-1.5 shrink-0 ${ev.kind === "INCIDENT" ? "bg-red-500" : "bg-orange-500"}`} />
+                <span className={`h-1.5 w-1.5 rounded-full mt-1.5 shrink-0 ${ev.kind === "INCIDENT" ? "bg-red-500" : ev.kind === "TRACKING" ? "bg-blue-500" : "bg-orange-500"}`} />
                 <div className="min-w-0">
                   <p className="font-medium text-foreground">{ev.message || shippingStatusName(ev.status)}</p>
                   <p className="text-[10px] text-muted-foreground mt-0.5">{formatDateTime(ev.occurredAt || ev.createdAt)}</p>

@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 80 80" fill="none">
+  <!-- Smartphone Body -->
+  <rect x="25" y="10" width="30" height="60" rx="6" fill="#0F172A" stroke="#334155" stroke-width="2"/>
+  <!-- Screen -->
+  <rect x="27" y="14" width="26" height="52" rx="3" fill="url(#phone_screen)"/>
+  <!-- Dynamic Island / Speaker Pill -->
+  <rect x="36" y="12" width="8" height="2" rx="1" fill="#64748B"/>
+  <!-- Screen Wallpaper details -->
+  <circle cx="40" cy="35" r="8" fill="#F43F5E" fill-opacity="0.8"/>
+  <circle cx="45" cy="45" r="7" fill="#8B5CF6" fill-opacity="0.8"/>
+  <defs>
+    <linearGradient id="phone_screen" x1="27" y1="14" x2="53" y2="66" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#1E1B4B"/>
+      <stop offset="1" stop-color="#4C1D95"/>
+    </linearGradient>
+  </defs>
+</svg>

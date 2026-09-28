@@ -1,6 +1,7 @@
 "use client";
 
 import { Truck, CheckCircle } from "lucide-react";
+import { formatPrice } from "@/lib/utils";
 
 interface FreeshipProgressProps {
   subtotal: number;
@@ -15,14 +16,6 @@ export const FreeshipProgress = ({
   const remaining = Math.max(0, threshold - subtotal);
   const percentage = Math.min(100, Math.round((subtotal / threshold) * 100));
 
-  const formatPrice = (price: number) => {
-    return new Intl.NumberFormat("vi-VN", {
-      style: "currency",
-      currency: "VND",
-      maximumFractionDigits: 0,
-    }).format(price);
-  };
-
   return (
     <div className="p-3.5 bg-primary/5 border border-primary/20 rounded-xl space-y-2">
       <div className="flex items-center gap-2 text-xs sm:text-sm">
@@ -34,7 +27,7 @@ export const FreeshipProgress = ({
         <span className="text-foreground">
           {isFree ? (
             <span className="font-semibold text-[var(--success)]">
-              Đơn hàng của bạn đã đủ điều kiện Miễn phí vận chuyển!
+              Đơn từ {formatPrice(threshold)} — nhớ áp mã FREESHIP ở bước thanh toán để được miễn phí vận chuyển!
             </span>
           ) : (
             <span>
@@ -42,7 +35,7 @@ export const FreeshipProgress = ({
               <strong className="text-primary font-bold">
                 {formatPrice(remaining)}
               </strong>{" "}
-              để được miễn phí vận chuyển
+              để đủ điều kiện dùng mã FREESHIP
             </span>
           )}
         </span>

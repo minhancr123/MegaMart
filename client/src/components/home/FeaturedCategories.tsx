@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { Category } from "@/interfaces/product";
 import { ArrowRight, Smartphone, Laptop, Headphones, Watch, Camera, Gamepad, Shirt, Home, Gift, MoreHorizontal } from "lucide-react";
-import { motion } from "framer-motion";
+import { motion, type Variants } from "framer-motion";
 
 interface FeaturedCategoriesProps {
     categories: Category[];
@@ -35,7 +35,7 @@ const containerVariants = {
     }
 };
 
-const itemVariants = {
+const itemVariants: Variants = {
     hidden: { opacity: 0, y: 20, scale: 0.95 },
     visible: {
         opacity: 1,

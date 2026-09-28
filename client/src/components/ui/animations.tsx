@@ -1,6 +1,6 @@
 'use client';
 
-import { AnimatePresence, motion } from 'framer-motion';
+import { AnimatePresence, motion, type Transition } from 'framer-motion';
 import { usePathname } from 'next/navigation';
 import { ReactNode } from 'react';
 
@@ -23,7 +23,7 @@ const pageVariants = {
     },
 };
 
-const pageTransition = {
+const pageTransition: Transition = {
     type: 'tween',
     ease: 'anticipate',
     duration: 0.4,

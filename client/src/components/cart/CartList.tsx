@@ -4,24 +4,24 @@ import { CartListProps } from "@/interfaces/product";
 import { CartItem } from "./CartItem";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { ShoppingBag, ArrowRight, ShieldCheck, ArrowLeft } from "lucide-react";
+import { ShoppingBag, ArrowRight, ShieldCheck, ArrowLeft, Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { removeCartItem, updateQuantityChange } from "@/lib/cartApi";
 import { toast } from "sonner";
 import { useCart } from "@/hooks/useCart";
+import { useAuthStore } from "@/store/authStore";
+import { fetchAddressesByUser, type Address } from "@/lib/addressApi";
+import { calculateGhnFee } from "@/lib/shippingApi";
 import { FreeshipProgress } from "./FreeshipProgress";
-import { VoucherInput } from "./VoucherInput";
 import { MobileStickyBar } from "./MobileStickyBar";
+import { formatPrice } from "@/lib/utils";
 
 export const CartList = ({ cart: initialCart }: CartListProps) => {
   const router = useRouter();
   const [isUpdating, setIsUpdating] = useState(false);
   const [optimisticCart, setOptimisticCart] = useState(initialCart);
   const { cart: liveCart, refreshCart } = useCart();
-
-  // State Voucher
-  const [appliedVoucher, setAppliedVoucher] = useState<{ code: string; discount: number } | null>(null);
 
   const currentCart = optimisticCart || liveCart || initialCart;
 
@@ -30,6 +30,76 @@ export const CartList = ({ cart: initialCart }: CartListProps) => {
       setOptimisticCart(liveCart);
     }
   }, [liveCart]);
+
+  const { user } = useAuthStore();
+  // Địa chỉ mặc định để tính phí GHN thật (giống fallback ở checkout: mặc định, không có thì lấy đầu tiên)
+  const [defaultAddress, setDefaultAddress] = useState<Address | null>(null);
+  // Phí ship GHN thật; chưa có địa chỉ/mã GHN hoặc GHN lỗi thì hiện "Tính khi thanh toán"
+  const [shippingFee, setShippingFee] = useState(0);
+  const [feeLoading, setFeeLoading] = useState(false);
+  const [feeError, setFeeError] = useState(false);
+  const feeSeq = useRef(0);
+
+  const items = currentCart?.data?.items || [];
+  const totalItemsCount = items.reduce((acc: number, item: any) => acc + (item.quantity || 1), 0);
+  const subtotal = items.reduce((total: number, item: any) => {
+    const price = Number(item.variant?.salePrice || item.variant?.price || 0);
+    return total + price * item.quantity;
+  }, 0);
+  const hasGhnCodes = Boolean(defaultAddress?.districtId && defaultAddress?.wardCode);
+
+  useEffect(() => {
+    if (!user?.id) {
+      setDefaultAddress(null);
+      return;
+    }
+    let alive = true;
+    fetchAddressesByUser(user.id)
+      .then((data) => {
+        if (!alive) return;
+        setDefaultAddress(data.find((a) => a.isDefault) || data[0] || null);
+      })
+      .catch(() => {
+        if (alive) setDefaultAddress(null);
+      });
+    return () => {
+      alive = false;
+    };
+  }, [user?.id]);
+
+  useEffect(() => {
+    const districtId = defaultAddress?.districtId;
+    const wardCode = defaultAddress?.wardCode;
+    if (!districtId || !wardCode || items.length === 0) {
+      setShippingFee(0);
+      setFeeError(false);
+      setFeeLoading(false);
+      return;
+    }
+    let alive = true;
+    const seq = ++feeSeq.current;
+    setFeeLoading(true);
+    setFeeError(false);
+    // Cùng công thức với checkout: mỗi món ~500g, kẹp 300g–20000g
+    const weight = Math.min(20000, Math.max(300, totalItemsCount * 500));
+    calculateGhnFee({ toDistrictId: Number(districtId), toWardCode: String(wardCode), weight, insuranceValue: subtotal })
+      .then((q) => {
+        if (alive && seq === feeSeq.current) setShippingFee(Number(q?.fee || 0));
+      })
+      .catch(() => {
+        // GHN lỗi thì không được hiện "Miễn phí" — để cờ lỗi cho UI hiện "Tính khi thanh toán"
+        if (alive && seq === feeSeq.current) {
+          setShippingFee(0);
+          setFeeError(true);
+        }
+      })
+      .finally(() => {
+        if (alive && seq === feeSeq.current) setFeeLoading(false);
+      });
+    return () => {
+      alive = false;
+    };
+  }, [defaultAddress?.districtId, defaultAddress?.wardCode, totalItemsCount, subtotal]);
 
   if (!currentCart) {
     return (
@@ -55,12 +125,13 @@ export const CartList = ({ cart: initialCart }: CartListProps) => {
     setIsUpdating(true);
     try {
       const res = (await updateQuantityChange(itemId, quantity)) as any;
-      if (res && res.success) {
+      const resObj = typeof res === "object" && res !== null ? res : null;
+      if (resObj?.success) {
         await refreshCart();
-        toast.success(res?.data?.message || "Cập nhật số lượng thành công");
+        toast.success(resObj?.message || "Cập nhật số lượng thành công");
       } else {
         setOptimisticCart(currentCart);
-        toast.error(res?.data?.message || "Cập nhật số lượng thất bại");
+        toast.error(typeof res === "string" ? res : (resObj?.message || "Cập nhật số lượng thất bại"));
       }
     } catch (error) {
       console.error("Failed to update quantity:", error);
@@ -86,12 +157,13 @@ export const CartList = ({ cart: initialCart }: CartListProps) => {
     setIsUpdating(true);
     try {
       const result = await removeCartItem(itemId);
-      await refreshCart();
-      if (result && result.success) {
-        toast.success("Đã xóa sản phẩm khỏi giỏ hàng");
+      const resObj = typeof result === "object" && result !== null ? (result as any) : null;
+      if (resObj?.success) {
+        await refreshCart();
+        toast.success(resObj?.message || "Đã xóa sản phẩm khỏi giỏ hàng");
       } else {
         setOptimisticCart(originalCart);
-        toast.error(result?.data?.message || "Xóa sản phẩm thất bại");
+        toast.error(typeof result === "string" ? result : (resObj?.message || "Xóa sản phẩm thất bại"));
       }
     } catch (error) {
       console.error("Failed to remove item:", error);
@@ -102,29 +174,10 @@ export const CartList = ({ cart: initialCart }: CartListProps) => {
     }
   };
 
-  const formatPrice = (price: number): string => {
-    return new Intl.NumberFormat("vi-VN", {
-      style: "currency",
-      currency: "VND",
-      maximumFractionDigits: 0,
-    }).format(price);
-  };
-
-  const items = currentCart?.data?.items || [];
-  const totalItemsCount = items.reduce((acc: number, item: any) => acc + (item.quantity || 1), 0);
-
-  const calculateSubtotal = () => {
-    return items.reduce((total: number, item: any) => {
-      const price = Number(item.variant?.salePrice || item.variant?.price || 0);
-      return total + price * item.quantity;
-    }, 0);
-  };
-
-  const subtotal = calculateSubtotal();
+  // Ngưỡng gợi ý dùng mã FREESHIP (voucher yêu cầu đơn từ 500K), chỉ để hiển
+  // thị thanh tiến trình — không tự miễn phí ship (phí ship luôn lấy từ GHN).
   const FREESHIP_THRESHOLD = 500000;
-  const shippingFee = subtotal >= FREESHIP_THRESHOLD || subtotal === 0 ? 0 : 25000;
-  const discount = appliedVoucher?.discount || 0;
-  const total = Math.max(0, subtotal + shippingFee - discount);
+  const total = Math.max(0, subtotal + shippingFee);
 
   // Giỏ hàng trống
   if (items.length === 0) {
@@ -184,33 +237,10 @@ export const CartList = ({ cart: initialCart }: CartListProps) => {
             </CardContent>
           </Card>
 
-          {/* Khuyến mãi cho Mobile hiển thị trước summary */}
-          <div className="lg:hidden">
-            <Card className="border border-border bg-card rounded-2xl p-4 shadow-sm">
-              <VoucherInput
-                subtotal={subtotal}
-                onApplyVoucher={(disc, code) => setAppliedVoucher({ code, discount: disc })}
-                appliedCode={appliedVoucher?.code}
-                onRemoveVoucher={() => setAppliedVoucher(null)}
-              />
-            </Card>
-          </div>
         </div>
 
         {/* Cột Tóm tắt Đơn hàng (Bên phải - Desktop Sticky) */}
         <div className="lg:col-span-4 space-y-5">
-          {/* Box Khuyến mãi (Desktop) */}
-          <div className="hidden lg:block">
-            <Card className="border border-border bg-card rounded-2xl p-5 shadow-sm">
-              <VoucherInput
-                subtotal={subtotal}
-                onApplyVoucher={(disc, code) => setAppliedVoucher({ code, discount: disc })}
-                appliedCode={appliedVoucher?.code}
-                onRemoveVoucher={() => setAppliedVoucher(null)}
-              />
-            </Card>
-          </div>
-
           {/* Box Tổng Đơn Hàng */}
           <Card className="border border-border bg-card rounded-2xl p-5 sm:p-6 shadow-sm sticky top-24 space-y-5">
             <CardHeader className="p-0">
@@ -228,22 +258,31 @@ export const CartList = ({ cart: initialCart }: CartListProps) => {
                 </div>
 
                 <div className="flex justify-between items-center text-muted-foreground">
-                  <span>Phí vận chuyển</span>
                   <span>
-                    {shippingFee === 0 ? (
-                      <span className="font-semibold text-[var(--success)]">Miễn phí</span>
+                    Phí vận chuyển (GHN)
+                    {hasGhnCodes && defaultAddress && (
+                      <span className="block text-[11px]">
+                        Giao đến: {[defaultAddress.ward, defaultAddress.district].filter(Boolean).join(", ")}
+                      </span>
+                    )}
+                  </span>
+                  <span>
+                    {feeLoading ? (
+                      <span className="inline-flex items-center gap-1.5 font-medium text-foreground">
+                        <Loader2 className="h-3.5 w-3.5 animate-spin" /> Đang tính...
+                      </span>
+                    ) : hasGhnCodes && !feeError ? (
+                      shippingFee === 0 ? (
+                        <span className="font-semibold text-[var(--success)]">Miễn phí</span>
+                      ) : (
+                        <span className="font-medium text-foreground">{formatPrice(shippingFee)}</span>
+                      )
                     ) : (
-                      <span className="font-medium text-foreground">{formatPrice(shippingFee)}</span>
+                      <span className="font-medium text-foreground">Tính khi thanh toán</span>
                     )}
                   </span>
                 </div>
 
-                {discount > 0 && (
-                  <div className="flex justify-between items-center text-[var(--success)] font-medium">
-                    <span>Giảm giá khuyến mãi</span>
-                    <span>-{formatPrice(discount)}</span>
-                  </div>
-                )}
               </div>
 
               {/* Thanh tiến trình Freeship chuẩn Stitch */}

@@ -10,6 +10,7 @@ import Image from "next/image";
 import { visibleAttributes, formatAttributeValue } from '@/lib/productAttributes';
 import { getAvailableStock } from '@/lib/stock';
 import { PLACEHOLDER_IMAGE } from '@/lib/imageUtils';
+import { formatPrice } from '@/lib/utils';
 
 interface ProductVariantsProps {
   product: Product;
@@ -32,14 +33,6 @@ export const ProductVariants = ({ product, onAddToCart }: ProductVariantsProps) 
   const currentUrl = hasImages ? productImages[currentImageIndex]?.url : undefined;
   const mainImage =
     currentUrl && !brokenUrls.includes(currentUrl) ? currentUrl : PLACEHOLDER_IMAGE;
-
-  const formatPrice = (price: number): string => {
-    return new Intl.NumberFormat("vi-VN", {
-      style: "currency",
-      currency: "VND",
-      maximumFractionDigits: 0,
-    }).format(price);
-  };
 
   const handleVariantSelect = (variant: Variant) => {
     setSelectedVariant(variant);

@@ -17,13 +17,12 @@ import {
     List,
     Package,
     Search,
-    Loader2,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Slider } from '@/components/ui/slider';
-import { Skeleton } from '@/components/ui/skeleton';
+import { Skeleton, ProductsGridSkeleton } from '@/components/ui/skeleton';
 import {
     Select,
     SelectContent,
@@ -123,7 +122,7 @@ export default function ProductsPage() {
         }
 
         try {
-            const response = await addToCart(user.id, variantId, quantity);
+            const response: any = await addToCart(user.id, variantId, quantity);
             if (response.success) {
                 toast.success(response.message || 'Đã thêm sản phẩm vào giỏ hàng');
                 
@@ -364,9 +363,7 @@ export default function ProductsPage() {
 
                         {/* Loading */}
                         {loading && (
-                            <div className="flex items-center justify-center py-20">
-                                <Loader2 className="w-8 h-8 animate-spin text-[#af3200]" />
-                            </div>
+                            <ProductsGridSkeleton count={8} className="grid grid-cols-2 sm:grid-cols-2 xl:grid-cols-3 gap-3.5 sm:gap-6" />
                         )}
 
                         {/* No Results */}
@@ -393,7 +390,7 @@ export default function ProductsPage() {
                                 <div
                                     className={
                                         viewMode === 'grid'
-                                            ? 'grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-6'
+                                            ? 'grid grid-cols-2 xl:grid-cols-3 gap-3.5 sm:gap-6'
                                             : 'space-y-4'
                                     }
                                 >
@@ -401,8 +398,6 @@ export default function ProductsPage() {
                                         <ProductCard
                                             key={product.id}
                                             product={product}
-                                            onAddToCart={handleAddToCart}
-                                            onViewDetails={handleViewDetails}
                                         />
                                     ))}
                                 </div>

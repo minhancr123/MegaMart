@@ -527,8 +527,6 @@ export default function MainContent({
               >
                 <ProductCard
                   product={product}
-                  onAddToCart={handleAddToCart}
-                  onViewDetails={handleViewDetails}
                 />
               </motion.div>
             ))}

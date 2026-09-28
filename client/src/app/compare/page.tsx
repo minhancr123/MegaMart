@@ -8,15 +8,46 @@ import { Scale, X, ShoppingCart, Check, Minus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 import Image from 'next/image';
+import { toast } from 'sonner';
+import { formatPrice, getErrorMessage } from '@/lib/utils';
+import { useAuthStore } from '@/store/authStore';
+import { useCartStore } from '@/store/cartStore';
+import { addToCart } from '@/lib/cartApi';
 
 export default function ComparePage() {
   const compare = useCompareStore();
+  const { user } = useAuthStore();
+  const cartStore = useCartStore();
+  // Store lưu { id, product }; chuẩn hóa về mảng Product, tương thích data cũ dạng phẳng.
+  const products = compare.items
+    .filter(Boolean)
+    .map((item: any) => (item?.product ?? item))
+    .filter(Boolean);
 
-  const formatPrice = (price: number) => {
-    return new Intl.NumberFormat('vi-VN', {
-      style: 'currency',
-      currency: 'VND',
-    }).format(price);
+  const handleAddToCart = async (product: any) => {
+    const variantId = product.variants?.[0]?.id;
+    if (!variantId) {
+      toast.error("Sản phẩm chưa có biến thể để thêm vào giỏ");
+      return;
+    }
+    if (!user?.id) {
+      toast.error("Bạn cần đăng nhập để thêm sản phẩm vào giỏ hàng");
+      return;
+    }
+    try {
+      await addToCart(user.id, variantId, 1);
+      const variant = product.variants?.[0];
+      cartStore.addItem({
+        id: parseInt(variantId) || 1,
+        name: product.name,
+        price: Number(variant?.salePrice || variant?.price || product.price || 0),
+        quantity: 1,
+        imageUrl: product.images?.[0]?.url || product.imageUrl || "",
+      });
+      toast.success("Đã thêm sản phẩm vào giỏ hàng");
+    } catch (err: any) {
+      toast.error(getErrorMessage(err, "Có lỗi xảy ra khi thêm sản phẩm vào giỏ hàng"));
+    }
   };
 
   return (
@@ -31,11 +62,11 @@ export default function ComparePage() {
               So sánh sản phẩm
             </h1>
             <p className="text-slate-600 dark:text-gray-400">
-              Bạn đang so sánh {compare.items.length} sản phẩm (tối đa 4)
+              Bạn đang so sánh {products.length} sản phẩm (tối đa 4)
             </p>
           </div>
 
-          {compare.items.length === 0 ? (
+          {products.length === 0 ? (
             /* Empty State */
             <div className="text-center py-20">
               <div className="w-24 h-24 bg-slate-100 dark:bg-gray-800 rounded-full flex items-center justify-center mx-auto mb-6">
@@ -76,7 +107,7 @@ export default function ComparePage() {
                         <th className="text-left p-6 font-bold text-slate-900 dark:text-white sticky left-0 bg-slate-50 dark:bg-gray-800 z-10">
                           Tiêu chí
                         </th>
-                        {compare.items.map((product) => (
+                        {products.map((product: any) => (
                           <th key={product.id} className="p-6 min-w-[250px]">
                             <div className="relative">
                               <button
@@ -118,7 +149,7 @@ export default function ComparePage() {
                         <td className="p-6 font-medium text-slate-900 dark:text-white sticky left-0 bg-white dark:bg-gray-900">
                           Giá
                         </td>
-                        {compare.items.map((product) => (
+                        {products.map((product: any) => (
                           <td key={product.id} className="p-6 text-center">
                             <div className="text-xl font-bold text-indigo-600 dark:text-indigo-400">
                               {product.price ? formatPrice(product.price) : 'Liên hệ'}
@@ -132,7 +163,7 @@ export default function ComparePage() {
                         <td className="p-6 font-medium text-slate-900 dark:text-white sticky left-0 bg-slate-50 dark:bg-gray-800/50">
                           Danh mục
                         </td>
-                        {compare.items.map((product) => (
+                        {products.map((product: any) => (
                           <td key={product.id} className="p-6 text-center text-slate-600 dark:text-gray-400">
                             {product.category?.name || '-'}
                           </td>
@@ -144,9 +175,9 @@ export default function ComparePage() {
                         <td className="p-6 font-medium text-slate-900 dark:text-white sticky left-0 bg-white dark:bg-gray-900">
                           Tình trạng
                         </td>
-                        {compare.items.map((product) => {
+                        {products.map((product: any) => {
                           const totalStock = product.variants?.reduce(
-                            (sum, v) => sum + (v.stock || 0),
+                            (sum: number, v: { stock?: number } | null | undefined) => sum + (v?.stock || 0),
                             0
                           ) || 0;
                           return (
@@ -172,7 +203,7 @@ export default function ComparePage() {
                         <td className="p-6 font-medium text-slate-900 dark:text-white sticky left-0 bg-slate-50 dark:bg-gray-800/50">
                           Biến thể
                         </td>
-                        {compare.items.map((product) => (
+                        {products.map((product: any) => (
                           <td key={product.id} className="p-6 text-center text-slate-600 dark:text-gray-400">
                             {product.variants?.length || 0} biến thể
                           </td>
@@ -184,7 +215,7 @@ export default function ComparePage() {
                         <td className="p-6 font-medium text-slate-900 dark:text-white sticky left-0 bg-white dark:bg-gray-900">
                           Mô tả
                         </td>
-                        {compare.items.map((product) => (
+                        {products.map((product: any) => (
                           <td key={product.id} className="p-6 text-sm text-slate-600 dark:text-gray-400">
                             <div className="line-clamp-3">
                               {product.description || 'Chưa có mô tả'}
@@ -198,15 +229,15 @@ export default function ComparePage() {
                         <td className="p-6 font-medium text-slate-900 sticky left-0 bg-slate-50">
                           Thao tác
                         </td>
-                        {compare.items.map((product) => (
+                        {products.map((product: any) => (
                           <td key={product.id} className="p-6">
                             <div className="flex flex-col gap-2">
                               <Link href={`/product/${product.id}`}>
-                                <Button className="w-full bg-[#ff4d00] text-white hover:bg-[#d94100]">
+                                <Button className="w-full">
                                   Xem chi tiết
                                 </Button>
                               </Link>
-                              <Button variant="outline" className="w-full">
+                              <Button variant="outline" className="w-full" onClick={() => handleAddToCart(product)}>
                                 <ShoppingCart className="w-4 h-4 mr-2" />
                                 Thêm vào giỏ
                               </Button>

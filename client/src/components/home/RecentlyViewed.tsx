@@ -8,6 +8,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { useRef, useState, useEffect } from "react";
 import { useMounted } from "@/hooks/useMounted";
+import { formatPrice } from "@/lib/utils";
 
 export default function RecentlyViewed() {
   const { items, clearAll } = useRecentlyViewedStore();
@@ -46,12 +47,6 @@ export default function RecentlyViewed() {
   };
 
   if (!mounted || items.length === 0) return null;
-
-  const formatPrice = (price: number) =>
-    new Intl.NumberFormat("vi-VN", {
-      style: "currency",
-      currency: "VND",
-    }).format(price);
 
   const getTimeAgo = (timestamp: number) => {
     const diff = renderedAt - timestamp;

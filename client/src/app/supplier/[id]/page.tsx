@@ -17,6 +17,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { AdminEmptyState } from "@/components/admin/AdminEmptyState";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   ArrowLeft,
   CheckCircle2,
@@ -27,28 +28,13 @@ import {
 } from "lucide-react";
 import { supplierApi, type SupplierPurchaseOrder } from "@/lib/supplierApi";
 import ShipmentSimulator from "@/components/admin/ShipmentSimulator";
+import { getErrorMessage } from "@/lib/utils";
 import { toast } from "sonner";
 
-const STATUS_STYLE: Record<string, string> = {
-  DRAFT: "bg-zinc-100 text-zinc-600 border-zinc-200",
-  SENT: "bg-blue-50 text-blue-700 border-blue-200",
-  PARTIAL: "bg-amber-50 text-amber-700 border-amber-200",
-  COMPLETED: "bg-green-50 text-green-700 border-green-200",
-  CANCELLED: "bg-red-50 text-red-500 border-red-200",
-};
-
-const STATUS_LABEL: Record<string, string> = {
-  DRAFT: "Nháp",
-  SENT: "Mới (chờ xác nhận)",
-  PARTIAL: "Nhập một phần",
-  COMPLETED: "Hoàn thành",
-  CANCELLED: "Đã hủy",
-};
-
-const formatCurrency = (n: number) =>
-  new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND", maximumFractionDigits: 0 }).format(
-    Number(n || 0)
-  );
+import {
+  PO_STATUS_STYLE as STATUS_STYLE,
+  PO_STATUS_LABEL_SUPPLIER as STATUS_LABEL,
+} from "@/lib/inventoryStatus";
 
 export default function SupplierPurchaseOrderDetail() {
   const params = useParams();
@@ -80,9 +66,11 @@ export default function SupplierPurchaseOrderDetail() {
   // Realtime: admin bấm gì (duyệt phiếu...) thì NCC thấy ngay không cần F5
   useEffect(() => {
     if (!po || (po.status !== "SENT" && po.status !== "PARTIAL")) return;
+    let alive = true;
     const timer = setInterval(async () => {
       try {
         const fresh = await supplierApi.getPurchaseOrder(id);
+        if (!alive) return;
         if (fresh?.id && fresh.status !== po.status) {
           setPo(fresh);
           toast.info("Đơn hàng có cập nhật mới từ MegaMart");
@@ -93,11 +81,15 @@ export default function SupplierPurchaseOrderDetail() {
         // Bỏ qua lỗi thoáng qua
       }
     }, 5000);
-    return () => clearInterval(timer);
+    return () => {
+      alive = false;
+      clearInterval(timer);
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id, po?.status]);
 
   const handleConfirm = async () => {
+    if (confirming) return;
     try {
       setConfirming(true);
       await supplierApi.confirmPurchaseOrder(id, {
@@ -105,9 +97,13 @@ export default function SupplierPurchaseOrderDetail() {
         note: note.trim() || undefined,
       });
       toast.success("Đã xác nhận đơn đặt hàng");
-      await loadPO();
+      try {
+        setPo(await supplierApi.getPurchaseOrder(id));
+      } catch {
+        await loadPO();
+      }
     } catch (error: any) {
-      toast.error(error?.data?.message || error?.errormassage || "Xác nhận thất bại");
+      toast.error(getErrorMessage(error, "Xác nhận thất bại"));
     } finally {
       setConfirming(false);
     }
@@ -115,8 +111,45 @@ export default function SupplierPurchaseOrderDetail() {
 
   if (loading) {
     return (
-      <div className="flex justify-center items-center min-h-[400px]">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      <div className="space-y-6" aria-busy="true" aria-live="polite">
+        <Skeleton className="h-5 w-40" />
+        <Card>
+          <CardContent className="pt-6 space-y-3">
+            <div className="flex flex-wrap items-center gap-2">
+              <Skeleton className="h-8 w-48" />
+              <Skeleton className="h-6 w-28 rounded-full" />
+            </div>
+            <Skeleton className="h-4 w-2/3" />
+            <Skeleton className="h-4 w-1/2" />
+            <div className="pt-2 space-y-1.5">
+              <div className="flex justify-between">
+                <Skeleton className="h-4 w-32" />
+                <Skeleton className="h-4 w-24" />
+              </div>
+              <Skeleton className="h-2.5 w-full rounded-full" />
+            </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="py-5 space-y-3">
+            <Skeleton className="h-5 w-44" />
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <Skeleton className="h-10 w-full rounded-xl" />
+              <Skeleton className="h-10 w-full rounded-xl" />
+            </div>
+            <Skeleton className="h-10 w-48 rounded-xl" />
+          </CardContent>
+        </Card>
+        <Card className="gap-0 overflow-hidden py-0">
+          <CardHeader className="py-4">
+            <Skeleton className="h-5 w-36" />
+          </CardHeader>
+          <div className="px-6 pb-5 space-y-2">
+            <Skeleton className="h-12 w-full" />
+            <Skeleton className="h-12 w-full" />
+            <Skeleton className="h-12 w-full" />
+          </div>
+        </Card>
       </div>
     );
   }
@@ -196,7 +229,7 @@ export default function SupplierPurchaseOrderDetail() {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div className="space-y-2">
                 <Label>Ngày giao dự kiến</Label>
-                <Input type="date" value={expectedDate} onChange={(e) => setExpectedDate(e.target.value)} />
+                <Input type="date" value={expectedDate} onChange={(e) => setExpectedDate(e.target.value)} disabled={confirming} />
               </div>
               <div className="space-y-2">
                 <Label>Ghi chú (tùy chọn)</Label>
@@ -204,10 +237,12 @@ export default function SupplierPurchaseOrderDetail() {
                   placeholder="vd: Giao 2 đợt, đợt 1 ngày..."
                   value={note}
                   onChange={(e) => setNote(e.target.value)}
+                  disabled={confirming}
                 />
               </div>
             </div>
             <Button onClick={handleConfirm} disabled={confirming} className="w-full sm:w-auto h-10 rounded-xl font-bold">
+              {confirming && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               {confirming ? "Đang xác nhận..." : "Xác nhận đã nhận đơn"}
             </Button>
           </CardContent>
@@ -221,9 +256,11 @@ export default function SupplierPurchaseOrderDetail() {
           poCode={po.code}
           supplierName="Kho của bạn"
           supplierAddress={po.supplier?.address}
+          supplierLat={po.supplier?.lat}
+          supplierLng={po.supplier?.lng}
           warehouseName={po.warehouse?.name || "Kho MegaMart"}
           warehouseCode={po.warehouse?.code}
-          syncedProgress={(po as any).shipmentProgress ?? null}
+          syncedProgress={po.shipmentProgress ?? null}
           onProgress={(p) => {
             supplierApi.updateShipment(id, p).catch(() => {});
           }}

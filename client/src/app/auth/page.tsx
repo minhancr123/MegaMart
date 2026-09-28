@@ -4,7 +4,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ArrowRight, BadgeCheck, Eye, EyeOff, Loader2, Lock, Mail, ShieldCheck, ShoppingBag, Truck, User } from "lucide-react";
 import Link from "next/link";
-import { useState, useEffect, Suspense } from "react";
+import { useState, useEffect, useRef, Suspense } from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useForm } from 'react-hook-form'
@@ -50,7 +50,79 @@ function AuthPageContent() {
     const [islogin, setIsLogin] = useState(true);
     const [showPassword, setShowPassword] = useState(false);
     const [loading, setloading] = useState(false);
+    const [googleLoading, setGoogleLoading] = useState(false);
+    const googleBtnRef = useRef<HTMLDivElement>(null);
     const { login } = useAuthStore();
+
+    const GOOGLE_CLIENT_ID = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID || "";
+    const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+
+    const handleGoogleCredential = async (credential: string) => {
+        setGoogleLoading(true);
+        try {
+            const result = await fetch(`${API_BASE}/api/auth/google`, {
+                headers: { 'Content-Type': 'application/json' },
+                method: 'POST',
+                body: JSON.stringify({ idToken: credential }),
+            });
+            const resData = await result.json();
+            if (!resData.success) {
+                toast.error(resData.message || 'Đăng nhập Google thất bại');
+                return;
+            }
+            login(resData.user, resData.accessToken);
+            const role = resData.user?.role;
+            const callbackUrl = new URLSearchParams(window.location.search).get('callbackUrl');
+            const redirectTo = role === 'SHIPPER' ? '/shipper' : role === 'SUPPLIER' ? '/supplier' : (callbackUrl || '/');
+            router.push(redirectTo);
+            toast.success('Đăng nhập Google thành công');
+        } catch {
+            toast.error('Đã xảy ra lỗi, vui lòng thử lại sau');
+        } finally {
+            setGoogleLoading(false);
+        }
+    };
+
+    // Nạp Google Identity Services và vẽ nút "Sign in with Google" chính chủ
+    useEffect(() => {
+        if (!GOOGLE_CLIENT_ID || !googleBtnRef.current) return;
+        if (googleBtnRef.current.dataset.rendered === "1") return;
+        const renderBtn = () => {
+            const google = (window as any).google;
+            if (!google?.accounts?.id || !googleBtnRef.current) return;
+            google.accounts.id.initialize({
+                client_id: GOOGLE_CLIENT_ID,
+                callback: (resp: any) => {
+                    if (resp?.credential) handleGoogleCredential(resp.credential);
+                },
+            });
+            google.accounts.id.renderButton(googleBtnRef.current, {
+                theme: "outline",
+                size: "large",
+                width: 320,
+                text: "signin_with",
+                locale: "vi",
+            });
+            googleBtnRef.current.dataset.rendered = "1";
+        };
+        if ((window as any).google?.accounts?.id) {
+            renderBtn();
+            return;
+        }
+        const script = document.querySelector('script[data-google-gsi]');
+        if (script) {
+            script.addEventListener('load', renderBtn, { once: true });
+            return;
+        }
+        const el = document.createElement('script');
+        el.src = 'https://accounts.google.com/gsi/client';
+        el.async = true;
+        el.defer = true;
+        el.dataset.googleGsi = "1";
+        el.onload = renderBtn;
+        document.head.appendChild(el);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [GOOGLE_CLIENT_ID]);
 
     const loginform = useForm<loginFormData>({
         resolver: zodResolver(loginschema),
@@ -285,6 +357,26 @@ function AuthPageContent() {
                                 )}
                             </Button>
                         </form>
+
+                        {GOOGLE_CLIENT_ID ? (
+                            <>
+                                <div className="my-5 flex items-center gap-3">
+                                    <span className="h-px flex-1 bg-slate-200" />
+                                    <span className="text-xs font-medium text-slate-400">Hoặc</span>
+                                    <span className="h-px flex-1 bg-slate-200" />
+                                </div>
+                                <div className="flex justify-center">
+                                    <div ref={googleBtnRef} className="min-h-[40px]">
+                                        {googleLoading && (
+                                            <span className="inline-flex items-center gap-2 text-sm text-slate-500">
+                                                <Loader2 className="animate-spin" size={16} />
+                                                Đang đăng nhập Google...
+                                            </span>
+                                        )}
+                                    </div>
+                                </div>
+                            </>
+                        ) : null}
 
                         <div className="mt-8 text-center">
                             <p className="text-slate-500 text-sm">

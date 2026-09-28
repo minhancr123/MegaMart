@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { fetchOrderById, cancelOrder } from "@/lib/orderApi";
+import { fetchOrderById, cancelOrder, confirmReceipt } from "@/lib/orderApi";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -25,6 +25,7 @@ import {
   Phone,
 } from "lucide-react";
 import { toast } from "sonner";
+import { formatPrice, getErrorMessage } from "@/lib/utils";
 import Image from "next/image";
 import Link from "next/link";
 import { visibleAttributes, formatAttributeValue } from "@/lib/productAttributes";
@@ -34,7 +35,6 @@ import {
   listRefundRequests,
   type RefundRequestItem,
 } from "@/lib/shippingApi";
-import { updateOrderStatus } from "@/lib/adminApi";
 import {
   Dialog,
   DialogContent,
@@ -45,6 +45,7 @@ import {
 } from "@/components/ui/dialog";
 import { OrderTrackingStepper } from "@/components/cart/OrderTrackingStepper";
 import { ShippingCarrierCard } from "@/components/cart/ShippingCarrierCard";
+import { ShipperLocationMap } from "@/components/admin/ShipperLocationMap";
 import VietQrPayCard from "@/components/payment/VietQrPayCard";
 
 const statusConfig: Record<
@@ -55,14 +56,14 @@ const statusConfig: Record<
     icon: any;
   }
 > = {
-  PENDING: { label: "Chờ xác nhận", tone: "warning", icon: Clock },
+  PENDING: { label: "Chờ xử lý", tone: "warning", icon: Clock },
   CONFIRMED: { label: "Đã xác nhận", tone: "info", icon: CheckCircle2 },
   PROCESSING: { label: "Đang xử lý", tone: "info", icon: RefreshCw },
-  SHIPPING: { label: "Đang giao", tone: "info", icon: Truck },
-  DELIVERED: { label: "Hoàn thành", tone: "success", icon: CheckCircle2 },
+  SHIPPING: { label: "Đang giao hàng", tone: "info", icon: Truck },
+  DELIVERED: { label: "Đã giao", tone: "success", icon: CheckCircle2 },
   COMPLETED: { label: "Hoàn thành", tone: "success", icon: CheckCircle2 },
   PAID: { label: "Đã thanh toán", tone: "success", icon: CheckCircle2 },
-  CANCELED: { label: "Đã huỷ", tone: "destructive", icon: XCircle },
+  CANCELED: { label: "Đã hủy", tone: "destructive", icon: XCircle },
   FAILED: { label: "Thất bại", tone: "destructive", icon: XCircle },
   REFUNDED: { label: "Đã hoàn tiền", tone: "secondary", icon: RotateCcw },
 };
@@ -95,11 +96,11 @@ export default function OrderDetailPage() {
     if (!confirm("Xác nhận bạn đã nhận đủ hàng và hài lòng với đơn hàng?")) return;
     setCompleting(true);
     try {
-      await updateOrderStatus(order.id, "COMPLETED");
+      await confirmReceipt(order.id);
       toast.success("Cảm ơn bạn! Đơn hàng đã hoàn tất.");
       loadOrder(order.id);
     } catch (err: any) {
-      toast.error(err?.response?.data?.message || err?.message || "Lỗi khi xác nhận nhận hàng");
+      toast.error(getErrorMessage(err, "Lỗi khi xác nhận nhận hàng"));
     } finally {
       setCompleting(false);
     }
@@ -122,7 +123,7 @@ export default function OrderDetailPage() {
       const updated = await listRefundRequests(order.id);
       setRefunds(updated);
     } catch (err: any) {
-      toast.error(err?.response?.data?.message || err?.message || "Không thể gửi yêu cầu hoàn tiền");
+      toast.error(getErrorMessage(err, "Không thể gửi yêu cầu hoàn tiền"));
     } finally {
       setRefundSubmitting(false);
     }
@@ -199,19 +200,11 @@ export default function OrderDetailPage() {
       router.push("/profile/orders");
     } catch (err: any) {
       console.error("Cancel order error:", err);
-      toast.error(err?.response?.data?.message || "Không thể hủy đơn hàng");
+      toast.error(getErrorMessage(err, "Không thể hủy đơn hàng"));
     } finally {
       setCancelling(false);
       setShowCancelConfirm(false);
     }
-  };
-
-  const formatPrice = (price: number): string => {
-    return new Intl.NumberFormat("vi-VN", {
-      style: "currency",
-      currency: "VND",
-      maximumFractionDigits: 0,
-    }).format(price);
   };
 
   if (loading) {
@@ -262,10 +255,30 @@ export default function OrderDetailPage() {
   // Shop đang freeship toàn bộ (server lưu shippingFee = 0) nên fallback cũng là 0
   const shippingFee = Number(order.shippingFee || 0);
   const discountAmount = Number(order.discountAmount || 0);
+  const vatAmount = Number(order.vatAmount || 0);
+  const walletPaid = Number(
+    order.payments?.find((p: any) => p.provider === "WALLET")?.amount || 0,
+  );
   const finalTotal = Number(order.total || subtotal + shippingFee - discountAmount);
 
   // Thông tin giao hàng
-  const address = order.shippingAddress || {};
+  const address = (() => {
+    if (!order.shippingAddress) return {} as any;
+    if (typeof order.shippingAddress === "string") {
+      try {
+        return JSON.parse(order.shippingAddress);
+      } catch {
+        return { address: order.shippingAddress };
+      }
+    }
+    return order.shippingAddress;
+  })();
+  const shippingDestinationAddress = [
+    address.address,
+    address.ward,
+    address.district,
+    address.province,
+  ].filter(Boolean).join(", ");
   const payment = order.payments?.find((p: any) => p.provider !== "WALLET") || order.payments?.[0];
   const assignedShipper = order.assignedShipper;
   const latestRefund = refunds?.[0];
@@ -298,6 +311,11 @@ export default function OrderDetailPage() {
     payment?.status === "PAID" ||
     payment?.status === "SUCCESS" ||
     payment?.status === "REFUNDED";
+  // COD thu tiền khi giao hàng nên đơn COD vẫn được chuẩn bị/giao dù chưa trả.
+  // Đơn online trả trước mà chưa trả thì shop chưa nhận tiền -> chưa có gì để vận chuyển.
+  const isCod = payment?.provider === "COD" || payment?.provider === "OTHER";
+  const canShowShipping =
+    !["CANCELED", "FAILED"].includes(order.status) && (isCod || isPaid);
   const paymentBadge = payment?.status === "REFUNDED" || order.status === "REFUNDED"
     ? { label: "Đã hoàn tiền", variant: "success" as const }
     : isPaid
@@ -384,15 +402,16 @@ export default function OrderDetailPage() {
       )}
 
       {/* 3. Khối Đơn vị vận chuyển (tra cứu thật trên GHN theo mã đơn) */}
-      {order.status !== "CANCELED" && (
+      {canShowShipping && (
         <ShippingCarrierCard
           orderId={order.id}
           orderCode={order.code || order.id}
           carrierName="GHN Express"
+          canShowInvoice={isPaid}
         />
       )}
 
-      {assignedShipper && ["CONFIRMED", "PROCESSING", "SHIPPING", "DELIVERED", "COMPLETED", "REFUNDED"].includes(order.status) && (
+      {canShowShipping && assignedShipper && (
         <Card className="rounded-2xl border border-orange-100 bg-white p-4 shadow-sm">
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex items-center gap-3">
@@ -513,7 +532,7 @@ export default function OrderDetailPage() {
 
                     {/* Cặp nút Đánh giá & Mua lại chuẩn Stitch */}
                     <div className="flex items-center gap-2 self-end sm:self-center">
-                      {["COMPLETED", "DELIVERED", "PAID"].includes(order.status) && (
+                      {["COMPLETED", "DELIVERED"].includes(order.status) && (
                         <Button
                           variant="outline"
                           size="sm"
@@ -608,12 +627,76 @@ export default function OrderDetailPage() {
 
           {/* QR chuyển khoản SePay/VietQR - chỉ hiện khi đơn BANK_TRANSFER chưa thanh toán */}
           {showVietQr && (
-            <VietQrPayCard orderCode={order.code} amount={finalTotal} createdAt={order.createdAt} />
+            <VietQrPayCard orderCode={order.code} amount={Math.max(0, finalTotal - walletPaid)} createdAt={order.createdAt} />
           )}
         </div>
 
         {/* CỘT PHẢI (4/12 phần): Tổng Quan Đơn Hàng (Sidebar) */}
         <div className="lg:col-span-4 space-y-6 sticky top-24">
+          {/* Thông tin Shipper nếu đã phân công (ẩn khi đơn hủy/fail hoặc online chưa trả) */}
+          {canShowShipping && order.assignedShipper && (
+            <Card className="border border-border bg-card rounded-2xl p-5 shadow-sm space-y-4">
+              <div className="flex items-center gap-2 font-bold text-foreground text-sm border-b border-border pb-3">
+                <Truck className="w-4 h-4 text-primary" />
+                <span>Shipper phụ trách</span>
+              </div>
+              
+              <div className="flex items-center gap-3">
+                <div className="relative h-12 w-12 rounded-full overflow-hidden border border-border bg-muted shrink-0">
+                  <Image
+                    src={order.assignedShipper.avatarUrl || "/images/placeholder-product.svg"}
+                    alt="Shipper"
+                    fill
+                    className="object-cover"
+                  />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="font-bold text-foreground truncate">{order.assignedShipper.name || "Shipper MegaMart"}</p>
+                  <div className="flex items-center gap-1.5 text-xs text-muted-foreground mt-0.5">
+                    <Phone className="w-3 h-3" />
+                    <a href={`tel:${order.assignedShipper.phone || order.assignedShipper.shipperProfile?.phone}`} className="hover:text-primary transition-colors font-medium">
+                      {order.assignedShipper.phone || order.assignedShipper.shipperProfile?.phone || "Đang cập nhật"}
+                    </a>
+                  </div>
+                </div>
+              </div>
+
+              <div className="bg-muted/50 rounded-xl p-3 space-y-2 text-xs">
+                <p className="text-muted-foreground">
+                  <span className="font-semibold text-foreground">Phương tiện:</span> {order.assignedShipper.shipperProfile?.vehicleType || "Xe máy"}
+                </p>
+                <p className="text-muted-foreground">
+                  <span className="font-semibold text-foreground">Biển số:</span> {order.assignedShipper.vehiclePlate || order.assignedShipper.shipperProfile?.vehiclePlate || "Đang cập nhật"}
+                </p>
+              </div>
+
+              {order.shippingMetadata?.currentLocation && (
+                <div className="pt-2">
+                  <ShipperLocationMap
+                    lat={order.shippingMetadata.currentLocation.lat}
+                    lng={order.shippingMetadata.currentLocation.lng}
+                    destLat={address.lat}
+                    destLng={address.lng}
+                    destinationAddress={shippingDestinationAddress}
+                    updatedAt={order.shippingMetadata.currentLocation.updatedAt}
+                  />
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="w-full h-9 mt-3 rounded-xl text-xs font-bold border-primary/20 text-primary hover:bg-primary/5 gap-1.5"
+                    onClick={() => {
+                      const { lat, lng } = order.shippingMetadata.currentLocation;
+                      window.open(`https://www.google.com/maps?q=${lat},${lng}`, "_blank");
+                    }}
+                  >
+                    <MapPin className="w-3.5 h-3.5" />
+                    Mở Google Maps (Tab mới)
+                  </Button>
+                </div>
+              )}
+            </Card>
+          )}
+
           <Card className="border border-border bg-card rounded-2xl p-5 sm:p-6 shadow-sm space-y-5">
             <h2 className="text-lg font-bold text-foreground">Tổng quan đơn hàng</h2>
 
@@ -641,6 +724,20 @@ export default function OrderDetailPage() {
                 </div>
               )}
 
+              {vatAmount > 0 && (
+                <div className="flex justify-between items-center text-muted-foreground">
+                  <span>Thuế VAT</span>
+                  <span className="font-medium text-foreground">{formatPrice(vatAmount)}</span>
+                </div>
+              )}
+
+              {walletPaid > 0 && (
+                <div className="flex justify-between items-center text-[var(--success)] font-medium">
+                  <span>Đã trừ ví MegaMart</span>
+                  <span>-{formatPrice(walletPaid)}</span>
+                </div>
+              )}
+
               <div className="border-t border-border pt-4">
                 <div className="flex items-baseline justify-between">
                   <div>
@@ -656,8 +753,8 @@ export default function OrderDetailPage() {
               </div>
             </div>
 
-            {/* Nút Hủy đơn nếu còn ở trạng thái Chờ xử lý */}
-            {["PENDING", "CONFIRMED"].includes(order.status) && (
+            {/* Nút Hủy đơn nếu còn ở trạng thái Chờ xử lý / Đã thanh toán */}
+            {["PENDING", "CONFIRMED", "PAID"].includes(order.status) && (
               <div className="pt-2">
                 <Button
                   variant="outline"

@@ -17,22 +17,22 @@ export default function SupplierLayout({ children }: { children: React.ReactNode
   };
 
   return (
-    <div className="min-h-screen bg-[#f7f8fa]">
-      <header className="sticky top-0 z-40 border-b border-border bg-white">
+    <div className="min-h-screen bg-muted/30 dark:bg-zinc-950">
+      <header className="sticky top-0 z-40 border-b border-border bg-card">
         <div className="mx-auto flex h-16 max-w-6xl items-center gap-3 px-4 sm:px-6">
           <Link href="/supplier" className="flex items-center gap-2">
             <LogoMark className="h-8 w-8" />
             <span className="leading-tight">
-              <span className="block text-base font-black tracking-tight text-[#ff4d00]">
-                MegaMart <span className="text-zinc-700">· NCC</span>
+              <span className="block text-base font-black tracking-tight text-primary">
+                MegaMart <span className="text-foreground">· NCC</span>
               </span>
-              <span className="block text-[10px] font-bold uppercase tracking-[0.14em] text-zinc-500">
+              <span className="block text-[10px] font-bold uppercase tracking-[0.14em] text-muted-foreground">
                 Cổng nhà cung cấp
               </span>
             </span>
           </Link>
           <div className="ml-auto flex items-center gap-2">
-            <span className="hidden max-w-44 truncate text-xs font-semibold text-zinc-600 sm:block">
+            <span className="hidden max-w-44 truncate text-xs font-semibold text-muted-foreground sm:block">
               {user?.name || user?.email}
             </span>
             <Button variant="ghost" size="sm" onClick={() => router.push("/")}>

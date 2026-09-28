@@ -28,20 +28,21 @@ import Image from "next/image";
 import { visibleAttributes, formatAttributeValue } from "@/lib/productAttributes";
 import { Pagination } from "@/components/ui/pagination";
 import { toast } from "sonner";
+import { formatDate, formatPrice } from "@/lib/utils";
 
 // Mapping cấu hình trạng thái chuẩn Stitch với Icon
 const statusConfig: Record<
   string,
   { label: string; tone: "default" | "secondary" | "destructive" | "outline" | "success" | "warning" | "info"; icon: any }
 > = {
-  PENDING: { label: "Chờ xác nhận", tone: "warning", icon: Clock },
+  PENDING: { label: "Chờ xử lý", tone: "warning", icon: Clock },
   CONFIRMED: { label: "Đã xác nhận", tone: "info", icon: CheckCircle2 },
   PROCESSING: { label: "Đang xử lý", tone: "info", icon: RefreshCw },
-  SHIPPING: { label: "Đang giao", tone: "info", icon: Truck },
-  DELIVERED: { label: "Hoàn thành", tone: "success", icon: CheckCircle2 },
+  SHIPPING: { label: "Đang giao hàng", tone: "info", icon: Truck },
+  DELIVERED: { label: "Đã giao", tone: "success", icon: CheckCircle2 },
   COMPLETED: { label: "Hoàn thành", tone: "success", icon: CheckCircle2 },
   PAID: { label: "Đã thanh toán", tone: "success", icon: CheckCircle2 },
-  CANCELED: { label: "Đã huỷ", tone: "destructive", icon: XCircle },
+  CANCELED: { label: "Đã hủy", tone: "destructive", icon: XCircle },
   FAILED: { label: "Thất bại", tone: "destructive", icon: XCircle },
   REFUNDED: { label: "Đã hoàn tiền", tone: "secondary", icon: RotateCcw },
 };
@@ -97,10 +98,10 @@ export default function OrdersPage() {
   const tabCounts = useMemo(() => {
     return {
       ALL: orders.length,
-      PENDING: orders.filter((o) => ["PENDING", "CONFIRMED"].includes(o.status)).length,
+      PENDING: orders.filter((o) => ["PENDING", "CONFIRMED", "PAID"].includes(o.status)).length,
       PROCESSING: orders.filter((o) => o.status === "PROCESSING").length,
       SHIPPING: orders.filter((o) => o.status === "SHIPPING").length,
-      COMPLETED: orders.filter((o) => ["COMPLETED", "DELIVERED", "PAID"].includes(o.status)).length,
+      COMPLETED: orders.filter((o) => ["COMPLETED", "DELIVERED"].includes(o.status)).length,
       CANCELED: orders.filter((o) => ["CANCELED", "FAILED"].includes(o.status)).length,
     };
   }, [orders]);
@@ -109,10 +110,10 @@ export default function OrdersPage() {
   const filteredOrders = useMemo(() => {
     return orders.filter((order) => {
       // 1. Lọc theo tab
-      if (activeTab === "PENDING" && !["PENDING", "CONFIRMED"].includes(order.status)) return false;
+      if (activeTab === "PENDING" && !["PENDING", "CONFIRMED", "PAID"].includes(order.status)) return false;
       if (activeTab === "PROCESSING" && order.status !== "PROCESSING") return false;
       if (activeTab === "SHIPPING" && order.status !== "SHIPPING") return false;
-      if (activeTab === "COMPLETED" && !["COMPLETED", "DELIVERED", "PAID"].includes(order.status)) return false;
+      if (activeTab === "COMPLETED" && !["COMPLETED", "DELIVERED"].includes(order.status)) return false;
       if (activeTab === "CANCELED" && !["CANCELED", "FAILED"].includes(order.status)) return false;
 
       // 2. Lọc theo từ khóa tìm kiếm (Mã đơn hoặc tên sản phẩm)
@@ -140,22 +141,6 @@ export default function OrdersPage() {
     const start = (currentPage - 1) * itemsPerPage;
     return filteredOrders.slice(start, start + itemsPerPage);
   }, [filteredOrders, currentPage, itemsPerPage]);
-
-  const formatPrice = (price: number): string => {
-    return new Intl.NumberFormat("vi-VN", {
-      style: "currency",
-      currency: "VND",
-      maximumFractionDigits: 0,
-    }).format(price);
-  };
-
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString("vi-VN", {
-      day: "2-digit",
-      month: "2-digit",
-      year: "numeric",
-    });
-  };
 
   if (loading) {
     return (
@@ -198,11 +183,11 @@ export default function OrdersPage() {
         <div className="flex items-center gap-1 sm:gap-2 min-w-max">
           {[
             { id: "ALL", label: "Tất cả", count: tabCounts.ALL },
-            { id: "PENDING", label: "Chờ xác nhận", count: tabCounts.PENDING },
+            { id: "PENDING", label: "Chờ xử lý", count: tabCounts.PENDING },
             { id: "PROCESSING", label: "Đang xử lý", count: tabCounts.PROCESSING },
-            { id: "SHIPPING", label: "Đang giao", count: tabCounts.SHIPPING },
+            { id: "SHIPPING", label: "Đang giao hàng", count: tabCounts.SHIPPING },
             { id: "COMPLETED", label: "Hoàn thành", count: tabCounts.COMPLETED },
-            { id: "CANCELED", label: "Đã huỷ", count: tabCounts.CANCELED },
+            { id: "CANCELED", label: "Đã hủy", count: tabCounts.CANCELED },
           ].map((tab) => {
             const isActive = activeTab === tab.id;
             return (

@@ -21,6 +21,7 @@ import {
   Airplay,
 } from "lucide-react";
 import { fetchPostById } from "@/lib/postsApi";
+import { formatDate } from "@/lib/utils";
 
 export default function NewsDetailPage() {
   const params = useParams();
@@ -44,14 +45,6 @@ export default function NewsDetailPage() {
       loadPost();
     }
   }, [params.id]);
-
-  const formatDate = (date: string) => {
-    return new Date(date).toLocaleDateString("vi-VN", {
-      year: "numeric",
-      month: "2-digit",
-      day: "2-digit",
-    });
-  };
 
   const handleShare = () => {
     if (navigator.share && post) {

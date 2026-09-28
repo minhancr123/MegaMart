@@ -1,9 +1,11 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import { usePathname } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { ShoppingBag, X, MapPin } from "lucide-react";
 import Image from "next/image";
+import { useAuthStore } from "@/store/authStore";
 
 // Fake data for social proof
 const FAKE_NAMES = [
@@ -67,19 +69,21 @@ function generateProof(): SocialProofData {
   };
 }
 
-const formatPrice = (price: number) =>
-  new Intl.NumberFormat("vi-VN", {
-    style: "currency",
-    currency: "VND",
-  }).format(price);
-
 export default function SocialProofToast() {
+  const pathname = usePathname();
+  const role = useAuthStore((s) => s.user?.role);
+  const isPortalRoute =
+    pathname?.startsWith("/supplier") ||
+    pathname?.startsWith("/shipper") ||
+    pathname?.startsWith("/admin");
+  const hiddenByRole = role === "SUPPLIER" || role === "SHIPPER";
+  const hidden = Boolean(isPortalRoute || hiddenByRole);
   const [visible, setVisible] = useState(false);
   const [data, setData] = useState<SocialProofData | null>(null);
   const [dismissed, setDismissed] = useState(false);
 
   const showNotification = useCallback(() => {
-    if (dismissed) return;
+    if (dismissed || hidden) return;
     const proof = generateProof();
     setData(proof);
     setVisible(true);
@@ -88,9 +92,10 @@ export default function SocialProofToast() {
     setTimeout(() => {
       setVisible(false);
     }, 5000);
-  }, [dismissed]);
+  }, [dismissed, hidden]);
 
   useEffect(() => {
+    if (hidden) return;
     // First show after 15 seconds
     const initialTimeout = setTimeout(() => {
       showNotification();
@@ -106,12 +111,14 @@ export default function SocialProofToast() {
       clearTimeout(initialTimeout);
       clearInterval(interval);
     };
-  }, [showNotification]);
+  }, [showNotification, hidden]);
 
   const handleDismiss = () => {
     setVisible(false);
     setDismissed(true);
   };
+
+  if (hidden) return null;
 
   return (
     <AnimatePresence>

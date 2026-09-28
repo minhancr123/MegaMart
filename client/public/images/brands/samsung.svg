@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 40" fill="none">
+  <!-- Samsung signature blue oval tilt -->
+  <ellipse cx="80" cy="20" rx="74" ry="17" fill="#034EA2" transform="rotate(-6 80 20)"/>
+  <!-- Samsung wordmark -->
+  <text x="80" y="25" text-anchor="middle" font-family="'Helvetica Neue', Arial, sans-serif" font-weight="900" font-size="17" fill="#FFFFFF" letter-spacing="1.5">SAMSUNG</text>
+</svg>

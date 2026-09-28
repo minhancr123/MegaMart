@@ -6,14 +6,14 @@ import { Zap, Clock, ArrowRight } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useRouter } from "next/navigation";
-import { motion } from "framer-motion";
+import { motion, type Variants } from "framer-motion";
 
 interface FlashSaleSectionProps {
     flashSales: FlashSale[];
 }
 
 // Animation variants
-const containerVariants = {
+const containerVariants: Variants = {
     hidden: { opacity: 0, y: 30 },
     visible: {
         opacity: 1,
@@ -33,7 +33,7 @@ const productContainerVariants = {
     }
 };
 
-const productVariants = {
+const productVariants: Variants = {
     hidden: { opacity: 0, scale: 0.9, y: 20 },
     visible: {
         opacity: 1,
@@ -43,7 +43,7 @@ const productVariants = {
     }
 };
 
-const countdownVariants = {
+const countdownVariants: Variants = {
     hidden: { opacity: 0, scale: 0.8 },
     visible: {
         opacity: 1,

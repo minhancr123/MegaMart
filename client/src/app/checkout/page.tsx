@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation";
 import { useCart } from "@/hooks/useCart";
 import { createOrder } from "@/lib/orderApi";
 import { createVNPayPayment } from "@/lib/paymentApi";
-import { validateVoucher } from "@/lib/voucherApi";
+import { getMyAvailableVouchers, validateVoucher, type AssignedVoucher } from "@/lib/voucherApi";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -14,7 +14,8 @@ import AddressManager from "@/components/AddressManager";
 import { toast } from "sonner";
 import { useAuthStore } from "@/store/authStore";
 import { useCartStore } from "@/store/cartStore";
-import { Wallet, CreditCard, MapPin } from "lucide-react";
+import { Wallet, CreditCard, MapPin, Loader2, TicketPercent } from "lucide-react";
+import { getEffectivePrice, getErrorMessage } from "@/lib/utils";
 import { track } from "@/lib/eventTracker";
 import { calculateGhnFee } from "@/lib/shippingApi";
 import { getMyWallet } from "@/lib/walletApi";
@@ -29,14 +30,18 @@ export default function CheckoutPage() {
   const [selectedAddress, setSelectedAddress] = useState<any>(null);
   const [note, setNote] = useState("");
   const [voucherCode, setVoucherCode] = useState("");
+  const [promoCodeInput, setPromoCodeInput] = useState("");
+  const [selectedVoucherCode, setSelectedVoucherCode] = useState("");
+  const [userVouchers, setUserVouchers] = useState<AssignedVoucher[]>([]);
+  const [vouchersLoading, setVouchersLoading] = useState(false);
   const [discount, setDiscount] = useState(0);
   const [voucherStatus, setVoucherStatus] = useState<string | null>(null);
   const [walletBalance, setWalletBalance] = useState(0);
   const [useWalletChecked, setUseWalletChecked] = useState(false);
 
-  // Tính toán chi tiết giỏ hàng
+  // Tính toán chi tiết giỏ hàng (sale hết hạn/chưa tới thì về giá gốc)
   const subtotal = cart?.data?.items?.reduce((s: any, item: any) => {
-    const itemPrice = Number(item.variant.price) || 0;
+    const itemPrice = getEffectivePrice(item.variant);
     const itemQuantity = Number(item.quantity) || 0;
     console.log(`Item: ${item.variant.product?.name}, Price: ${itemPrice}, Quantity: ${itemQuantity}, Subtotal: ${itemPrice * itemQuantity}`);
     return s + (itemPrice * itemQuantity);
@@ -54,9 +59,15 @@ export default function CheckoutPage() {
     if (!user?.id) {
       setWalletBalance(0);
       setUseWalletChecked(false);
+      setUserVouchers([]);
       return;
     }
     getMyWallet().then((w) => setWalletBalance(Number((w as any)?.balance || 0))).catch(() => setWalletBalance(0));
+    setVouchersLoading(true);
+    getMyAvailableVouchers()
+      .then(setUserVouchers)
+      .catch(() => setUserVouchers([]))
+      .finally(() => setVouchersLoading(false));
   }, [user?.id]);
 
   const feeSeq = useRef(0);
@@ -88,6 +99,37 @@ export default function CheckoutPage() {
     };
   }, [selectedAddress?.districtId, selectedAddress?.wardCode, cart, subtotal]);
 
+  useEffect(() => {
+    if (!selectedVoucherCode) return;
+    const selected = userVouchers.find((v) => v.code === selectedVoucherCode);
+    if (selected?.minOrderValue && subtotal < selected.minOrderValue) {
+      setSelectedVoucherCode("");
+      setVoucherCode("");
+      setDiscount(0);
+      setVoucherStatus(`Voucher vừa chọn cần đơn tối thiểu ${selected.minOrderValue.toLocaleString("vi-VN")}₫`);
+    }
+  }, [selectedVoucherCode, subtotal, userVouchers]);
+
+  useEffect(() => {
+    if (!voucherCode || subtotal <= 0) return;
+    let alive = true;
+    validateVoucher(voucherCode, subtotal, user?.id)
+      .then((res) => {
+        if (!alive) return;
+        const data = (res as any)?.data || res;
+        const amount = data?.voucher?.type === "FREESHIP" ? Math.min(Number(data?.discount || 0), shippingFee) : Number(data?.discount || 0);
+        setDiscount(amount);
+      })
+      .catch(() => {
+        if (!alive) return;
+        setVoucherCode("");
+        setSelectedVoucherCode("");
+        setDiscount(0);
+        setVoucherStatus("Voucher/promo code không còn phù hợp với giỏ hàng");
+      });
+    return () => { alive = false; };
+  }, [subtotal, shippingFee]);
+
   // Debug logs
   useEffect(() => {
     console.log('=== CHECKOUT CALCULATION ===');
@@ -99,21 +141,53 @@ export default function CheckoutPage() {
     console.log('Cart items:', cart?.data?.items);
   }, [subtotal, tax, discount, total, cart]);
 
-  const handleApplyVoucher = async () => {
-    if (!voucherCode) {
-      setVoucherStatus("Nhập mã giảm giá");
-      return;
-    }
+  const applyCode = async (code: string, source: "voucher" | "promo") => {
     try {
-      const res = await validateVoucher(voucherCode, subtotal);
+      const res = await validateVoucher(code, subtotal, user?.id);
       const data = (res as any)?.data || res;
-      const amount = data?.discount || 0;
+      const amount = data?.voucher?.type === "FREESHIP" ? Math.min(Number(data?.discount || 0), shippingFee) : Number(data?.discount || 0);
+      setVoucherCode(code);
       setDiscount(amount);
-      setVoucherStatus(`Áp dụng thành công, giảm ${amount.toLocaleString("vi-VN")}₫`);
+      setVoucherStatus(`${source === "voucher" ? "Đã chọn voucher" : "Áp dụng promo code thành công"}, giảm ${amount.toLocaleString("vi-VN")}₫`);
+      return true;
     } catch (err: any) {
       console.error(err);
       setDiscount(0);
-      setVoucherStatus(err?.errormassage || err?.message || "Không áp dụng được voucher");
+      setVoucherCode("");
+      setSelectedVoucherCode("");
+      setVoucherStatus(getErrorMessage(err, source === "voucher" ? "Không áp dụng được voucher" : "Không áp dụng được promo code"));
+      return false;
+    }
+  };
+
+  const handleApplyPromoCode = async () => {
+    const code = promoCodeInput.trim();
+    if (!code) {
+      setVoucherCode("");
+      setDiscount(0);
+      setVoucherStatus("Đã bỏ promo code");
+      return;
+    }
+    const ok = await applyCode(code, "promo");
+    if (ok) setSelectedVoucherCode("");
+  };
+
+  const handleSelectVoucherCard = async (voucher: AssignedVoucher) => {
+    if (selectedVoucherCode === voucher.code) {
+      setSelectedVoucherCode("");
+      setVoucherCode("");
+      setDiscount(0);
+      setVoucherStatus("Đã bỏ chọn voucher");
+      return;
+    }
+    if (voucher.minOrderValue && subtotal < voucher.minOrderValue) {
+      setVoucherStatus(`Cần mua thêm ${(voucher.minOrderValue - subtotal).toLocaleString("vi-VN")}₫ để dùng voucher này`);
+      return;
+    }
+    const ok = await applyCode(voucher.code, "voucher");
+    if (ok) {
+      setSelectedVoucherCode(voucher.code);
+      setPromoCodeInput("");
     }
   };
 
@@ -149,7 +223,11 @@ export default function CheckoutPage() {
         shipping: {
           fullName: selectedAddress.fullName,
           phone: selectedAddress.phone,
-          address: `${selectedAddress.address}, ${selectedAddress.ward}, ${selectedAddress.district}, ${selectedAddress.province}`,
+          address: [selectedAddress.address, selectedAddress.ward, selectedAddress.district, selectedAddress.province]
+            .filter(Boolean)
+            .join(', '),
+          lat: selectedAddress.lat ?? undefined,
+          lng: selectedAddress.lng ?? undefined,
           provinceId: selectedAddress.provinceId ?? undefined,
           districtId: selectedAddress.districtId ?? undefined,
           wardCode: selectedAddress.wardCode ?? undefined,
@@ -198,7 +276,7 @@ export default function CheckoutPage() {
       const itemsList = cart?.data?.items?.map((i: any) => ({
         id: i.variant?.product?.id || i.id,
         name: i.variant?.product?.name || "Product",
-        price: Number(i.variant?.salePrice || i.variant?.price || 0),
+        price: getEffectivePrice(i.variant),
         quantity: i.quantity
       })) || [];
 
@@ -240,7 +318,7 @@ export default function CheckoutPage() {
       }
     } catch (error: any) {
       console.error('Place order error:', error);
-      toast.error(error?.response?.data?.message || error?.message || 'Đặt hàng thất bại');
+      toast.error(getErrorMessage(error, 'Đặt hàng thất bại'));
     } finally {
       setLoading(false);
     }
@@ -248,7 +326,7 @@ export default function CheckoutPage() {
 
   return (
     <div className="max-w-5xl mx-auto p-6">
-      <h1 className="text-3xl font-bold mb-6 text-[#af3200] dark:text-[#ff571a]">
+      <h1 className="text-3xl font-bold mb-6 text-primary">
         Thanh toán đơn hàng
       </h1>
 
@@ -259,7 +337,7 @@ export default function CheckoutPage() {
           <Card className="rounded-xl shadow-[0_4px_12px_rgba(0,0,0,0.05)] transition-all duration-300 hover:shadow-md">
             <CardContent className="p-6">
               <div className="flex items-center gap-2 mb-4">
-                <MapPin className="w-5 h-5 text-[#af3200]" />
+                <MapPin className="w-5 h-5 text-primary" />
                 <h2 className="font-semibold text-lg">Địa chỉ giao hàng</h2>
               </div>
               <AddressManager
@@ -392,7 +470,7 @@ export default function CheckoutPage() {
                       <p className="text-gray-500">x{item.quantity}</p>
                     </div>
                     <p className="font-medium whitespace-nowrap">
-                      {new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND', maximumFractionDigits: 0 }).format(item.variant.price * item.quantity)}
+                      {new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND', maximumFractionDigits: 0 }).format(getEffectivePrice(item.variant) * item.quantity)}
                     </p>
                   </div>
                 ))}
@@ -413,15 +491,60 @@ export default function CheckoutPage() {
                     <span>{feeLoading ? "Đang tính..." : new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND', maximumFractionDigits: 0 }).format(shippingFee)}</span>
                   </div>
                 )}
-                <div className="space-y-2 pt-2">
-                  <Label className="text-sm text-gray-700">Mã giảm giá</Label>
-                  <div className="flex gap-2">
-                    <Input
-                      placeholder="Nhập mã"
-                      value={voucherCode}
-                      onChange={(e) => setVoucherCode(e.target.value)}
-                    />
-                    <Button type="button" variant="outline" onClick={handleApplyVoucher}>Áp dụng</Button>
+                <div className="space-y-3 pt-2">
+                  <div className="flex items-center justify-between">
+                    <Label className="text-sm font-semibold text-gray-700">Voucher của bạn</Label>
+                    {vouchersLoading && <Loader2 className="h-4 w-4 animate-spin text-gray-400" />}
+                  </div>
+                  {!user?.id ? (
+                    <p className="rounded-xl bg-orange-50 p-3 text-xs text-orange-700">Đăng nhập để xem voucher cá nhân và voucher đổi điểm.</p>
+                  ) : !userVouchers.length && !vouchersLoading ? (
+                    <p className="rounded-xl bg-gray-50 p-3 text-xs text-gray-500">Bạn chưa có voucher khả dụng.</p>
+                  ) : (
+                    <div className="space-y-2 max-h-52 overflow-y-auto pr-1">
+                      {userVouchers.map((voucher) => {
+                        const disabled = !!voucher.minOrderValue && subtotal < voucher.minOrderValue;
+                        const selected = selectedVoucherCode === voucher.code;
+                        const valueText = voucher.type === "PERCENT" ? `${voucher.value}%` : `${Number(voucher.value).toLocaleString("vi-VN")}₫`;
+                        return (
+                          <button
+                            type="button"
+                            key={voucher.id}
+                            disabled={disabled}
+                            onClick={() => handleSelectVoucherCard(voucher)}
+                            className={`w-full rounded-2xl border p-3 text-left transition ${selected ? "border-primary bg-primary/5" : "bg-white"} ${disabled ? "cursor-not-allowed opacity-60" : "hover:border-primary"}`}
+                          >
+                            <div className="flex gap-3">
+                              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-orange-100 text-primary"><TicketPercent className="h-5 w-5" /></div>
+                              <div className="min-w-0 flex-1">
+                                <div className="flex items-start justify-between gap-2">
+                                  <div className="font-semibold line-clamp-1">{voucher.title || voucher.code}</div>
+                                  <div className="shrink-0 rounded-full bg-orange-100 px-2 py-0.5 text-xs font-bold text-primary">{valueText}</div>
+                                </div>
+                                <div className="mt-1 text-xs text-gray-500">{voucher.type === "FREESHIP" ? "Miễn/giảm phí vận chuyển" : voucher.description || "Voucher cá nhân"}</div>
+                                <div className="mt-2 flex flex-wrap gap-2 text-[11px] text-gray-500">
+                                  {voucher.minOrderValue ? <span>Đơn từ {voucher.minOrderValue.toLocaleString("vi-VN")}₫</span> : <span>Không yêu cầu đơn tối thiểu</span>}
+                                  {voucher.endDate && <span>HSD {new Date(voucher.endDate).toLocaleDateString("vi-VN")}</span>}
+                                </div>
+                                {disabled && voucher.minOrderValue && <div className="mt-1 text-xs text-orange-600">Cần mua thêm {(voucher.minOrderValue - subtotal).toLocaleString("vi-VN")}₫</div>}
+                              </div>
+                            </div>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+
+                  <div className="space-y-2 border-t pt-3">
+                    <Label className="text-sm text-gray-700">Hoặc nhập Promo Code</Label>
+                    <div className="flex gap-2">
+                      <Input
+                        placeholder="Nhập promo code"
+                        value={promoCodeInput}
+                        onChange={(e) => setPromoCodeInput(e.target.value.toUpperCase())}
+                      />
+                      <Button type="button" variant="outline" onClick={handleApplyPromoCode}>Áp dụng</Button>
+                    </div>
                   </div>
                   {voucherStatus && (
                     <p className="text-xs text-gray-600">{voucherStatus}</p>
@@ -441,7 +564,7 @@ export default function CheckoutPage() {
                 )}
                 <div className="flex justify-between font-bold text-lg pt-2 border-t">
                   <span>Tổng cộng</span>
-                  <span className="text-[#af3200]">{new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND', maximumFractionDigits: 0 }).format(total)}</span>
+                  <span className="text-primary">{new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND', maximumFractionDigits: 0 }).format(total)}</span>
                 </div>
                 {walletDeduction > 0 && (
                   <div className="flex justify-between text-sm font-semibold">
@@ -454,8 +577,9 @@ export default function CheckoutPage() {
               <Button
                 onClick={handlePlaceOrder}
                 disabled={loading || !selectedAddress || feeLoading}
-                className="w-full mt-6 bg-[#fc4c00] hover:bg-[#af3200] text-white rounded-full shadow-md"
+                className="w-full mt-6"
               >
+                {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 {loading ? 'Đang xử lý...' : paymentMethod === 'VNPAY' ? 'Thanh toán ngay' : 'Đặt hàng'}
               </Button>
 

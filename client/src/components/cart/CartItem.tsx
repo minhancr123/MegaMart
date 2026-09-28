@@ -7,6 +7,7 @@ import Image from "next/image";
 import { useState } from "react";
 import { visibleAttributes, formatAttributeValue } from "@/lib/productAttributes";
 import Link from "next/link";
+import { formatPrice } from "@/lib/utils";
 
 export const CartItem = ({ item, onUpdateQuantity, onRemoveItem }: CartItemProps) => {
   const [isUpdating, setIsUpdating] = useState(false);
@@ -33,14 +34,6 @@ export const CartItem = ({ item, onUpdateQuantity, onRemoveItem }: CartItemProps
     } finally {
       setIsUpdating(false);
     }
-  };
-
-  const formatPrice = (price: number): string => {
-    return new Intl.NumberFormat("vi-VN", {
-      style: "currency",
-      currency: "VND",
-      maximumFractionDigits: 0,
-    }).format(price);
   };
 
   const getProductImage = () => {
@@ -142,7 +135,7 @@ export const CartItem = ({ item, onUpdateQuantity, onRemoveItem }: CartItemProps
             variant="ghost"
             size="icon"
             onClick={() => handleQuantityChange(item.quantity + 1)}
-            disabled={isUpdating || (item.variant?.stock && item.quantity >= item.variant.stock)}
+            disabled={isUpdating || (item.variant?.stock != null && item.quantity >= item.variant.stock)}
             className="h-7 w-7 rounded-full text-foreground hover:bg-muted"
             aria-label="Tăng số lượng"
           >

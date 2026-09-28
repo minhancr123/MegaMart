@@ -17,18 +17,34 @@ import { fetchPosts } from "@/lib/postsApi";
 import HeroBanner from "./home/HeroBanner";
 import RecentlyViewed from "./home/RecentlyViewed";
 import ForYouSection from "./home/ForYouSection";
+import { HotVouchersSection } from "./home/HotVouchersSection";
 
 const featuredCategoryLinks = [
-  { href: "/category/tivi", name: "Tivi", icon: Tv },
-  { href: "/category/may-lanh", name: "Máy lạnh", icon: Wind },
-  { href: "/category/tu-lanh", name: "Tủ lạnh", icon: Refrigerator },
-  { href: "/category/may-giat", name: "Máy giặt", icon: WashingMachine },
-  { href: "/category/dien-thoai", name: "Điện thoại", icon: Smartphone },
-  { href: "/category/laptop", name: "Laptop", icon: Laptop },
-  { href: "/category/noi-chien-noi-nuong", name: "Gia dụng", icon: CookingPot },
+  { href: "/category/tivi", name: "Tivi", image: "/images/categories/tivi.svg" },
+  { href: "/category/may-lanh", name: "Máy lạnh", image: "/images/categories/may-lanh.svg" },
+  { href: "/category/tu-lanh", name: "Tủ lạnh", image: "/images/categories/tu-lanh.svg" },
+  { href: "/category/may-giat", name: "Máy giặt", image: "/images/categories/may-giat.svg" },
+  { href: "/category/dien-thoai", name: "Điện thoại", image: "/images/categories/dien-thoai.svg" },
+  { href: "/category/laptop", name: "Laptop", image: "/images/categories/laptop.svg" },
+  { href: "/category/noi-chien-noi-nuong", name: "Gia dụng", image: "/images/categories/gia-dung.svg" },
 ];
 
-const featuredBrands = ["SAMSUNG", "LG", "DAIKIN", "PANASONIC", "SONY", "TOSHIBA"];
+const featuredBrands = [
+  { name: "SAMSUNG", logo: "/images/brands/samsung.svg" },
+  { name: "APPLE", logo: "/images/brands/apple.svg" },
+  { name: "LG", logo: "/images/brands/lg.svg" },
+  { name: "SONY", logo: "/images/brands/sony.svg" },
+  { name: "DAIKIN", logo: "/images/brands/daikin.svg" },
+  { name: "PANASONIC", logo: "/images/brands/panasonic.svg" },
+  { name: "XIAOMI", logo: "/images/brands/xiaomi.svg" },
+  { name: "ASUS", logo: "/images/brands/asus.svg" },
+  { name: "TOSHIBA", logo: "/images/brands/toshiba.svg" },
+  { name: "ELECTROLUX", logo: "/images/brands/electrolux.svg" },
+  { name: "PHILIPS", logo: "/images/brands/philips.svg" },
+  { name: "DELL", logo: "/images/brands/dell.svg" },
+  { name: "SHARP", logo: "/images/brands/sharp.svg" },
+  { name: "CASPER", logo: "/images/brands/casper.svg" },
+];
 
 export default function MainContent({
   featuredProducts,
@@ -350,6 +366,9 @@ export default function MainContent({
           );
         })()}
 
+        {/* Kho Voucher & Khuyến mãi Hot */}
+        <HotVouchersSection />
+
         {/* Category shortcuts from the canonical Stitch storefront. */}
         <section className="space-y-7">
           <div className="text-center space-y-2">
@@ -364,11 +383,15 @@ export default function MainContent({
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-7">
             {featuredCategoryLinks.map((category) => (
               <div key={category.href}>
-                <Link href={category.href} className="group flex min-h-32 flex-col items-center justify-center rounded-2xl border border-zinc-200 bg-white px-3 py-5 text-center shadow-sm transition-[border-color,box-shadow] duration-300 hover:border-orange-200 hover:shadow-lg">
-                  <span className="grid h-12 w-12 place-items-center rounded-2xl bg-orange-50 text-[#d94300] transition-colors group-hover:bg-[#ff4d00] group-hover:text-white">
-                    <category.icon className="h-6 w-6" />
+                <Link href={category.href} className="group flex min-h-32 flex-col items-center justify-center rounded-2xl border border-zinc-200 bg-white px-3 py-5 text-center shadow-sm transition-all duration-300 hover:border-orange-300 hover:shadow-xl hover:-translate-y-1 dark:border-zinc-800 dark:bg-zinc-900">
+                  <span className="grid h-16 w-16 place-items-center rounded-2xl bg-orange-50/60 p-2.5 transition-all duration-300 group-hover:scale-110 group-hover:bg-orange-100/80 dark:bg-zinc-800">
+                    <img
+                      src={category.image}
+                      alt={category.name}
+                      className="h-full w-full object-contain drop-shadow-sm transition-transform duration-300 group-hover:scale-105"
+                    />
                   </span>
-                  <span className="mt-3 text-sm font-extrabold text-zinc-800">{category.name}</span>
+                  <span className="mt-3 text-sm font-extrabold text-zinc-800 dark:text-zinc-100 group-hover:text-primary transition-colors">{category.name}</span>
                 </Link>
               </div>
             ))}
@@ -397,13 +420,11 @@ export default function MainContent({
             </Button>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+          <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3.5 sm:gap-6">
             {featuredProducts.slice(0, 8).map((product: any) => (
-              <div key={product.id}>
+              <div key={product.id} className="h-full min-w-0">
                 <ProductCard
                   product={product}
-                  onAddToCart={handleAddToCart}
-                  onViewDetails={handleViewDetails}
                 />
               </div>
             ))}
@@ -421,12 +442,30 @@ export default function MainContent({
           </div>
         </section>
 
-        <section className="rounded-2xl border border-zinc-200 bg-white px-5 py-6 shadow-sm" aria-label="Thương hiệu nổi bật">
+        <section className="relative overflow-hidden rounded-2xl border border-zinc-200 bg-white px-5 py-6 shadow-sm dark:border-zinc-800 dark:bg-zinc-900" aria-label="Thương hiệu nổi bật">
           <p className="mb-5 text-center text-xs font-extrabold uppercase tracking-[0.16em] text-zinc-400">Thương hiệu nổi bật</p>
-          <div className="grid grid-cols-2 items-center gap-4 text-center sm:grid-cols-3 lg:grid-cols-6">
-            {featuredBrands.map((brand) => (
-              <span key={brand} className="rounded-xl bg-zinc-50 px-4 py-3 text-sm font-black tracking-wide text-zinc-600">{brand}</span>
-            ))}
+          
+          {/* Gradient fade 2 đầu */}
+          <div className="pointer-events-none absolute left-0 top-0 z-10 h-full w-16 bg-gradient-to-r from-white to-transparent dark:from-zinc-900" />
+          <div className="pointer-events-none absolute right-0 top-0 z-10 h-full w-16 bg-gradient-to-l from-white to-transparent dark:from-zinc-900" />
+
+          {/* Marquee chạy qua chạy lại liên tục */}
+          <div className="overflow-hidden">
+            <div className="animate-marquee gap-6">
+              {[...featuredBrands, ...featuredBrands].map((brand, idx) => (
+                <Link
+                  key={`${brand.name}-${idx}`}
+                  href={`/products?search=${encodeURIComponent(brand.name)}`}
+                  className="group flex h-14 w-44 shrink-0 items-center justify-center rounded-xl border border-zinc-100 bg-zinc-50/90 px-5 py-2.5 transition-all duration-300 hover:scale-105 hover:border-primary/40 hover:bg-white hover:shadow-lg dark:border-zinc-800 dark:bg-zinc-800/60 dark:hover:bg-zinc-800"
+                >
+                  <img
+                    src={brand.logo}
+                    alt={brand.name}
+                    className="h-8 w-auto max-w-[120px] object-contain transition-transform duration-300 group-hover:scale-110"
+                  />
+                </Link>
+              ))}
+            </div>
           </div>
         </section>
 

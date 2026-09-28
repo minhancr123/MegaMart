@@ -13,6 +13,11 @@ export default function CartPage() {
   const router = useRouter();
   const { cart, loading, error } = useCart();
 
+  useEffect(() => {
+    window.scrollTo({ top: 0, left: 0, behavior: "auto" });
+    if ("scrollRestoration" in window.history) window.history.scrollRestoration = "manual";
+  }, []);
+
   // Redirect if not authenticated (after mount)
   useEffect(() => {
     if (hasHydrated && !user) {

@@ -43,8 +43,12 @@ export default function ProductDetailPage() {
     const loadProduct = async () => {
       try {
         setLoading(true);
-        const productData = await fetchProductById(params.id as string);
-        setProduct(productData);
+        const productData: any = await fetchProductById(params.id as string);
+        if (!productData?.id) {
+          setError("Không tìm thấy sản phẩm");
+          return;
+        }
+        setProduct(productData as Product);
         // Điểm rating/số lượt đánh giá cào từ sàn nguồn nằm trong attributes
         // của biến thể — dùng làm giá trị hiển thị ban đầu thay vì số mock.
         const crawled = (productData.variants ?? [])
@@ -102,7 +106,7 @@ export default function ProductDetailPage() {
     }
 
     try {
-      const response = await addToCart(user.id, variantId, quantity);
+      const response: any = await addToCart(user.id, variantId, quantity);
       if (response.success) {
         toast.success(response.message || "Đã thêm sản phẩm vào giỏ hàng");
 
@@ -180,9 +184,8 @@ export default function ProductDetailPage() {
     return (
       <div className="max-w-7xl mx-auto px-4 py-12">
         <div className="flex flex-col items-center justify-center min-h-[400px] gap-4">
-          <div className="relative flex items-center justify-center">
+          <div className="flex items-center justify-center">
             <div className="w-12 h-12 rounded-full border-4 border-primary/20 border-t-primary animate-spin" />
-            <Loader2 className="h-6 w-6 animate-spin text-primary absolute" />
           </div>
           <span className="text-muted-foreground font-medium text-sm animate-pulse">Đang tải thông tin sản phẩm...</span>
         </div>
@@ -223,7 +226,7 @@ export default function ProductDetailPage() {
       : null);
 
   return (
-    <div className="min-h-screen bg-muted/10 pt-5 sm:pt-7 pb-16">
+    <div className="min-h-screen bg-muted/10 pt-5 sm:pt-7 pb-28 md:pb-16">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-8">
         {/* Breadcrumb Navigation chuẩn Stitch */}
         <div className="flex items-center gap-2 text-xs sm:text-sm text-muted-foreground overflow-x-auto whitespace-nowrap">

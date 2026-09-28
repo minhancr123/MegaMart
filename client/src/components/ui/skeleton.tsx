@@ -15,46 +15,46 @@ export function Skeleton({ className }: SkeletonProps) {
   );
 }
 
-// Product Card Skeleton
+// Product Card Skeleton — khớp cấu trúc card gọn (ảnh + tên 2 dòng + rating + giá + cam kết)
 export function ProductCardSkeleton() {
   return (
-    <div className="rounded-2xl border bg-card overflow-hidden">
+    <div className="rounded-xl border bg-card overflow-hidden">
       {/* Image */}
-      <Skeleton className="aspect-square w-full" />
+      <Skeleton className="aspect-square w-full rounded-none" />
 
       {/* Content */}
-      <div className="p-5 space-y-3">
-        {/* Title */}
-        <Skeleton className="h-5 w-3/4" />
-        <Skeleton className="h-4 w-1/2" />
-
-        {/* Category */}
-        <Skeleton className="h-6 w-20 rounded-full" />
+      <div className="p-4 space-y-0">
+        {/* Title 2 dòng */}
+        <Skeleton className="h-4 w-full" />
+        <div className="h-1.5" />
+        <Skeleton className="h-4 w-3/4" />
 
         {/* Rating */}
-        <div className="flex gap-1">
-          {[...Array(5)].map((_, i) => (
-            <Skeleton key={i} className="h-4 w-4 rounded" />
-          ))}
-        </div>
+        <div className="h-2" />
+        <Skeleton className="h-3.5 w-24" />
 
         {/* Price */}
-        <Skeleton className="h-6 w-24" />
+        <div className="h-1.5" />
+        <Skeleton className="h-6 w-28" />
 
-        {/* Actions */}
-        <div className="flex gap-2 pt-2">
-          <Skeleton className="h-10 flex-1 rounded-xl" />
-          <Skeleton className="h-10 flex-1 rounded-xl" />
-        </div>
+        {/* Cam kết */}
+        <div className="h-1.5" />
+        <Skeleton className="h-3.5 w-24" />
       </div>
     </div>
   );
 }
 
-// Products Grid Skeleton
-export function ProductsGridSkeleton({ count = 6 }: { count?: number }) {
+// Products Grid Skeleton — truyền className lưới đúng của từng trang để không giật layout
+export function ProductsGridSkeleton({
+  count = 6,
+  className = "grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-3.5 sm:gap-5",
+}: {
+  count?: number;
+  className?: string;
+}) {
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+    <div className={className}>
       {[...Array(count)].map((_, i) => (
         <ProductCardSkeleton key={i} />
       ))}

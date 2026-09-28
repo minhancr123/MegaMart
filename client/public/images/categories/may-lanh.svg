@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 80 80" fill="none">
+  <!-- Air Conditioner Indoor Unit -->
+  <rect x="8" y="22" width="64" height="26" rx="5" fill="#F8FAFC" stroke="#CBD5E1" stroke-width="2"/>
+  <!-- Display Panel -->
+  <rect x="52" y="30" width="12" height="6" rx="2" fill="#0EA5E9"/>
+  <text x="58" y="35" text-anchor="middle" font-family="sans-serif" font-size="4" font-weight="bold" fill="#FFFFFF">18°</text>
+  <!-- Vent flap -->
+  <path d="M12 40H68" stroke="#94A3B8" stroke-width="2" stroke-linecap="round"/>
+  <!-- Airflow breeze lines -->
+  <path d="M20 52C24 55 28 55 32 52" stroke="#38BDF8" stroke-width="2.5" stroke-linecap="round"/>
+  <path d="M36 54C40 57 44 57 48 54" stroke="#0284C7" stroke-width="2.5" stroke-linecap="round"/>
+  <path d="M52 52C56 55 60 55 64 52" stroke="#38BDF8" stroke-width="2.5" stroke-linecap="round"/>
+</svg>

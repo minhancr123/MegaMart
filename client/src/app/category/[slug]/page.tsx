@@ -6,7 +6,8 @@ import { useEffect, useMemo, useState } from "react";
 import { ProductCard } from "@/components/product/ProductCard";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Loader2, ChevronRight, SlidersHorizontal, ArrowUpDown } from "lucide-react";
+import { ChevronRight, SlidersHorizontal, ArrowUpDown } from "lucide-react";
+import { ProductsGridSkeleton } from "@/components/ui/skeleton";
 import { Product } from "@/interfaces/product";
 import Link from "next/link";
 import { BrandFilterBar } from "@/components/category/BrandFilterBar";
@@ -80,9 +81,10 @@ export default function CategoryPage() {
     // Lọc theo từ khóa tìm kiếm
     if (q && q.trim()) {
       const s = q.toLowerCase();
-      list = list.filter((p) =>
-        (p.tentask || p.name || p.title || p.tensp || "").toString().toLowerCase().includes(s)
-      );
+      list = list.filter((p) => {
+        const pAny = p as any;
+        return (pAny.tentask || p.name || pAny.title || pAny.tensp || "").toString().toLowerCase().includes(s);
+      });
     }
 
     if (minPrice != null) list = list.filter((p) => (p.price || p.variants?.[0]?.price || 0) >= minPrice!);
@@ -182,10 +184,7 @@ export default function CategoryPage() {
       {/* 4. Danh sách sản phẩm dạng Grid */}
       <div className="min-w-0">
         {loading && (
-          <div className="flex flex-col items-center justify-center py-20 gap-3">
-            <Loader2 className="h-8 w-8 animate-spin text-primary" />
-            <span className="text-sm font-medium text-muted-foreground">Đang tải sản phẩm danh mục...</span>
-          </div>
+          <ProductsGridSkeleton count={10} className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3.5 sm:gap-5" />
         )}
 
         {error && <div className="text-destructive font-medium text-center py-10">{error}</div>}
@@ -199,7 +198,7 @@ export default function CategoryPage() {
             )}
             {filtered.map((p) => (
               <div key={p.id} className="h-full min-w-0">
-                <ProductCard product={p} onAddToCart={() => {}} onViewDetails={() => {}} />
+                <ProductCard product={p} />
               </div>
             ))}
           </div>

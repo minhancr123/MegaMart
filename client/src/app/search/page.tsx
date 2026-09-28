@@ -15,6 +15,7 @@ import { addToCart } from "@/lib/cartApi";
 import { toast } from "sonner";
 import Link from "next/link";
 import { Pagination } from "@/components/ui/pagination";
+import { ProductsGridSkeleton } from "@/components/ui/skeleton";
 import { track } from "@/lib/eventTracker";
 
 // Gợi ý khi tìm kiếm không ra gì
@@ -427,12 +428,7 @@ function SearchPageContent() {
 
             {/* Lưới sản phẩm (Grid) */}
             {loading ? (
-              <div className="flex flex-col items-center justify-center py-20 gap-3">
-                <Loader2 className="h-8 w-8 animate-spin text-primary" />
-                <span className="text-sm font-medium text-muted-foreground">
-                  Đang tải kết quả tìm kiếm...
-                </span>
-              </div>
+              <ProductsGridSkeleton count={8} className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-3.5 sm:gap-5" />
             ) : filteredProducts.length === 0 ? (
               <div className="text-center py-14 sm:py-16 px-6 bg-card border border-border rounded-2xl space-y-3">
                 <Search className="w-12 h-12 text-muted-foreground mx-auto stroke-1" />
@@ -481,8 +477,6 @@ function SearchPageContent() {
                   <div key={product.id} className="h-full min-w-0">
                     <ProductCard
                       product={product}
-                      onAddToCart={() => {}}
-                      onViewDetails={() => router.push(`/product/${product.id}`)}
                     />
                   </div>
                 ))}

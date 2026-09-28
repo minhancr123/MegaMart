@@ -782,6 +782,26 @@ html {
   color: #60a5fa;
 }
 
+/* Animation marquee cuộn liên tục thương hiệu */
+@keyframes marquee-scroll {
+  0% {
+    transform: translateX(0%);
+  }
+  100% {
+    transform: translateX(-50%);
+  }
+}
+
+.animate-marquee {
+  display: flex;
+  width: max-content;
+  animation: marquee-scroll 25s linear infinite;
+}
+
+.animate-marquee:hover {
+  animation-play-state: paused;
+}
+
 /* Phòng vệ kẹt click của Radix Dialog/Sheet/Select/Menu: chỉ bỏ khóa pointer-events
    khi không còn overlay nào trong DOM, kể cả lúc animation đóng. */
 body:not(:has([role="dialog"], [role="alertdialog"], [role="listbox"], [role="menu"])) {

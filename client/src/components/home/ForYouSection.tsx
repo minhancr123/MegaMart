@@ -7,6 +7,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { useMounted } from "@/hooks/useMounted";
 import { useAuthStore } from "@/store/authStore";
 import axiosClient from "@/lib/axiosClient";
+import { formatPrice } from "@/lib/utils";
 
 interface RecItem {
   productId: string;
@@ -23,15 +24,6 @@ interface RecItem {
     image: string | null;
   };
 }
-
-const formatPrice = (price: number | null) => {
-  if (price == null) return "Liên hệ";
-  return new Intl.NumberFormat("vi-VN", {
-    style: "currency",
-    currency: "VND",
-    maximumFractionDigits: 0,
-  }).format(price);
-};
 
 /**
  * Rail "Dành riêng cho bạn" — CHỈ hiện khi đã đăng nhập.
@@ -116,6 +108,7 @@ export default function ForYouSection() {
                 <p className="text-xs sm:text-sm font-bold text-red-600 dark:text-red-400">
                   {formatPrice(
                     item.product?.salePrice ?? item.product?.price ?? null,
+                    "Liên hệ",
                   )}
                 </p>
                 {item.reason && (

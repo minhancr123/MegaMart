@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 80 80" fill="none">
+  <!-- Laptop Screen -->
+  <rect x="18" y="16" width="44" height="30" rx="3" fill="#1E293B" stroke="#334155" stroke-width="2"/>
+  <rect x="21" y="19" width="38" height="24" rx="2" fill="url(#laptop_screen)"/>
+  <!-- Base Keyboard Section -->
+  <path d="M10 50L14 58H66L70 50H10Z" fill="#E2E8F0" stroke="#94A3B8" stroke-width="1.5"/>
+  <!-- Trackpad -->
+  <rect x="34" y="52" width="12" height="4" rx="1" fill="#CBD5E1"/>
+  <defs>
+    <linearGradient id="laptop_screen" x1="21" y1="19" x2="59" y2="43" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#0284C7"/>
+      <stop offset="1" stop-color="#38BDF8"/>
+    </linearGradient>
+  </defs>
+</svg>

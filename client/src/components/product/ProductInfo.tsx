@@ -25,6 +25,9 @@ import {
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 import { useWishlistStore } from "@/store/wishlistStore";
+import { formatPrice } from "@/lib/utils";
+
+import { ProductMobileStickyBar } from "./ProductMobileStickyBar";
 
 interface ProductInfoProps {
   product: Product;
@@ -98,6 +101,7 @@ export const ProductInfo = ({
     (originalPrice != null && originalPrice > currentPrice
       ? Math.round(((originalPrice - currentPrice) / originalPrice) * 100)
       : null);
+  const hasDiscount = originalPrice != null && originalPrice > currentPrice;
 
   // Tên tùy chọn biến thể: ưu tiên key có giá trị KHÁC NHAU giữa các biến thể
   // (vd Locker: "Kích thước màn hình" với 43"/50"/55"/65"). Fallback: key
@@ -133,14 +137,6 @@ export const ProductInfo = ({
   const handleSelectVariant = (idx: number) => {
     setSelectedVariantIndex(idx);
     onVariantChange?.(idx);
-  };
-
-  const formatPrice = (price: number): string => {
-    return new Intl.NumberFormat("vi-VN", {
-      style: "currency",
-      currency: "VND",
-      maximumFractionDigits: 0,
-    }).format(price);
   };
 
   // Hết hàng khi biến thể đang chọn tồn kho <= 0
@@ -308,10 +304,10 @@ export const ProductInfo = ({
           size="icon"
           onClick={() => {
             if (isWishlisted) {
-              wishlist.removeItem(product.id);
+              wishlist.remove(product.id);
               toast.info("Đã xóa khỏi danh sách yêu thích");
             } else {
-              wishlist.addItem(product);
+              wishlist.add(product);
               toast.success("Đã thêm vào danh sách yêu thích");
             }
           }}
@@ -435,6 +431,17 @@ export const ProductInfo = ({
           </div>
         </div>
       )}
+
+      {/* Sticky Bottom Bar trên mobile */}
+      <ProductMobileStickyBar
+        currentPrice={currentPrice}
+        originalPrice={originalPrice}
+        hasDiscount={hasDiscount}
+        isOutOfStock={isOutOfStock}
+        isAdding={isAdding}
+        onAddToCart={handleAddToCart}
+        onBuyNow={handleBuyNow}
+      />
     </div>
   );
 };

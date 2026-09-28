@@ -1,6 +1,5 @@
 'use client';
 
-import { useState } from 'react';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
 import { ProductCard } from '@/components/product/ProductCard';
@@ -8,20 +7,9 @@ import { useWishlistStore } from '@/store/wishlistStore';
 import { Heart, ShoppingCart, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
 
 export default function WishlistPage() {
   const wishlist = useWishlistStore();
-  const router = useRouter();
-
-  const handleAddToCart = (variantId: string, quantity: number) => {
-    // This would call your cart API
-    console.log('Add to cart:', variantId, quantity);
-  };
-
-  const handleViewDetails = (productId: string) => {
-    router.push(`/product/${productId}`);
-  };
 
   return (
     <div className="min-h-screen bg-white dark:bg-gray-950">
@@ -76,15 +64,17 @@ export default function WishlistPage() {
               </div>
 
               {/* Products Grid */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-                {wishlist.items.map((product) => (
-                  <ProductCard
-                    key={product.id}
-                    product={product}
-                    onAddToCart={handleAddToCart}
-                    onViewDetails={handleViewDetails}
-                  />
-                ))}
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3.5 sm:gap-6">
+                {wishlist.items
+                  .filter(Boolean)
+                  .map((item: any) => item?.product ?? item)
+                  .filter(Boolean)
+                  .map((product: any) => (
+                    <ProductCard
+                      key={product.id}
+                      product={product}
+                    />
+                  ))}
               </div>
             </>
           )}

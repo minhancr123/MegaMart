@@ -8,16 +8,37 @@ import Link from "next/link";
 import { useRecentlyViewedStore } from "@/store/recentlyViewedStore";
 import { searchProducts } from "@/lib/productApi";
 import { getPrimaryImageUrl } from "@/lib/imageUtils";
+import { formatPrice } from "@/lib/utils";
 import { useRef } from "react";
 
 interface RecommendedProduct {
   id: string;
   name: string;
   price: number;
+  originalPrice?: number | null;
   imageUrl: string;
   categoryName?: string;
   soldCount?: number;
 }
+
+// Giá hiệu lực rẻ nhất theo biến thể (sale chỉ hợp lệ khi > 0 và rẻ hơn giá
+// gốc) — cùng logic với ProductCard để dãy gợi ý hiện đúng giá sale.
+const getEffectivePrices = (p: any): { price: number; originalPrice: number | null } => {
+  const variants = p?.variants ?? [];
+  let best: { price: number; originalPrice: number | null } | null = null;
+  for (const v of variants) {
+    const price = Number(v?.price);
+    const saleRaw = Number(v?.salePrice);
+    const sale = v?.salePrice != null && Number.isFinite(saleRaw) && saleRaw > 0 ? saleRaw : null;
+    const current = sale != null && Number.isFinite(price) && sale < price ? sale : price;
+    if (!Number.isFinite(current) || current <= 0) continue;
+    const original = sale != null && Number.isFinite(price) && sale < price ? price : null;
+    if (!best || current < best.price) best = { price: current, originalPrice: original };
+  }
+  if (best) return best;
+  const fallback = Number(p?.price);
+  return { price: Number.isFinite(fallback) ? fallback : 0, originalPrice: null };
+};
 
 interface ProductRecommendationsProps {
   currentProductId: string;
@@ -52,14 +73,18 @@ export default function ProductRecommendations({
         const recommended = allProducts
           .filter((p: any) => p.id !== currentProductId)
           .slice(0, 10)
-          .map((p: any) => ({
-            id: p.id,
-            name: p.name,
-            price: p.variants?.[0]?.price || p.price || 0,
-            imageUrl: getPrimaryImageUrl(p?.images) || p.images?.[0]?.url || p.imageUrl || "",
-            categoryName: p.category?.name || categoryName,
-            soldCount: p.soldCount || 0,
-          }));
+          .map((p: any) => {
+            const { price, originalPrice } = getEffectivePrices(p);
+            return {
+              id: p.id,
+              name: p.name,
+              price,
+              originalPrice,
+              imageUrl: getPrimaryImageUrl(p?.images) || p.images?.[0]?.url || p.imageUrl || "",
+              categoryName: p.category?.name || categoryName,
+              soldCount: p.soldCount || 0,
+            };
+          });
 
         setProducts(recommended);
       } catch (error) {
@@ -92,12 +117,6 @@ export default function ProductRecommendations({
       behavior: "smooth",
     });
   };
-
-  const formatPrice = (price: number) =>
-    new Intl.NumberFormat("vi-VN", {
-      style: "currency",
-      currency: "VND",
-    }).format(price);
 
   if (loading) {
     return (
@@ -182,6 +201,11 @@ export default function ProductRecommendations({
                 <p className="text-sm font-bold text-[#af3200] dark:text-[#ff571a]">
                   {formatPrice(product.price)}
                 </p>
+                {product.originalPrice != null && product.originalPrice > product.price && (
+                  <p className="text-[11px] text-gray-400 dark:text-gray-500 line-through">
+                    {formatPrice(product.originalPrice)}
+                  </p>
+                )}
                 {product.categoryName && (
                   <p className="text-[10px] text-gray-400 dark:text-gray-500 mt-1 truncate">
                     {product.categoryName}

@@ -1,6 +1,10 @@
-import { Injectable, Logger } from '@nestjs/common';
-import { WalletService } from '../../wallet/wallet.service';
-import { IRefundProvider, RefundContext, RefundResult } from '../interfaces/refund-provider.interface';
+import { Injectable, Logger } from "@nestjs/common";
+import { WalletService } from "../../wallet/wallet.service";
+import {
+  IRefundProvider,
+  RefundContext,
+  RefundResult,
+} from "../interfaces/refund-provider.interface";
 
 /**
  * Hoàn vào ví nội bộ: cộng tiền atomic + idempotency theo refundRequestId.
@@ -8,7 +12,7 @@ import { IRefundProvider, RefundContext, RefundResult } from '../interfaces/refu
  */
 @Injectable()
 export class WalletRefundProvider implements IRefundProvider {
-  readonly code = 'WALLET' as const;
+  readonly code = "WALLET" as const;
   private readonly logger = new Logger(WalletRefundProvider.name);
 
   constructor(private readonly walletService: WalletService) {}
@@ -23,10 +27,11 @@ export class WalletRefundProvider implements IRefundProvider {
     if (!order?.userId) {
       return {
         ok: false,
-        status: 'APPROVED',
-        channel: 'MANUAL',
+        status: "APPROVED",
+        channel: "MANUAL",
         needsManualFallback: true,
-        failureReason: 'Đơn khách vãng lai không có ví, chuyển sang hoàn thủ công',
+        failureReason:
+          "Đơn khách vãng lai không có ví, chuyển sang hoàn thủ công",
       };
     }
     try {
@@ -34,20 +39,25 @@ export class WalletRefundProvider implements IRefundProvider {
         order.userId,
         Number(request.amount || 0),
         request.id,
-        'REFUND',
-        `Hoàn tiền đơn ${order.code}: ${(request.reason || '').slice(0, 200)}`,
+        "REFUND",
+        `Hoàn tiền đơn ${order.code}: ${(request.reason || "").slice(0, 200)}`,
         order.id,
       );
       return {
         ok: true,
-        status: 'COMPLETED',
-        channel: 'WALLET',
-        externalRefundId: (tx as any)?.id,
-        rawResponse: { walletTransactionId: (tx as any)?.id },
+        status: "COMPLETED",
+        channel: "WALLET",
+        externalRefundId: tx?.id,
+        rawResponse: { walletTransactionId: tx?.id },
       };
     } catch (e: any) {
       this.logger.warn(`Wallet refund failed ${request.id}: ${e?.message}`);
-      return { ok: false, status: 'FAILED', channel: 'WALLET', failureReason: e?.message || 'Cộng ví thất bại' };
+      return {
+        ok: false,
+        status: "FAILED",
+        channel: "WALLET",
+        failureReason: e?.message || "Cộng ví thất bại",
+      };
     }
   }
 }

@@ -1,10 +1,10 @@
-import { Controller, Get, Put, Body, UseGuards } from '@nestjs/common';
-import { SettingsService } from './settings.service';
-import { UpdateSettingsDto } from './dto/update-settings.dto';
-import { JwtAuthGuard } from 'src/guards/jwt-auth.guard';
-import { AdminGuard } from 'src/guards/admin.guard';
+import { Controller, Get, Put, Body, UseGuards } from "@nestjs/common";
+import { SettingsService } from "./settings.service";
+import { UpdateSettingsDto } from "./dto/update-settings.dto";
+import { JwtAuthGuard } from "src/guards/jwt-auth.guard";
+import { AdminGuard } from "src/guards/admin.guard";
 
-@Controller('settings')
+@Controller("settings")
 export class SettingsController {
   constructor(private readonly settingsService: SettingsService) {}
 

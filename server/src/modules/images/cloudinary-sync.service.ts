@@ -1,7 +1,7 @@
-import { Injectable, Logger } from '@nestjs/common';
-import { PrismaService } from '../../prismaClient/prisma.service';
-import { CloudinaryService } from './cloudinary.service';
-import * as multer from 'multer';
+import { Injectable, Logger } from "@nestjs/common";
+import { PrismaService } from "../../prismaClient/prisma.service";
+import { CloudinaryService } from "./cloudinary.service";
+import * as multer from "multer";
 
 @Injectable()
 export class CloudinaryImageSyncService {
@@ -46,10 +46,11 @@ export class CloudinaryImageSyncService {
       try {
         // Extract SKU from filename
         const filename = file.originalname;
-        const nameWithoutExt = filename.replace(/\.[^/.]+$/, '');
-        const [baseName] = nameWithoutExt.split('-').slice(0, -1).length > 0
-          ? [nameWithoutExt.split('-').slice(0, -1).join('-')]
-          : [nameWithoutExt];
+        const nameWithoutExt = filename.replace(/\.[^/.]+$/, "");
+        const [baseName] =
+          nameWithoutExt.split("-").slice(0, -1).length > 0
+            ? [nameWithoutExt.split("-").slice(0, -1).join("-")]
+            : [nameWithoutExt];
 
         const match = skuMap.get(baseName.toLowerCase());
 
@@ -57,8 +58,8 @@ export class CloudinaryImageSyncService {
           results.skipped++;
           results.details.push({
             file: filename,
-            status: 'no_match',
-            reason: 'No matching SKU found',
+            status: "no_match",
+            reason: "No matching SKU found",
           });
           this.logger.warn(`⚠️ No match for ${filename}`);
           continue;
@@ -68,7 +69,7 @@ export class CloudinaryImageSyncService {
 
         // Upload to Cloudinary
         this.logger.log(`📤 Uploading ${filename}...`);
-        const uploaded = await this.cloudinary.uploadImage(file, 'products');
+        const uploaded = await this.cloudinary.uploadImage(file, "products");
         results.uploaded++;
 
         // Check if image already exists
@@ -80,7 +81,7 @@ export class CloudinaryImageSyncService {
           results.details.push({
             file: filename,
             product: product.name,
-            status: 'already_exists',
+            status: "already_exists",
             url: uploaded.url,
           });
           continue;
@@ -100,7 +101,7 @@ export class CloudinaryImageSyncService {
           file: filename,
           product: product.name,
           sku: baseName,
-          status: 'synced',
+          status: "synced",
           url: uploaded.url,
           publicId: uploaded.publicId,
         });
@@ -110,7 +111,7 @@ export class CloudinaryImageSyncService {
         results.errors++;
         results.details.push({
           file: file.originalname,
-          status: 'error',
+          status: "error",
           error: error.message,
         });
         this.logger.error(`❌ Error processing ${file.originalname}:`, error);
@@ -132,7 +133,7 @@ export class CloudinaryImageSyncService {
    * Sync existing Cloudinary images with products
    */
   async syncCloudinaryImages() {
-    this.logger.log('🔄 Syncing existing Cloudinary images...');
+    this.logger.log("🔄 Syncing existing Cloudinary images...");
 
     const results = {
       synced: 0,
@@ -143,10 +144,11 @@ export class CloudinaryImageSyncService {
 
     try {
       // Get all images from Cloudinary
-      const cloudinaryImages = await this.cloudinary.getImagesFromFolder(
-        'products',
+      const cloudinaryImages =
+        await this.cloudinary.getImagesFromFolder("products");
+      this.logger.log(
+        `📁 Found ${cloudinaryImages.length} images on Cloudinary`,
       );
-      this.logger.log(`📁 Found ${cloudinaryImages.length} images on Cloudinary`);
 
       // Get products
       const products = await this.prisma.product.findMany({
@@ -166,9 +168,9 @@ export class CloudinaryImageSyncService {
       for (const image of cloudinaryImages) {
         try {
           // Extract filename from public_id
-          const filename = image.public_id.split('/').pop();
+          const filename = image.public_id.split("/").pop();
           const nameWithoutExt = filename;
-          const [baseName] = nameWithoutExt.split('-');
+          const [baseName] = nameWithoutExt.split("-");
 
           const match = skuMap.get(baseName.toLowerCase());
 
@@ -201,7 +203,7 @@ export class CloudinaryImageSyncService {
           results.details.push({
             file: filename,
             product: product.name,
-            status: 'synced',
+            status: "synced",
             url: image.secure_url,
           });
         } catch (error) {
@@ -211,7 +213,7 @@ export class CloudinaryImageSyncService {
 
       return results;
     } catch (error) {
-      this.logger.error('Sync failed:', error);
+      this.logger.error("Sync failed:", error);
       throw error;
     }
   }
@@ -225,7 +227,7 @@ export class CloudinaryImageSyncService {
     });
 
     if (!image) {
-      throw new Error('Image not found');
+      throw new Error("Image not found");
     }
 
     // Extract public_id from URL
@@ -247,10 +249,7 @@ export class CloudinaryImageSyncService {
   /**
    * Upload single image for specific product
    */
-  async uploadImageForProduct(
-    productId: string,
-    file: Express.Multer.File,
-  ) {
+  async uploadImageForProduct(productId: string, file: Express.Multer.File) {
     const product = await this.prisma.product.findUnique({
       where: { id: productId },
       include: {
@@ -259,11 +258,11 @@ export class CloudinaryImageSyncService {
     });
 
     if (!product) {
-      throw new Error('Product not found');
+      throw new Error("Product not found");
     }
 
     // Upload to Cloudinary
-    const uploaded = await this.cloudinary.uploadImage(file, 'products');
+    const uploaded = await this.cloudinary.uploadImage(file, "products");
 
     // Determine if this should be primary (first image)
     const isPrimary = product.images.length === 0;
@@ -281,7 +280,7 @@ export class CloudinaryImageSyncService {
     });
 
     this.logger.log(
-      `✅ Uploaded image for ${product.name}${isPrimary ? ' (primary)' : ''}`,
+      `✅ Uploaded image for ${product.name}${isPrimary ? " (primary)" : ""}`,
     );
 
     return {
@@ -300,18 +299,18 @@ export class CloudinaryImageSyncService {
       where: { id: productId },
       include: {
         images: {
-          orderBy: { displayOrder: 'asc' },
+          orderBy: { displayOrder: "asc" },
         },
         variants: {
           take: 1,
-          orderBy: { createdAt: 'asc' },
+          orderBy: { createdAt: "asc" },
           select: { sku: true },
         },
       },
     });
 
     if (!product) {
-      throw new Error('Product not found');
+      throw new Error("Product not found");
     }
 
     return {
@@ -332,7 +331,7 @@ export class CloudinaryImageSyncService {
     });
 
     if (!image) {
-      throw new Error('Image not found');
+      throw new Error("Image not found");
     }
 
     // Unset current primary image
@@ -379,7 +378,7 @@ export class CloudinaryImageSyncService {
     const [totalImages, totalProducts, cloudinaryImages] = await Promise.all([
       this.prisma.productImage.count(),
       this.prisma.product.count(),
-      this.cloudinary.getImagesFromFolder('products'),
+      this.cloudinary.getImagesFromFolder("products"),
     ]);
 
     return {
@@ -405,7 +404,7 @@ export class CloudinaryImageSyncService {
     });
 
     if (!product) {
-      throw new Error('Product not found');
+      throw new Error("Product not found");
     }
 
     // Check if URL already exists for this product
@@ -413,7 +412,7 @@ export class CloudinaryImageSyncService {
     if (existingImage) {
       return {
         success: false,
-        message: 'Image URL already exists for this product',
+        message: "Image URL already exists for this product",
         image: existingImage,
       };
     }

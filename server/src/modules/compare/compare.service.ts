@@ -1,5 +1,5 @@
-import { BadRequestException, Injectable } from '@nestjs/common';
-import { PrismaService } from 'src/prismaClient/prisma.service';
+import { BadRequestException, Injectable } from "@nestjs/common";
+import { PrismaService } from "src/prismaClient/prisma.service";
 
 @Injectable()
 export class CompareService {
@@ -9,7 +9,7 @@ export class CompareService {
     return this.prisma.compareItem.findMany({
       where: { userId },
       include: { product: true },
-      orderBy: { createdAt: 'desc' },
+      orderBy: { createdAt: "desc" },
     });
   }
 
@@ -21,15 +21,17 @@ export class CompareService {
       });
       return item;
     } catch (err: any) {
-      if (String(err.message).includes('Unique constraint')) {
-        throw new BadRequestException('Sản phẩm đã có trong so sánh');
+      if (String(err.message).includes("Unique constraint")) {
+        throw new BadRequestException("Sản phẩm đã có trong so sánh");
       }
       throw err;
     }
   }
 
   async remove(userId: string, productId: string) {
-    await this.prisma.compareItem.delete({ where: { userId_productId: { userId, productId } } });
+    await this.prisma.compareItem.delete({
+      where: { userId_productId: { userId, productId } },
+    });
     return { success: true };
   }
 

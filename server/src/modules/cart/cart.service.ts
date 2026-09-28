@@ -1,13 +1,17 @@
-import { Injectable, NotFoundException } from "@nestjs/common";
+import {
+  ForbiddenException,
+  Injectable,
+  NotFoundException,
+} from "@nestjs/common";
 import { CreateCartDto } from "./dto/create-cart.dto";
 import { UpdateCartDto } from "./dto/update-cart.dto";
 import { PrismaService } from "src/prismaClient/prisma.service";
-import { formatPrice } from "src/utils/price.util";
+import { formatPrice, isSaleActive } from "src/utils/price.util";
 
 @Injectable()
 export class CartService {
   constructor(private prisma: PrismaService) {}
-  
+
   async getCartByUserId(userId: string) {
     try {
       // Tìm cart của user
@@ -20,13 +24,13 @@ export class CartService {
                 include: {
                   product: {
                     include: {
-                      images: true
-                    }
-                  }
-                }
-              }
-            }
-          }
+                      images: true,
+                    },
+                  },
+                },
+              },
+            },
+          },
         },
       });
 
@@ -34,7 +38,7 @@ export class CartService {
       if (!cart) {
         cart = await this.prisma.cart.create({
           data: {
-            userId
+            userId,
           },
           include: {
             items: {
@@ -43,46 +47,58 @@ export class CartService {
                   include: {
                     product: {
                       include: {
-                        images: true
-                      }
-                    }
-                  }
-                }
-              }
-            }
-          }
+                        images: true,
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          },
         });
       }
 
-      // Format response
+      // Format response (sale hết hạn/chưa tới thì trả salePrice = null
+      // để client không tính giá sale vào checkout)
       return {
         ...cart,
-        items: cart.items.map(item => ({
+        items: cart.items.map((item) => ({
           ...item,
           variant: {
             ...item.variant,
             price: formatPrice(item.variant.price),
-            salePrice: item.variant.salePrice ? formatPrice(item.variant.salePrice) : null,
-          }
-        }))
+            salePrice: isSaleActive(item.variant as any)
+              ? formatPrice(item.variant.salePrice as bigint)
+              : null,
+          },
+        })),
       };
-      
     } catch (error) {
-      console.error('Error getting cart:', error);
-      throw new Error('Failed to get cart');
+      console.error("Error getting cart:", error);
+      throw new Error("Failed to get cart");
     }
   }
 
   async addItemToCart(userId: string, variantId: string, quantity: number = 1) {
     try {
+      const user = await this.prisma.user.findUnique({
+        where: { id: userId },
+        select: { role: true },
+      });
+      if (user && ["SHIPPER", "SUPPLIER"].includes(String(user.role))) {
+        throw new ForbiddenException(
+          "Tài khoản Shipper/Nhà cung cấp không được phép mua hàng",
+        );
+      }
+
       // Tìm hoặc tạo cart
       let cart = await this.prisma.cart.findFirst({
-        where: { userId }
+        where: { userId },
       });
 
       if (!cart) {
         cart = await this.prisma.cart.create({
-          data: { userId }
+          data: { userId },
         });
       }
 
@@ -90,8 +106,8 @@ export class CartService {
       const existingItem = await this.prisma.cartItem.findFirst({
         where: {
           cartId: cart.id,
-          variantId
-        }
+          variantId,
+        },
       });
 
       if (existingItem) {
@@ -99,8 +115,8 @@ export class CartService {
         return await this.prisma.cartItem.update({
           where: { id: existingItem.id },
           data: {
-            quantity: existingItem.quantity + quantity
-          }
+            quantity: existingItem.quantity + quantity,
+          },
         });
       } else {
         // Thêm item mới
@@ -108,52 +124,53 @@ export class CartService {
           data: {
             cartId: cart.id,
             variantId,
-            quantity
-          }
+            quantity,
+          },
         });
       }
     } catch (error) {
-      console.error('Error adding item to cart:', error);
-      throw new Error('Failed to add item to cart');
+      if (error instanceof ForbiddenException) throw error;
+      console.error("Error adding item to cart:", error);
+      throw new Error("Failed to add item to cart");
     }
   }
 
-  async updateCartItem( itemId: string, updateQuantity: UpdateCartDto) {
+  async updateCartItem(itemId: string, updateQuantity: UpdateCartDto) {
     const item = await this.prisma.cartItem.findUnique({
-      where: { id: itemId }
+      where: { id: itemId },
     });
     if (!item) {
-      throw new NotFoundException('Cart item not found');
+      throw new NotFoundException("Cart item not found");
     }
     return this.prisma.cartItem.update({
       where: { id: itemId },
-      data: { quantity: updateQuantity.quantity }
+      data: { quantity: updateQuantity.quantity },
     });
   }
   async removeCartItem(itemId: string) {
     const item = await this.prisma.cartItem.findUnique({
-      where: { id: itemId }
+      where: { id: itemId },
     });
     if (!item) {
-      throw new NotFoundException('Cart item not found');
+      throw new NotFoundException("Cart item not found");
     }
     return this.prisma.cartItem.delete({
-      where: { id: itemId }
+      where: { id: itemId },
     });
   }
 
-  async removeItemFromCart(itemId :string) {
+  async removeItemFromCart(itemId: string) {
     const item = await this.prisma.cartItem.findUnique({
-      where : {
-        id : itemId
-      }
+      where: {
+        id: itemId,
+      },
     });
     if (!item) {
-      throw new NotFoundException('Cart item not found');
+      throw new NotFoundException("Cart item not found");
     }
 
     return this.prisma.cartItem.delete({
-      where: { id: itemId }
-    })
+      where: { id: itemId },
+    });
   }
 }

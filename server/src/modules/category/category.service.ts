@@ -1,7 +1,7 @@
-import { Injectable, HttpException, HttpStatus } from '@nestjs/common';
-import { CreateCategoryDto } from './dto/create-category.dto';
-import { UpdateCategoryDto } from './dto/update-category.dto';
-import { PrismaService } from 'src/prismaClient/prisma.service';
+import { Injectable, HttpException, HttpStatus } from "@nestjs/common";
+import { CreateCategoryDto } from "./dto/create-category.dto";
+import { UpdateCategoryDto } from "./dto/update-category.dto";
+import { PrismaService } from "src/prismaClient/prisma.service";
 
 @Injectable()
 export class CategoryService {
@@ -10,26 +10,26 @@ export class CategoryService {
   async create(createCategoryDto: CreateCategoryDto) {
     // Check if slug already exists
     const existingCategory = await this.prisma.category.findUnique({
-      where: { slug: createCategoryDto.slug }
+      where: { slug: createCategoryDto.slug },
     });
 
     if (existingCategory) {
       throw new HttpException(
-        { success: false, message: 'Slug đã tồn tại' },
-        HttpStatus.BAD_REQUEST
+        { success: false, message: "Slug đã tồn tại" },
+        HttpStatus.BAD_REQUEST,
       );
     }
 
     // If parentId is provided, verify it exists
     if (createCategoryDto.parentId) {
       const parentCategory = await this.prisma.category.findUnique({
-        where: { id: createCategoryDto.parentId }
+        where: { id: createCategoryDto.parentId },
       });
 
       if (!parentCategory) {
         throw new HttpException(
-          { success: false, message: 'Danh mục cha không tồn tại' },
-          HttpStatus.BAD_REQUEST
+          { success: false, message: "Danh mục cha không tồn tại" },
+          HttpStatus.BAD_REQUEST,
         );
       }
     }
@@ -41,17 +41,17 @@ export class CategoryService {
         description: createCategoryDto.description,
         image: createCategoryDto.image,
         parentId: createCategoryDto.parentId || null,
-        active: createCategoryDto.active ?? true
+        active: createCategoryDto.active ?? true,
       },
       include: {
         parent: {
           select: {
             id: true,
             name: true,
-            slug: true
-          }
-        }
-      }
+            slug: true,
+          },
+        },
+      },
     });
   }
 
@@ -65,14 +65,14 @@ export class CategoryService {
             name: true,
             slug: true,
             description: true,
-            image: true
-          }
+            image: true,
+          },
         },
         _count: {
-          select: { products: true }
-        }
+          select: { products: true },
+        },
       },
-      orderBy: { createdAt: 'desc' }
+      orderBy: { createdAt: "desc" },
     });
   }
 
@@ -84,8 +84,8 @@ export class CategoryService {
           select: {
             id: true,
             name: true,
-            slug: true
-          }
+            slug: true,
+          },
         },
         children: {
           select: {
@@ -93,13 +93,13 @@ export class CategoryService {
             name: true,
             slug: true,
             description: true,
-            image: true
-          }
+            image: true,
+          },
         },
         _count: {
-          select: { products: true }
-        }
-      }
+          select: { products: true },
+        },
+      },
     });
   }
 
@@ -108,21 +108,21 @@ export class CategoryService {
     const category = await this.prisma.category.findUnique({ where: { id } });
     if (!category) {
       throw new HttpException(
-        { success: false, message: 'Không tìm thấy danh mục' },
-        HttpStatus.NOT_FOUND
+        { success: false, message: "Không tìm thấy danh mục" },
+        HttpStatus.NOT_FOUND,
       );
     }
 
     // If updating slug, check if new slug already exists
     if (updateCategoryDto.slug && updateCategoryDto.slug !== category.slug) {
       const existingCategory = await this.prisma.category.findUnique({
-        where: { slug: updateCategoryDto.slug }
+        where: { slug: updateCategoryDto.slug },
       });
 
       if (existingCategory) {
         throw new HttpException(
-          { success: false, message: 'Slug đã tồn tại' },
-          HttpStatus.BAD_REQUEST
+          { success: false, message: "Slug đã tồn tại" },
+          HttpStatus.BAD_REQUEST,
         );
       }
     }
@@ -131,19 +131,22 @@ export class CategoryService {
     if (updateCategoryDto.parentId) {
       if (updateCategoryDto.parentId === id) {
         throw new HttpException(
-          { success: false, message: 'Không thể đặt danh mục làm cha của chính nó' },
-          HttpStatus.BAD_REQUEST
+          {
+            success: false,
+            message: "Không thể đặt danh mục làm cha của chính nó",
+          },
+          HttpStatus.BAD_REQUEST,
         );
       }
 
       const parentCategory = await this.prisma.category.findUnique({
-        where: { id: updateCategoryDto.parentId }
+        where: { id: updateCategoryDto.parentId },
       });
 
       if (!parentCategory) {
         throw new HttpException(
-          { success: false, message: 'Danh mục cha không tồn tại' },
-          HttpStatus.BAD_REQUEST
+          { success: false, message: "Danh mục cha không tồn tại" },
+          HttpStatus.BAD_REQUEST,
         );
       }
     }
@@ -156,17 +159,17 @@ export class CategoryService {
           select: {
             id: true,
             name: true,
-            slug: true
-          }
+            slug: true,
+          },
         },
         children: {
           select: {
             id: true,
             name: true,
-            slug: true
-          }
-        }
-      }
+            slug: true,
+          },
+        },
+      },
     });
   }
 
@@ -176,35 +179,35 @@ export class CategoryService {
       where: { id },
       include: {
         children: true,
-        _count: { select: { products: true } }
-      }
+        _count: { select: { products: true } },
+      },
     });
 
     if (!category) {
       throw new HttpException(
-        { success: false, message: 'Không tìm thấy danh mục' },
-        HttpStatus.NOT_FOUND
+        { success: false, message: "Không tìm thấy danh mục" },
+        HttpStatus.NOT_FOUND,
       );
     }
 
     // Check if category has children
     if (category.children.length > 0) {
       throw new HttpException(
-        { success: false, message: 'Không thể xóa danh mục có danh mục con' },
-        HttpStatus.BAD_REQUEST
+        { success: false, message: "Không thể xóa danh mục có danh mục con" },
+        HttpStatus.BAD_REQUEST,
       );
     }
 
     // Check if category has products
     if (category._count.products > 0) {
       throw new HttpException(
-        { success: false, message: 'Không thể xóa danh mục có sản phẩm' },
-        HttpStatus.BAD_REQUEST
+        { success: false, message: "Không thể xóa danh mục có sản phẩm" },
+        HttpStatus.BAD_REQUEST,
       );
     }
 
     return this.prisma.category.delete({
-      where: { id }
+      where: { id },
     });
   }
 }

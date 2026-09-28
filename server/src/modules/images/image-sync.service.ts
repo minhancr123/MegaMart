@@ -1,24 +1,31 @@
-import { Injectable, Logger } from '@nestjs/common';
-import { PrismaService } from '../../prismaClient/prisma.service';
-import * as fs from 'fs/promises';
-import * as path from 'path';
+import { Injectable, Logger } from "@nestjs/common";
+import { PrismaService } from "../../prismaClient/prisma.service";
+import * as fs from "fs/promises";
+import * as path from "path";
 
 @Injectable()
 export class ImageSyncService {
   private readonly logger = new Logger(ImageSyncService.name);
-  private readonly imagesBasePath = path.join(process.cwd(), '..', 'client', 'public', 'images', 'products');
+  private readonly imagesBasePath = path.join(
+    process.cwd(),
+    "..",
+    "client",
+    "public",
+    "images",
+    "products",
+  );
 
   constructor(private prisma: PrismaService) {}
 
   /**
    * Scan folder public/images/products và tự động map với products
-   * Naming convention: 
+   * Naming convention:
    * - {sku}.jpg/png/webp -> Ảnh chính của variant
    * - {sku}-1.jpg, {sku}-2.jpg -> Ảnh phụ của product
    * - {productId}.jpg -> Ảnh chính của product (nếu không có SKU)
    */
   async syncProductImages() {
-    this.logger.log('🔄 Starting product images synchronization...');
+    this.logger.log("🔄 Starting product images synchronization...");
 
     try {
       // Check if images folder exists
@@ -27,19 +34,19 @@ export class ImageSyncService {
       } catch {
         this.logger.warn(`Images folder not found: ${this.imagesBasePath}`);
         await fs.mkdir(this.imagesBasePath, { recursive: true });
-        this.logger.log('✅ Created images folder');
-        return { synced: 0, message: 'Images folder was empty' };
+        this.logger.log("✅ Created images folder");
+        return { synced: 0, message: "Images folder was empty" };
       }
 
       // Get all image files
       const files = await fs.readdir(this.imagesBasePath);
-      const imageFiles = files.filter(file => 
-        /\.(jpg|jpeg|png|webp|gif)$/i.test(file)
+      const imageFiles = files.filter((file) =>
+        /\.(jpg|jpeg|png|webp|gif)$/i.test(file),
       );
 
       this.logger.log(`📁 Found ${imageFiles.length} image files`);
 
-      let syncedCount = 0;
+      const syncedCount = 0;
       const results = {
         synced: 0,
         skipped: 0,
@@ -55,12 +62,16 @@ export class ImageSyncService {
         },
       });
 
-      type ProductWithRelations = typeof products[0];
+      type ProductWithRelations = (typeof products)[0];
 
-      const productMap = new Map<string, ProductWithRelations>(products.map(p => [p.id, p]));
+      const productMap = new Map<string, ProductWithRelations>(
+        products.map((p) => [p.id, p]),
+      );
       const skuMap = new Map();
-      products.forEach(p => {
-        p.variants.forEach(v => skuMap.set(v.sku.toLowerCase(), { product: p, variant: v }));
+      products.forEach((p) => {
+        p.variants.forEach((v) =>
+          skuMap.set(v.sku.toLowerCase(), { product: p, variant: v }),
+        );
       });
 
       for (const filename of imageFiles) {
@@ -70,14 +81,16 @@ export class ImageSyncService {
           const imageUrl = `/images/products/${filename}`;
 
           // Try to match by SKU first (with or without suffix like -1, -2)
-          const [baseName, suffix] = nameWithoutExt.split('-');
+          const [baseName, suffix] = nameWithoutExt.split("-");
           const match = skuMap.get(baseName.toLowerCase());
 
           if (match) {
             const { product, variant } = match;
 
             // Check if image already exists
-            const existingImage = product.images.find(img => img.url === imageUrl);
+            const existingImage = product.images.find(
+              (img) => img.url === imageUrl,
+            );
             if (existingImage) {
               results.skipped++;
               continue;
@@ -97,15 +110,24 @@ export class ImageSyncService {
               file: filename,
               product: product.name,
               sku: variant.sku,
-              status: 'synced',
+              status: "synced",
             });
 
-            this.logger.log(`✅ Synced ${filename} -> ${product.name} (${variant.sku})`);
+            this.logger.log(
+              `✅ Synced ${filename} -> ${product.name} (${variant.sku})`,
+            );
           } else {
             // Try to match by product ID
             const productById = productMap.get(nameWithoutExt);
-            if (productById && productById.images && productById.id && productById.name) {
-              const existingImage = productById.images.find(img => img.url === imageUrl);
+            if (
+              productById &&
+              productById.images &&
+              productById.id &&
+              productById.name
+            ) {
+              const existingImage = productById.images.find(
+                (img) => img.url === imageUrl,
+              );
               if (!existingImage) {
                 await this.prisma.productImage.create({
                   data: {
@@ -119,7 +141,7 @@ export class ImageSyncService {
                 results.details.push({
                   file: filename,
                   product: productById.name,
-                  status: 'synced',
+                  status: "synced",
                 });
 
                 this.logger.log(`✅ Synced ${filename} -> ${productById.name}`);
@@ -130,8 +152,8 @@ export class ImageSyncService {
               results.skipped++;
               results.details.push({
                 file: filename,
-                status: 'no_match',
-                reason: 'No matching product or SKU found',
+                status: "no_match",
+                reason: "No matching product or SKU found",
               });
               this.logger.warn(`⚠️  No match found for ${filename}`);
             }
@@ -140,7 +162,7 @@ export class ImageSyncService {
           results.errors++;
           results.details.push({
             file: filename,
-            status: 'error',
+            status: "error",
             error: error.message,
           });
           this.logger.error(`❌ Error syncing ${filename}:`, error.message);
@@ -156,7 +178,7 @@ export class ImageSyncService {
 
       return results;
     } catch (error) {
-      this.logger.error('❌ Sync failed:', error);
+      this.logger.error("❌ Sync failed:", error);
       throw error;
     }
   }
@@ -169,8 +191,8 @@ export class ImageSyncService {
 
     try {
       const files = await fs.readdir(folderPath);
-      const imageFiles = files.filter(file => 
-        /\.(jpg|jpeg|png|webp|gif)$/i.test(file)
+      const imageFiles = files.filter((file) =>
+        /\.(jpg|jpeg|png|webp|gif)$/i.test(file),
       );
 
       for (const file of imageFiles) {
@@ -185,7 +207,7 @@ export class ImageSyncService {
       // Now sync the images
       return this.syncProductImages();
     } catch (error) {
-      this.logger.error('❌ Custom folder sync failed:', error);
+      this.logger.error("❌ Custom folder sync failed:", error);
       throw error;
     }
   }
@@ -194,26 +216,26 @@ export class ImageSyncService {
    * Watch folder for new images and auto-sync
    */
   async watchFolder() {
-    this.logger.log('👀 Starting folder watch...');
+    this.logger.log("👀 Starting folder watch...");
 
     try {
-      const { watch } = await import('fs/promises');
-      
+      const { watch } = await import("fs/promises");
+
       const watcher = watch(this.imagesBasePath);
-      
+
       for await (const event of watcher) {
-        if (event.eventType === 'change' || event.eventType === 'rename') {
+        if (event.eventType === "change" || event.eventType === "rename") {
           this.logger.log(`📸 Detected change: ${event.filename}`);
-          
+
           // Wait a bit to ensure file is fully written
-          await new Promise(resolve => setTimeout(resolve, 1000));
-          
+          await new Promise((resolve) => setTimeout(resolve, 1000));
+
           // Sync images
           await this.syncProductImages();
         }
       }
     } catch (error) {
-      this.logger.error('❌ Watch failed:', error);
+      this.logger.error("❌ Watch failed:", error);
     }
   }
 
@@ -238,14 +260,14 @@ export class ImageSyncService {
     guide += `---\n\n`;
     guide += `## 🏷️ Your Products & SKUs:\n\n`;
 
-    products.forEach(product => {
+    products.forEach((product) => {
       guide += `### ${product.name}\n`;
       guide += `- Product ID: \`${product.id}\`\n`;
       guide += `- Suggested filename: \`${product.id}.jpg\`\n\n`;
-      
+
       if (product.variants.length > 0) {
         guide += `**Variants:**\n`;
-        product.variants.forEach(variant => {
+        product.variants.forEach((variant) => {
           guide += `- SKU: \`${variant.sku}\` → Filename: \`${variant.sku}.jpg\`\n`;
           if (variant.attributes) {
             guide += `  - Attributes: ${JSON.stringify(variant.attributes)}\n`;
@@ -264,8 +286,8 @@ export class ImageSyncService {
     guide += `---\n\n`;
     guide += `Generated: ${new Date().toISOString()}\n`;
 
-    const guidePath = path.join(process.cwd(), 'IMAGE_MAPPING_GUIDE.md');
-    await fs.writeFile(guidePath, guide, 'utf-8');
+    const guidePath = path.join(process.cwd(), "IMAGE_MAPPING_GUIDE.md");
+    await fs.writeFile(guidePath, guide, "utf-8");
 
     this.logger.log(`📄 Generated mapping guide: ${guidePath}`);
     return { path: guidePath, content: guide };

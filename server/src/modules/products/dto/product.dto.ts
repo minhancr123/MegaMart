@@ -1,27 +1,34 @@
-import { ApiProperty } from '@nestjs/swagger';
-import { IsNotEmpty, IsOptional, IsString, IsArray, IsNumber, Min } from 'class-validator';
-import { formatPrice } from 'src/utils/price.util';
+import { ApiProperty } from "@nestjs/swagger";
+import {
+  IsNotEmpty,
+  IsOptional,
+  IsString,
+  IsArray,
+  IsNumber,
+  Min,
+} from "class-validator";
+import { formatPrice } from "src/utils/price.util";
 
 export class CreateProductDto {
   @ApiProperty({
-    description: 'Product name',
-    example: 'iPhone 15 Pro',
+    description: "Product name",
+    example: "iPhone 15 Pro",
   })
   @IsNotEmpty()
   @IsString()
   name: string;
 
   @ApiProperty({
-    description: 'Product slug (URL-friendly name)',
-    example: 'iphone-15-pro',
+    description: "Product slug (URL-friendly name)",
+    example: "iphone-15-pro",
   })
   @IsNotEmpty()
   @IsString()
   slug: string;
 
   @ApiProperty({
-    description: 'Product description',
-    example: 'Latest iPhone with A17 Pro chip',
+    description: "Product description",
+    example: "Latest iPhone with A17 Pro chip",
     required: false,
   })
   @IsOptional()
@@ -29,15 +36,15 @@ export class CreateProductDto {
   description?: string;
 
   @ApiProperty({
-    description: 'URL ảnh minh họa xen trong bài mô tả (vị trí [DESCIMG:n])',
+    description: "URL ảnh minh họa xen trong bài mô tả (vị trí [DESCIMG:n])",
     required: false,
   })
   @IsOptional()
   descriptionImages?: string[];
 
   @ApiProperty({
-    description: 'Product brand',
-    example: 'Apple',
+    description: "Product brand",
+    example: "Apple",
     required: false,
   })
   @IsOptional()
@@ -45,8 +52,8 @@ export class CreateProductDto {
   brand?: string;
 
   @ApiProperty({
-    description: 'Category ID',
-    example: 'category_id_123',
+    description: "Category ID",
+    example: "category_id_123",
     required: false,
   })
   @IsOptional()
@@ -56,15 +63,15 @@ export class CreateProductDto {
 
 export class CreateVariantDto {
   @ApiProperty({
-    description: 'Product variant SKU',
-    example: 'IP15P-128-NT',
+    description: "Product variant SKU",
+    example: "IP15P-128-NT",
   })
   @IsNotEmpty()
   @IsString()
   sku: string;
 
   @ApiProperty({
-    description: 'Price in cents (VND)',
+    description: "Price in cents (VND)",
     example: 2999000000,
     minimum: 0,
   })
@@ -73,7 +80,7 @@ export class CreateVariantDto {
   price: number;
 
   @ApiProperty({
-    description: 'Stock quantity',
+    description: "Stock quantity",
     example: 50,
     minimum: 0,
   })
@@ -82,16 +89,16 @@ export class CreateVariantDto {
   stock: number;
 
   @ApiProperty({
-    description: 'Array of colors with images',
-    example: [{ hex: '#ff0000', name: 'Đỏ', imageUrl: 'https://...' }],
+    description: "Array of colors with images",
+    example: [{ hex: "#ff0000", name: "Đỏ", imageUrl: "https://..." }],
     required: false,
   })
   @IsOptional()
   colors?: any;
 
   @ApiProperty({
-    description: 'Variant attributes (color, size, etc.)',
-    example: { color: 'Natural Titanium', storage: '128GB' },
+    description: "Variant attributes (color, size, etc.)",
+    example: { color: "Natural Titanium", storage: "128GB" },
     required: false,
   })
   @IsOptional()
@@ -100,50 +107,50 @@ export class CreateVariantDto {
 
 export class ProductResponseDto {
   @ApiProperty({
-    description: 'Product ID',
-    example: 'product_id_123',
+    description: "Product ID",
+    example: "product_id_123",
   })
   id: string;
 
   @ApiProperty({
-    description: 'Product slug',
-    example: 'iphone-15-pro',
+    description: "Product slug",
+    example: "iphone-15-pro",
   })
   slug: string;
 
   @ApiProperty({
-    description: 'Product name',
-    example: 'iPhone 15 Pro',
+    description: "Product name",
+    example: "iPhone 15 Pro",
   })
   name: string;
 
   @ApiProperty({
-    description: 'Product description',
-    example: 'Latest iPhone with A17 Pro chip',
+    description: "Product description",
+    example: "Latest iPhone with A17 Pro chip",
     nullable: true,
   })
   description: string | null;
 
   @ApiProperty({
-    description: 'Product brand',
-    example: 'Apple',
+    description: "Product brand",
+    example: "Apple",
     nullable: true,
   })
   brand: string | null;
 
   @ApiProperty({
-    description: 'Category information',
+    description: "Category information",
     nullable: true,
   })
   category?: {
-     id: string;
+    id: string;
     name: string;
     slug: string;
   } | null;
 
   @ApiProperty({
-    description: 'Product images',
-    type: 'array',
+    description: "Product images",
+    type: "array",
   })
   images: {
     id: string;
@@ -152,11 +159,11 @@ export class ProductResponseDto {
   }[];
 
   @ApiProperty({
-    description: 'Product variants',
-    type: 'array',
+    description: "Product variants",
+    type: "array",
   })
   variants: {
-     id: string;
+    id: string;
     sku: string;
     price: number; // Convert BigInt to number
     stock: number;
@@ -165,48 +172,48 @@ export class ProductResponseDto {
   }[];
 
   @ApiProperty({
-    description: 'Creation date',
-    example: '2025-01-01T00:00:00.000Z',
+    description: "Creation date",
+    example: "2025-01-01T00:00:00.000Z",
   })
   createdAt: Date;
 
   @ApiProperty({
-    description: 'Last update date',
-    example: '2025-01-01T00:00:00.000Z',
+    description: "Last update date",
+    example: "2025-01-01T00:00:00.000Z",
   })
   updatedAt: Date;
 }
 
 export class ProductQueryDto {
   @ApiProperty({
-    description: 'Search term',
+    description: "Search term",
     required: false,
-    example: 'iPhone',
+    example: "iPhone",
   })
   @IsOptional()
   @IsString()
   search?: string;
 
   @ApiProperty({
-    description: 'Category ID filter',
+    description: "Category ID filter",
     required: false,
-    example: 'category_id_123',
+    example: "category_id_123",
   })
   @IsOptional()
   @IsString()
   categoryId?: string;
 
   @ApiProperty({
-    description: 'Brand filter',
+    description: "Brand filter",
     required: false,
-    example: 'Apple',
+    example: "Apple",
   })
   @IsOptional()
   @IsString()
   brand?: string;
 
   @ApiProperty({
-    description: 'Page number',
+    description: "Page number",
     required: false,
     example: 1,
     minimum: 1,
@@ -217,7 +224,7 @@ export class ProductQueryDto {
   page?: number;
 
   @ApiProperty({
-    description: 'Items per page',
+    description: "Items per page",
     required: false,
     example: 10,
     minimum: 1,

@@ -1,6 +1,10 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
-import { PrismaService } from 'src/prismaClient/prisma.service';
-import { CreateReviewDto } from './dto/create-review.dto';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from "@nestjs/common";
+import { PrismaService } from "src/prismaClient/prisma.service";
+import { CreateReviewDto } from "./dto/create-review.dto";
 
 @Injectable()
 export class ReviewService {
@@ -9,10 +13,13 @@ export class ReviewService {
   async create(dto: CreateReviewDto) {
     const { userId, productId, rating, comment, images } = dto;
 
-    if (!userId) throw new BadRequestException('Bạn cần đăng nhập để đánh giá sản phẩm');
+    if (!userId)
+      throw new BadRequestException("Bạn cần đăng nhập để đánh giá sản phẩm");
 
-    const product = await this.prisma.product.findUnique({ where: { id: productId } });
-    if (!product) throw new NotFoundException('Sản phẩm không tồn tại');
+    const product = await this.prisma.product.findUnique({
+      where: { id: productId },
+    });
+    if (!product) throw new NotFoundException("Sản phẩm không tồn tại");
 
     // User phải mua hàng này trước khi đánh giá.
     if (userId) {
@@ -29,7 +36,9 @@ export class ReviewService {
         },
       });
       if (!hasPurchased) {
-        throw new BadRequestException('Bạn cần mua sản phẩm này trước khi đánh giá');
+        throw new BadRequestException(
+          "Bạn cần mua sản phẩm này trước khi đánh giá",
+        );
       }
     }
 
@@ -50,7 +59,7 @@ export class ReviewService {
   async listByProduct(productId: string) {
     const reviews = await this.prisma.review.findMany({
       where: { productId, approved: true },
-      orderBy: { createdAt: 'desc' },
+      orderBy: { createdAt: "desc" },
       include: {
         user: { select: { id: true, name: true, email: true } },
       },

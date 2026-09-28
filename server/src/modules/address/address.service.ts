@@ -1,7 +1,12 @@
-import { Injectable, NotFoundException, HttpException, HttpStatus } from '@nestjs/common';
-import { PrismaService } from 'src/prismaClient/prisma.service';
-import { CreateAddressDto } from './dto/create-address.dto';
-import { UpdateAddressDto } from './dto/update-address.dto';
+import {
+  Injectable,
+  NotFoundException,
+  HttpException,
+  HttpStatus,
+} from "@nestjs/common";
+import { PrismaService } from "src/prismaClient/prisma.service";
+import { CreateAddressDto } from "./dto/create-address.dto";
+import { UpdateAddressDto } from "./dto/update-address.dto";
 
 @Injectable()
 export class AddressService {
@@ -11,28 +16,25 @@ export class AddressService {
   async getAddressesByUser(userId: string) {
     return this.prisma.address.findMany({
       where: { userId },
-      orderBy: [
-        { isDefault: 'desc' },
-        { createdAt: 'desc' }
-      ]
+      orderBy: [{ isDefault: "desc" }, { createdAt: "desc" }],
     });
   }
 
   // Get address by ID
   async getAddressById(id: string, userId?: string) {
     const address = await this.prisma.address.findUnique({
-      where: { id }
+      where: { id },
     });
 
     if (!address) {
-      throw new NotFoundException('Không tìm thấy địa chỉ');
+      throw new NotFoundException("Không tìm thấy địa chỉ");
     }
 
     // Check ownership if userId provided
     if (userId && address.userId !== userId) {
       throw new HttpException(
-        { success: false, message: 'Bạn không có quyền truy cập địa chỉ này' },
-        HttpStatus.FORBIDDEN
+        { success: false, message: "Bạn không có quyền truy cập địa chỉ này" },
+        HttpStatus.FORBIDDEN,
       );
     }
 
@@ -47,26 +49,30 @@ export class AddressService {
     if (isDefault) {
       await this.prisma.address.updateMany({
         where: { userId, isDefault: true },
-        data: { isDefault: false }
+        data: { isDefault: false },
       });
     }
 
     // If user has no addresses, make this default
     const existingCount = await this.prisma.address.count({
-      where: { userId }
+      where: { userId },
     });
 
     return this.prisma.address.create({
       data: {
         ...addressData,
         userId,
-        isDefault: isDefault || existingCount === 0
-      }
+        isDefault: isDefault || existingCount === 0,
+      },
     });
   }
 
   // Update address
-  async updateAddress(id: string, updateAddressDto: UpdateAddressDto, userId?: string) {
+  async updateAddress(
+    id: string,
+    updateAddressDto: UpdateAddressDto,
+    userId?: string,
+  ) {
     const address = await this.getAddressById(id, userId);
 
     const { isDefault, ...addressData } = updateAddressDto;
@@ -75,7 +81,7 @@ export class AddressService {
     if (isDefault) {
       await this.prisma.address.updateMany({
         where: { userId: address.userId, isDefault: true, id: { not: id } },
-        data: { isDefault: false }
+        data: { isDefault: false },
       });
     }
 
@@ -83,8 +89,8 @@ export class AddressService {
       where: { id },
       data: {
         ...addressData,
-        ...(isDefault !== undefined && { isDefault })
-      }
+        ...(isDefault !== undefined && { isDefault }),
+      },
     });
   }
 
@@ -95,12 +101,12 @@ export class AddressService {
     // Unset other defaults
     await this.prisma.address.updateMany({
       where: { userId, isDefault: true, id: { not: id } },
-      data: { isDefault: false }
+      data: { isDefault: false },
     });
 
     return this.prisma.address.update({
       where: { id },
-      data: { isDefault: true }
+      data: { isDefault: true },
     });
   }
 
@@ -112,28 +118,28 @@ export class AddressService {
     if (address.isDefault) {
       const anotherAddress = await this.prisma.address.findFirst({
         where: { userId: address.userId, id: { not: id } },
-        orderBy: { createdAt: 'desc' }
+        orderBy: { createdAt: "desc" },
       });
 
       if (anotherAddress) {
         await this.prisma.address.update({
           where: { id: anotherAddress.id },
-          data: { isDefault: true }
+          data: { isDefault: true },
         });
       }
     }
 
     await this.prisma.address.delete({
-      where: { id }
+      where: { id },
     });
 
-    return { success: true, message: 'Xóa địa chỉ thành công' };
+    return { success: true, message: "Xóa địa chỉ thành công" };
   }
 
   // Get default address
   async getDefaultAddress(userId: string) {
     return this.prisma.address.findFirst({
-      where: { userId, isDefault: true }
+      where: { userId, isDefault: true },
     });
   }
 }

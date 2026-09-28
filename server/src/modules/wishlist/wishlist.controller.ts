@@ -1,14 +1,14 @@
-import { Body, Controller, Delete, Get, Post, Query } from '@nestjs/common';
-import { ApiTags } from '@nestjs/swagger';
-import { WishlistService } from './wishlist.service';
+import { Body, Controller, Delete, Get, Post, Query } from "@nestjs/common";
+import { ApiTags } from "@nestjs/swagger";
+import { WishlistService } from "./wishlist.service";
 
-@ApiTags('wishlist')
-@Controller('wishlist')
+@ApiTags("wishlist")
+@Controller("wishlist")
 export class WishlistController {
   constructor(private readonly wishlistService: WishlistService) {}
 
   @Get()
-  async list(@Query('userId') userId: string) {
+  async list(@Query("userId") userId: string) {
     const items = await this.wishlistService.list(userId);
     return { success: true, data: items };
   }
@@ -20,7 +20,10 @@ export class WishlistController {
   }
 
   @Delete()
-  async remove(@Query('userId') userId: string, @Query('productId') productId: string) {
+  async remove(
+    @Query("userId") userId: string,
+    @Query("productId") productId: string,
+  ) {
     const result = await this.wishlistService.remove(userId, productId);
     return { success: true, data: result };
   }

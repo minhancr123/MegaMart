@@ -1,10 +1,17 @@
-import { Injectable, HttpException, HttpStatus, Inject, forwardRef } from '@nestjs/common';
-import { PrismaService } from 'src/prismaClient/prisma.service';
-import { ConfigService } from '@nestjs/config';
-import { PaymentProvider, PaymentStatus, OrderStatus } from '@prisma/client';
-import { LoyaltyService } from '../loyalty/loyalty.service';
-import * as crypto from 'crypto';
-import * as querystring from 'qs';
+import {
+  Injectable,
+  HttpException,
+  HttpStatus,
+  Inject,
+  forwardRef,
+} from "@nestjs/common";
+import { PrismaService } from "src/prismaClient/prisma.service";
+import { ConfigService } from "@nestjs/config";
+import { PaymentProvider, PaymentStatus, OrderStatus } from "@prisma/client";
+import { LoyaltyService } from "../loyalty/loyalty.service";
+import { EmailService } from "../email/email.service";
+import * as crypto from "crypto";
+import * as querystring from "qs";
 
 @Injectable()
 export class PaymentService {
@@ -16,13 +23,19 @@ export class PaymentService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly configService: ConfigService,
-    @Inject(forwardRef(() => LoyaltyService)) private readonly loyaltyService: LoyaltyService,
+    @Inject(forwardRef(() => LoyaltyService))
+    private readonly loyaltyService: LoyaltyService,
+    private readonly emailService: EmailService,
   ) {
     // VNPay configuration
-    this.vnpayUrl = this.configService.get('VNPAY_URL') || 'https://sandbox.vnpayment.vn/paymentv2/vpcpay.html';
-    this.vnpayTmnCode = this.configService.get('VNPAY_TMN_CODE') || '';
-    this.vnpayHashSecret = this.configService.get('VNPAY_HASH_SECRET') || '';
-    this.vnpayReturnUrl = this.configService.get('VNPAY_RETURN_URL') || 'http://localhost:3000/payment/vnpay-return';
+    this.vnpayUrl =
+      this.configService.get("VNPAY_URL") ||
+      "https://sandbox.vnpayment.vn/paymentv2/vpcpay.html";
+    this.vnpayTmnCode = this.configService.get("VNPAY_TMN_CODE") || "";
+    this.vnpayHashSecret = this.configService.get("VNPAY_HASH_SECRET") || "";
+    this.vnpayReturnUrl =
+      this.configService.get("VNPAY_RETURN_URL") ||
+      "http://localhost:3000/payment/vnpay-return";
   }
 
   // Helper: Get Prisma client optimized for webhook (direct connection, bypass Accelerate)
@@ -31,104 +44,144 @@ export class PaymentService {
   }
 
   // Create payment URL for VNPay
-  async createVNPayPaymentUrl(orderId: string, ipAddr: string): Promise<string> {
+  async createVNPayPaymentUrl(
+    orderId: string,
+    ipAddr: string,
+  ): Promise<string> {
     const order = await this.prisma.order.findUnique({
       where: { id: orderId },
-      include: { payments: true }
+      include: { payments: true },
     });
 
     if (!order) {
       throw new HttpException(
-        { success: false, message: 'Không tìm thấy đơn hàng' },
-        HttpStatus.NOT_FOUND
+        { success: false, message: "Không tìm thấy đơn hàng" },
+        HttpStatus.NOT_FOUND,
       );
     }
 
     const createDate = this.formatDate(new Date());
-    const amount = Number(order.total) * 100; // VNPay requires amount in smallest currency unit
+    const pendingOnlinePayment = order.payments.find(
+      (p) =>
+        String(p.provider) === "VNPAY" && p.status === PaymentStatus.PENDING,
+    );
+    const amount = Number(pendingOnlinePayment?.amount ?? order.total) * 100; // VNPay requires amount in smallest currency unit
 
     let vnpParams: any = {
-      vnp_Version: '2.1.0',
-      vnp_Command: 'pay',
+      vnp_Version: "2.1.0",
+      vnp_Command: "pay",
       vnp_TmnCode: this.vnpayTmnCode,
-      vnp_Locale: 'vn',
-      vnp_CurrCode: 'VND',
+      vnp_Locale: "vn",
+      vnp_CurrCode: "VND",
       vnp_TxnRef: order.code,
       vnp_OrderInfo: `Thanh toan don hang ${order.code}`,
-      vnp_OrderType: 'other',
+      vnp_OrderType: "other",
       vnp_Amount: amount,
       vnp_ReturnUrl: this.vnpayReturnUrl,
       vnp_IpAddr: ipAddr,
-      vnp_CreateDate: createDate
+      vnp_CreateDate: createDate,
     };
 
     // Sort params
     vnpParams = this.sortObject(vnpParams);
 
     const signData = querystring.stringify(vnpParams, { encode: false });
-    const hmac = crypto.createHmac('sha512', this.vnpayHashSecret);
-    const signed = hmac.update(Buffer.from(signData, 'utf-8')).digest('hex');
-    vnpParams['vnp_SecureHash'] = signed;
+    const hmac = crypto.createHmac("sha512", this.vnpayHashSecret);
+    const signed = hmac.update(Buffer.from(signData, "utf-8")).digest("hex");
+    vnpParams["vnp_SecureHash"] = signed;
 
-    const paymentUrl = this.vnpayUrl + '?' + querystring.stringify(vnpParams, { encode: false });
+    const paymentUrl =
+      this.vnpayUrl + "?" + querystring.stringify(vnpParams, { encode: false });
 
     return paymentUrl;
   }
 
   // Handle VNPay callback
   async handleVNPayCallback(vnpParams: any): Promise<any> {
-    const secureHash = vnpParams['vnp_SecureHash'];
-    delete vnpParams['vnp_SecureHash'];
-    delete vnpParams['vnp_SecureHashType'];
+    const secureHash = vnpParams["vnp_SecureHash"];
+    delete vnpParams["vnp_SecureHash"];
+    delete vnpParams["vnp_SecureHashType"];
 
     const sortedParams = this.sortObject(vnpParams);
     const signData = querystring.stringify(sortedParams, { encode: false });
-    const hmac = crypto.createHmac('sha512', this.vnpayHashSecret);
-    const signed = hmac.update(Buffer.from(signData, 'utf-8')).digest('hex');
+    const hmac = crypto.createHmac("sha512", this.vnpayHashSecret);
+    const signed = hmac.update(Buffer.from(signData, "utf-8")).digest("hex");
 
     if (secureHash !== signed) {
       throw new HttpException(
-        { success: false, message: 'Chữ ký không hợp lệ' },
-        HttpStatus.BAD_REQUEST
+        { success: false, message: "Chữ ký không hợp lệ" },
+        HttpStatus.BAD_REQUEST,
       );
     }
 
-    const orderCode = vnpParams['vnp_TxnRef'];
-    const responseCode = vnpParams['vnp_ResponseCode'];
+    const orderCode = vnpParams["vnp_TxnRef"];
+    const responseCode = vnpParams["vnp_ResponseCode"];
 
     const order = await this.prisma.order.findUnique({
       where: { code: orderCode },
-      include: { payments: true }
+      include: { payments: true },
     });
 
     if (!order) {
       throw new HttpException(
-        { success: false, message: 'Không tìm thấy đơn hàng' },
-        HttpStatus.NOT_FOUND
+        { success: false, message: "Không tìm thấy đơn hàng" },
+        HttpStatus.NOT_FOUND,
       );
     }
 
     // Update payment and order status
-    if (responseCode === '00') {
+    if (responseCode === "00") {
       // Payment successful
+      const FINALIZED_STATUSES: OrderStatus[] = [
+        OrderStatus.PAID,
+        OrderStatus.PROCESSING,
+        OrderStatus.CONFIRMED,
+        OrderStatus.SHIPPING,
+        OrderStatus.DELIVERED,
+        OrderStatus.COMPLETED,
+        OrderStatus.CANCELED,
+        OrderStatus.REFUNDED,
+      ];
+
+      if (FINALIZED_STATUSES.includes(order.status)) {
+        return {
+          success: true,
+          message: "Thanh toán đã được ghi nhận trước đó",
+          orderCode: orderCode,
+        };
+      }
+
       await this.prisma.$transaction([
         this.prisma.payment.updateMany({
-          where: { orderId: order.id },
+          where: { orderId: order.id, status: PaymentStatus.PENDING },
           data: {
             status: PaymentStatus.PAID,
-            raw: vnpParams
-          }
+            raw: vnpParams,
+          },
         }),
         this.prisma.order.update({
           where: { id: order.id },
-          data: { status: OrderStatus.PAID }
-        })
+          data: { status: OrderStatus.PAID },
+        }),
+        this.prisma.orderStatusHistory.create({
+          data: {
+            orderId: order.id,
+            fromStatus: order.status,
+            toStatus: OrderStatus.PAID,
+            reason: "Thanh toán VNPay thành công",
+            changedBy: "SYSTEM",
+          },
+        }),
       ]);
+
+      // Gửi hóa đơn nền (không block response VNPay, có dedup bên trong).
+      const paidOrderId = order.id;
+      void this.emailService.sendInvoice(paidOrderId).catch(() => {});
 
       return {
         success: true,
-        message: 'Thanh toán thành công',
-        orderCode: orderCode
+        message: "Thanh toán thành công",
+        orderCode: orderCode,
       };
     } else {
       // Payment failed
@@ -136,14 +189,14 @@ export class PaymentService {
         where: { orderId: order.id },
         data: {
           status: PaymentStatus.FAILED,
-          raw: vnpParams
-        }
+          raw: vnpParams,
+        },
       });
 
       return {
         success: false,
-        message: 'Thanh toán thất bại',
-        orderCode: orderCode
+        message: "Thanh toán thất bại",
+        orderCode: orderCode,
       };
     }
   }
@@ -152,13 +205,13 @@ export class PaymentService {
   async processCODPayment(orderId: string): Promise<any> {
     const order = await this.prisma.order.findUnique({
       where: { id: orderId },
-      include: { payments: true }
+      include: { payments: true },
     });
 
     if (!order) {
       throw new HttpException(
-        { success: false, message: 'Không tìm thấy đơn hàng' },
-        HttpStatus.NOT_FOUND
+        { success: false, message: "Không tìm thấy đơn hàng" },
+        HttpStatus.NOT_FOUND,
       );
     }
 
@@ -166,14 +219,14 @@ export class PaymentService {
     await this.prisma.payment.updateMany({
       where: { orderId: order.id, provider: PaymentProvider.OTHER },
       data: {
-        status: PaymentStatus.PENDING
-      }
+        status: PaymentStatus.PENDING,
+      },
     });
 
     return {
       success: true,
-      message: 'Đơn hàng đã được tạo. Bạn sẽ thanh toán khi nhận hàng.',
-      order
+      message: "Đơn hàng đã được tạo. Bạn sẽ thanh toán khi nhận hàng.",
+      order,
     };
   }
 
@@ -216,43 +269,66 @@ export class PaymentService {
         const match = content.match(/ORD[-_]?[A-Z0-9-]+/i);
 
         if (!match) {
-          console.log('[Webhook] No order code found in content:', content);
+          console.log("[Webhook] No order code found in content:", content);
           continue;
         }
 
         const rawCode = match[0].toUpperCase();
-        console.log('[Webhook] Found order code in content:', rawCode);
+        console.log("[Webhook] Found order code in content:", rawCode);
 
         // Try direct match, or stripped match - use direct client, no unnecessary include
-        let order = await prisma.order.findFirst({
+        const order = await prisma.order.findFirst({
           where: {
             OR: [
               { code: rawCode },
-              { code: rawCode.replace(/[-_]/g, '') },
-              { code: { contains: rawCode.replace('ORD', '').replace(/[-_]/g, '') } }
-            ]
-          }
-          // REMOVED: include: { payments: true } - not needed for webhook processing
+              { code: rawCode.replace(/[-_]/g, "") },
+              {
+                code: {
+                  contains: rawCode.replace("ORD", "").replace(/[-_]/g, ""),
+                },
+              },
+            ],
+          },
+          include: { payments: true },
         });
 
         if (!order) {
-          console.log('[Webhook] Order not found:', rawCode);
+          console.log("[Webhook] Order not found:", rawCode);
           continue;
         }
 
         const orderCode = order.code;
 
         // 3. Verify Order Status
-        if (order.status === OrderStatus.PAID || order.status === OrderStatus.COMPLETED || order.status === OrderStatus.CANCELED) {
-          console.log('[Webhook] Order already finalized:', order.status);
+        const FINALIZED_STATUSES: OrderStatus[] = [
+          OrderStatus.PAID,
+          OrderStatus.PROCESSING,
+          OrderStatus.CONFIRMED,
+          OrderStatus.SHIPPING,
+          OrderStatus.DELIVERED,
+          OrderStatus.COMPLETED,
+          OrderStatus.CANCELED,
+        ];
+        if (FINALIZED_STATUSES.includes(order.status)) {
+          console.log(
+            "[Webhook] Order already finalized or paid:",
+            order.status,
+          );
           continue;
         }
 
         // 4. Verify Amount (Allow small difference? No, strict for now)
         // Note: order.total is BigInt.
-        const orderTotal = Number(order.total);
+        const pendingTransfer = (order as any).payments?.find(
+          (p: any) =>
+            ["BANK_TRANSFER", "SEPAY", "OTHER"].includes(String(p.provider)) &&
+            p.status === PaymentStatus.PENDING,
+        );
+        const orderTotal = Number(pendingTransfer?.amount ?? order.total);
         if (amount < orderTotal) {
-          console.log(`[Webhook] Insufficient amount. Received: ${amount}, Expected: ${orderTotal}`);
+          console.log(
+            `[Webhook] Insufficient amount. Received: ${amount}, Expected: ${orderTotal}`,
+          );
           // Optional: Mark as partially paid or log warning
           continue;
         }
@@ -262,40 +338,46 @@ export class PaymentService {
           // Update Order Status
           prisma.order.update({
             where: { id: order.id },
-            data: { status: OrderStatus.PAID }
+            data: { status: OrderStatus.PAID },
           }),
-          // Update Payment Status
+          // Update Payment Status - chỉ cập nhật bản ghi chuyển khoản đang chờ
           prisma.payment.updateMany({
-            where: { orderId: order.id },
+            where: {
+              orderId: order.id,
+              status: PaymentStatus.PENDING,
+              provider: { in: ["BANK_TRANSFER", "OTHER"] as any },
+            },
             data: {
               status: PaymentStatus.PAID,
-              raw: JSON.stringify(tx)
-            }
+              raw: JSON.stringify(tx),
+            },
           }),
           // Create History
-            prisma.orderStatusHistory.create({
-              data: {
-                orderId: order.id,
-                fromStatus: order.status,
-                toStatus: OrderStatus.PAID,
-                reason: `Auto-confirmed by Webhook (Amount: ${amount})`,
-                changedBy: 'SYSTEM'
-              }
-            })
-          ]);
+          prisma.orderStatusHistory.create({
+            data: {
+              orderId: order.id,
+              fromStatus: order.status,
+              toStatus: OrderStatus.PAID,
+              reason: `Auto-paid by Webhook (Amount: ${amount})`,
+              changedBy: "SYSTEM",
+            },
+          }),
+        ]);
 
-          // Tích điểm loyalty sau khi đơn hàng chuyển sang PAID
-          await this.loyaltyService.awardOrderPoints(order.id, prisma).catch(() => null);
-
-          results.push({ orderCode, status: 'UPDATED_TO_PAID' });
-
+        results.push({ orderCode, status: "UPDATED_TO_PAID" });
+        // Gửi hóa đơn nền (dedup bên trong, webhook retry không gửi trùng).
+        void this.emailService
+          .sendInvoice(order.id, { receipt: true })
+          .catch(() => {});
       } catch (err) {
-        console.error('[Webhook] Error processing transaction:', err);
+        console.error("[Webhook] Error processing transaction:", err);
       }
     }
 
     const duration = Date.now() - startTime;
-    console.log(`[Webhook] Processing completed in ${duration}ms, results: ${results.length}`);
+    console.log(
+      `[Webhook] Processing completed in ${duration}ms, results: ${results.length}`,
+    );
     return results;
   }
 
@@ -303,7 +385,7 @@ export class PaymentService {
   async getPaymentByOrderId(orderId: string): Promise<any> {
     const payments = await this.prisma.payment.findMany({
       where: { orderId },
-      orderBy: { createdAt: 'desc' }
+      orderBy: { createdAt: "desc" },
     });
 
     return payments;
@@ -313,7 +395,7 @@ export class PaymentService {
   private sortObject(obj: any): any {
     const sorted: any = {};
     const keys = Object.keys(obj).sort();
-    keys.forEach(key => {
+    keys.forEach((key) => {
       sorted[key] = obj[key];
     });
     return sorted;
@@ -321,11 +403,11 @@ export class PaymentService {
 
   private formatDate(date: Date): string {
     const year = date.getFullYear();
-    const month = String(date.getMonth() + 1).padStart(2, '0');
-    const day = String(date.getDate()).padStart(2, '0');
-    const hours = String(date.getHours()).padStart(2, '0');
-    const minutes = String(date.getMinutes()).padStart(2, '0');
-    const seconds = String(date.getSeconds()).padStart(2, '0');
+    const month = String(date.getMonth() + 1).padStart(2, "0");
+    const day = String(date.getDate()).padStart(2, "0");
+    const hours = String(date.getHours()).padStart(2, "0");
+    const minutes = String(date.getMinutes()).padStart(2, "0");
+    const seconds = String(date.getSeconds()).padStart(2, "0");
     return `${year}${month}${day}${hours}${minutes}${seconds}`;
   }
 }

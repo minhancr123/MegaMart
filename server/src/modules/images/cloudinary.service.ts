@@ -1,6 +1,6 @@
-import { Injectable, Logger } from '@nestjs/common';
-import { v2 as cloudinary } from 'cloudinary';
-import { ConfigService } from '@nestjs/config';
+import { Injectable, Logger } from "@nestjs/common";
+import { v2 as cloudinary } from "cloudinary";
+import { ConfigService } from "@nestjs/config";
 
 @Injectable()
 export class CloudinaryService {
@@ -9,12 +9,12 @@ export class CloudinaryService {
   constructor(private configService: ConfigService) {
     // Configure Cloudinary
     cloudinary.config({
-      cloud_name: this.configService.get<string>('CLOUDINARY_CLOUD_NAME'),
-      api_key: this.configService.get<string>('CLOUDINARY_API_KEY'),
-      api_secret: this.configService.get<string>('CLOUDINARY_API_SECRET'),
+      cloud_name: this.configService.get<string>("CLOUDINARY_CLOUD_NAME"),
+      api_key: this.configService.get<string>("CLOUDINARY_API_KEY"),
+      api_secret: this.configService.get<string>("CLOUDINARY_API_SECRET"),
     });
 
-    this.logger.log('✅ Cloudinary configured');
+    this.logger.log("✅ Cloudinary configured");
   }
 
   /**
@@ -22,27 +22,27 @@ export class CloudinaryService {
    */
   async uploadImage(
     file: Express.Multer.File,
-    folder: string = 'products',
+    folder: string = "products",
   ): Promise<{ url: string; publicId: string }> {
     try {
       return new Promise((resolve, reject) => {
         const uploadStream = cloudinary.uploader.upload_stream(
           {
             folder: `megamart/${folder}`,
-            resource_type: 'auto',
+            resource_type: "auto",
             transformation: [
-              { width: 1000, height: 1000, crop: 'limit' },
-              { quality: 'auto' },
-              { fetch_format: 'auto' },
+              { width: 1000, height: 1000, crop: "limit" },
+              { quality: "auto" },
+              { fetch_format: "auto" },
             ],
           },
           (error, result) => {
             if (error) {
-              this.logger.error('Upload failed:', error);
+              this.logger.error("Upload failed:", error);
               return reject(error);
             }
             if (!result) {
-              return reject(new Error('Upload failed: No result returned'));
+              return reject(new Error("Upload failed: No result returned"));
             }
             resolve({
               url: result.secure_url,
@@ -54,7 +54,7 @@ export class CloudinaryService {
         uploadStream.end(file.buffer);
       });
     } catch (error) {
-      this.logger.error('Error uploading to Cloudinary:', error);
+      this.logger.error("Error uploading to Cloudinary:", error);
       throw error;
     }
   }
@@ -64,7 +64,7 @@ export class CloudinaryService {
    */
   async uploadMultipleImages(
     files: Array<Express.Multer.File>,
-    folder: string = 'products',
+    folder: string = "products",
   ): Promise<Array<{ url: string; publicId: string; originalName: string }>> {
     const uploadPromises = files.map(async (file) => {
       const result = await this.uploadImage(file, folder);
@@ -85,7 +85,7 @@ export class CloudinaryService {
       await cloudinary.uploader.destroy(publicId);
       this.logger.log(`🗑️ Deleted image: ${publicId}`);
     } catch (error) {
-      this.logger.error('Error deleting image:', error);
+      this.logger.error("Error deleting image:", error);
       throw error;
     }
   }
@@ -101,17 +101,17 @@ export class CloudinaryService {
   /**
    * Get all images from a folder
    */
-  async getImagesFromFolder(folder: string = 'products'): Promise<any[]> {
+  async getImagesFromFolder(folder: string = "products"): Promise<any[]> {
     try {
       const result = await cloudinary.api.resources({
-        type: 'upload',
+        type: "upload",
         prefix: `megamart/${folder}`,
         max_results: 500,
       });
 
       return result.resources;
     } catch (error) {
-      this.logger.error('Error fetching images:', error);
+      this.logger.error("Error fetching images:", error);
       throw error;
     }
   }
@@ -123,13 +123,13 @@ export class CloudinaryService {
     try {
       const result = await cloudinary.search
         .expression(`folder:megamart/products AND filename:${pattern}*`)
-        .sort_by('created_at', 'desc')
+        .sort_by("created_at", "desc")
         .max_results(100)
         .execute();
 
       return result.resources;
     } catch (error) {
-      this.logger.error('Error searching images:', error);
+      this.logger.error("Error searching images:", error);
       throw error;
     }
   }
@@ -141,7 +141,7 @@ export class CloudinaryService {
     try {
       return await cloudinary.api.resource(publicId);
     } catch (error) {
-      this.logger.error('Error getting image info:', error);
+      this.logger.error("Error getting image info:", error);
       throw error;
     }
   }
@@ -164,10 +164,10 @@ export class CloudinaryService {
         {
           width: options.width || 800,
           height: options.height || 800,
-          crop: options.crop || 'limit',
+          crop: options.crop || "limit",
         },
-        { quality: options.quality || 'auto' },
-        { fetch_format: options.format || 'auto' },
+        { quality: options.quality || "auto" },
+        { fetch_format: options.format || "auto" },
       ],
     });
   }

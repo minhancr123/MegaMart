@@ -1,5 +1,5 @@
-import { BadRequestException, Injectable } from '@nestjs/common';
-import { PrismaService } from 'src/prismaClient/prisma.service';
+import { BadRequestException, Injectable } from "@nestjs/common";
+import { PrismaService } from "src/prismaClient/prisma.service";
 
 @Injectable()
 export class WishlistService {
@@ -9,7 +9,7 @@ export class WishlistService {
     return this.prisma.wishlistItem.findMany({
       where: { userId },
       include: { product: true },
-      orderBy: { createdAt: 'desc' },
+      orderBy: { createdAt: "desc" },
     });
   }
 
@@ -21,15 +21,17 @@ export class WishlistService {
       });
       return item;
     } catch (err: any) {
-      if (String(err.message).includes('Unique constraint')) {
-        throw new BadRequestException('Sản phẩm đã có trong yêu thích');
+      if (String(err.message).includes("Unique constraint")) {
+        throw new BadRequestException("Sản phẩm đã có trong yêu thích");
       }
       throw err;
     }
   }
 
   async remove(userId: string, productId: string) {
-    await this.prisma.wishlistItem.delete({ where: { userId_productId: { userId, productId } } });
+    await this.prisma.wishlistItem.delete({
+      where: { userId_productId: { userId, productId } },
+    });
     return { success: true };
   }
 

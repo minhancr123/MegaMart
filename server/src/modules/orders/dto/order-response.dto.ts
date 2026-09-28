@@ -1,5 +1,5 @@
-import { ApiProperty } from '@nestjs/swagger';
-import { OrderStatus, PaymentProvider } from '@prisma/client';
+import { ApiProperty } from "@nestjs/swagger";
+import { OrderStatus, PaymentProvider } from "@prisma/client";
 
 export class OrderItemResponseDto {
   @ApiProperty()
@@ -50,7 +50,7 @@ export class OrderResponseDto {
   @ApiProperty()
   total: number;
 
-  @ApiProperty({ description: 'Giảm giá từ voucher (VND)', required: false })
+  @ApiProperty({ description: "Giảm giá từ voucher (VND)", required: false })
   discountAmount?: number;
 
   @ApiProperty({ required: false })
@@ -83,6 +83,9 @@ export class OrderResponseDto {
   @ApiProperty()
   billingAddress: any;
 
+  @ApiProperty({ required: false })
+  shippingMetadata?: any;
+
   @ApiProperty()
   createdAt: Date;
 
@@ -95,6 +98,9 @@ export class OrderResponseDto {
   @ApiProperty({ required: false })
   payments?: any[];
 
-  @ApiProperty({ required: false, description: 'Serial đã gán cho đơn (tra bảo hành)' })
+  @ApiProperty({
+    required: false,
+    description: "Serial đã gán cho đơn (tra bảo hành)",
+  })
   serials?: any[];
 }

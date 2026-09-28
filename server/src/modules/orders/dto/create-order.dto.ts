@@ -1,6 +1,16 @@
-import { ApiProperty } from '@nestjs/swagger';
-import { IsNotEmpty, IsString, IsOptional, IsObject, IsNumber, IsEnum, Min } from 'class-validator';
-import { PaymentProvider } from '@prisma/client';
+import { ApiProperty } from "@nestjs/swagger";
+import { Type } from "class-transformer";
+import {
+  IsNotEmpty,
+  IsString,
+  IsOptional,
+  IsObject,
+  IsNumber,
+  IsEnum,
+  Min,
+  ValidateNested,
+} from "class-validator";
+import { PaymentProvider } from "@prisma/client";
 
 export class ShippingAddressDto {
   @ApiProperty()
@@ -23,15 +33,25 @@ export class ShippingAddressDto {
   @IsOptional()
   note?: string;
 
-  @ApiProperty({ description: 'Mã tỉnh GHN', required: false })
+  @ApiProperty({ description: "Vĩ độ địa chỉ Google Maps", required: false })
+  @IsOptional()
+  @IsNumber()
+  lat?: number;
+
+  @ApiProperty({ description: "Kinh độ địa chỉ Google Maps", required: false })
+  @IsOptional()
+  @IsNumber()
+  lng?: number;
+
+  @ApiProperty({ description: "Mã tỉnh GHN", required: false })
   @IsOptional()
   provinceId?: number;
 
-  @ApiProperty({ description: 'Mã quận/huyện GHN', required: false })
+  @ApiProperty({ description: "Mã quận/huyện GHN", required: false })
   @IsOptional()
   districtId?: number;
 
-  @ApiProperty({ description: 'Mã phường/xã GHN', required: false })
+  @ApiProperty({ description: "Mã phường/xã GHN", required: false })
   @IsOptional()
   @IsString()
   wardCode?: string;
@@ -50,12 +70,12 @@ export class OrderTotalsDto {
   @IsNumber()
   total: number;
 
-  @ApiProperty({ required: false, description: 'Giảm giá từ voucher (VND)' })
+  @ApiProperty({ required: false, description: "Giảm giá từ voucher (VND)" })
   @IsNumber()
   @IsOptional()
   discount?: number;
 
-  @ApiProperty({ required: false, description: 'Phí vận chuyển GHN (VND)' })
+  @ApiProperty({ required: false, description: "Phí vận chuyển GHN (VND)" })
   @IsNumber()
   @IsOptional()
   shippingFee?: number;
@@ -70,6 +90,8 @@ export class CreateOrderDto {
   @ApiProperty({ type: ShippingAddressDto })
   @IsObject()
   @IsNotEmpty()
+  @ValidateNested()
+  @Type(() => ShippingAddressDto)
   shipping: ShippingAddressDto;
 
   @ApiProperty({ enum: PaymentProvider })
@@ -87,12 +109,15 @@ export class CreateOrderDto {
   @IsOptional()
   voucherCode?: string;
 
-  @ApiProperty({ required : false })
+  @ApiProperty({ required: false })
   @IsString()
   @IsOptional()
   userId?: string;
 
-  @ApiProperty({ required: false, description: 'Số tiền muốn trừ từ ví MegaMart (VND)' })
+  @ApiProperty({
+    required: false,
+    description: "Số tiền muốn trừ từ ví MegaMart (VND)",
+  })
   @IsNumber()
   @IsOptional()
   @Min(0)

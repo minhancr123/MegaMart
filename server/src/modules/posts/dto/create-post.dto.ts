@@ -1,49 +1,53 @@
-import { IsString, IsOptional, IsEnum, IsArray } from 'class-validator';
-import { ApiProperty } from '@nestjs/swagger';
+import { IsString, IsOptional, IsEnum, IsArray } from "class-validator";
+import { ApiProperty } from "@nestjs/swagger";
 
 export enum PostType {
-    NEWS = 'NEWS',
-    EVENT = 'EVENT',
+  NEWS = "NEWS",
+  EVENT = "EVENT",
 }
 
 export enum PostStatus {
-    DRAFT = 'DRAFT',
-    PUBLISHED = 'PUBLISHED',
-    ARCHIVED = 'ARCHIVED',
+  DRAFT = "DRAFT",
+  PUBLISHED = "PUBLISHED",
+  ARCHIVED = "ARCHIVED",
 }
 
 export class CreatePostDto {
-    @ApiProperty()
-    @IsString()
-    title: string;
+  @ApiProperty()
+  @IsString()
+  title: string;
 
-    @ApiProperty()
-    @IsString()
-    content: string;
+  @ApiProperty()
+  @IsString()
+  content: string;
 
-    @ApiProperty({ required: false })
-    @IsOptional()
-    @IsString()
-    thumbnail?: string;
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsString()
+  thumbnail?: string;
 
-    @ApiProperty({ required: false })
-    @IsOptional()
-    @IsString()
-    excerpt?: string;
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsString()
+  excerpt?: string;
 
-    @ApiProperty({ enum: PostType, default: PostType.NEWS })
-    @IsOptional()
-    @IsEnum(PostType)
-    type?: PostType;
+  @ApiProperty({ enum: PostType, default: PostType.NEWS })
+  @IsOptional()
+  @IsEnum(PostType)
+  type?: PostType;
 
-    @ApiProperty({ enum: PostStatus, default: PostStatus.DRAFT })
-    @IsOptional()
-    @IsEnum(PostStatus)
-    status?: PostStatus;
+  @ApiProperty({ enum: PostStatus, default: PostStatus.DRAFT })
+  @IsOptional()
+  @IsEnum(PostStatus)
+  status?: PostStatus;
 
-    @ApiProperty({ type: [String], required: false, description: 'Array of tag names' })
-    @IsOptional()
-    @IsArray()
-    @IsString({ each: true })
-    tags?: string[];
+  @ApiProperty({
+    type: [String],
+    required: false,
+    description: "Array of tag names",
+  })
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  tags?: string[];
 }

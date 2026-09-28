@@ -43,10 +43,9 @@ export default function CheckoutPage() {
   const subtotal = cart?.data?.items?.reduce((s: any, item: any) => {
     const itemPrice = getEffectivePrice(item.variant);
     const itemQuantity = Number(item.quantity) || 0;
-    console.log(`Item: ${item.variant.product?.name}, Price: ${itemPrice}, Quantity: ${itemQuantity}, Subtotal: ${itemPrice * itemQuantity}`);
     return s + (itemPrice * itemQuantity);
   }, 0) || 0;
-  
+
   const tax = Math.round(subtotal * 0.1); // Thuế VAT 10%, làm tròn
   // Phí ship thật từ GHN theo địa chỉ đã chọn (fallback 0 nếu chưa có mã GHN)
   const [shippingFee, setShippingFee] = useState(0);
@@ -129,17 +128,6 @@ export default function CheckoutPage() {
       });
     return () => { alive = false; };
   }, [subtotal, shippingFee]);
-
-  // Debug logs
-  useEffect(() => {
-    console.log('=== CHECKOUT CALCULATION ===');
-    console.log('Subtotal:', subtotal);
-    console.log('Tax (10%):', tax);
-    console.log('Shipping:', shippingFee);
-    console.log('Discount:', discount);
-    console.log('Total:', total);
-    console.log('Cart items:', cart?.data?.items);
-  }, [subtotal, tax, discount, total, cart]);
 
   const applyCode = async (code: string, source: "voucher" | "promo") => {
     try {

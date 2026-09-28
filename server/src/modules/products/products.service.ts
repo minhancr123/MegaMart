@@ -190,6 +190,9 @@ export class ProductsService {
   }
 
   async getFeaturedProducts(): Promise<ProductResponseDto[]> {
+    // Chỉ chọn field ProductCard thực sự dùng. Bỏ description/descriptionImages
+    // vì mô tả dài + mảng ảnh mô tả làm payload trang chủ phình lên vài chục KB,
+    // trong khi thẻ sản phẩm chỉ cần tên, giá, ảnh, slug.
     const products = await this.prisma.product.findMany({
       take: 8,
       where: {
@@ -206,12 +209,9 @@ export class ProductsService {
         id: true,
         slug: true,
         name: true,
-        description: true,
-        descriptionImages: true,
         brand: true,
         soldCount: true,
         createdAt: true,
-        updatedAt: true,
         category: {
           select: {
             id: true,

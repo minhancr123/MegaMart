@@ -17,27 +17,27 @@ export const metadata: Metadata = {
 };
 
 //Fetch data SSR
+// Ba nguồn dữ liệu này độc lập nhau nên gọi song song. Gọi tuần tự cộng dồn
+// ~3s chờ SSR, đủ để Next.js render trang rỗng khi một request chậm.
 async function getFeaturedProducts(): Promise<any[]> {
   try {
     const res = await fetchFeaturedProducts();
-    console.log("Featured Products API Response:", res);
-    // if (!res) {
-    //     console.log('Failed to fetch featured products:', res);
-    //     throw new Error('Failed to fetch data');
-    // }
     return Array.isArray(res) ? res : [];
-  } catch (error: any) {
-    console.error(error);
-    return error;
+  } catch (error) {
+    // Không nuốt lỗi rồi trả [] — trước đây lỗi ở đây làm trang chủ render
+    // rỗng mà không có dấu vết gì trong log.
+    console.error("[home] featured products failed:", error);
+    return [];
   }
 }
+
 async function getCategoriesList(): Promise<Category[]> {
   try {
     const res = await fetchCategoriesList();
     return Array.isArray(res) ? res : [];
-  } catch (error: any) {
-    console.error(error);
-    return error;
+  } catch (error) {
+    console.error("[home] categories failed:", error);
+    return [];
   }
 }
 
@@ -46,19 +46,30 @@ async function getLatestPosts(): Promise<any[]> {
     const res: any = await axiosClient.get('/posts', { params: { limit: 3, status: 'PUBLISHED' } });
     if (Array.isArray(res)) return res;
     if (res?.data) return Array.isArray(res.data) ? res.data : res.data.data || [];
-    return res;
-  } catch (error: any) {
-    console.error('Failed to fetch latest posts:', error);
+    return [];
+  } catch (error) {
+    console.error("[home] latest posts failed:", error);
     return [];
   }
 }
 
 export default async function Home() {
-  const featuredProducts = await getFeaturedProducts();
-  const fetchCategories = await getCategoriesList();
-  const latestPosts = await getLatestPosts();
-  console.log("Home page - Featured Products:", featuredProducts);
-  console.log("Home page - Categories:", fetchCategories);
+  const [featuredProducts, fetchCategories, latestPosts] = await Promise.all([
+    getFeaturedProducts(),
+    getCategoriesList(),
+    getLatestPosts(),
+  ]);
+
+  // Prod vẫn log Next.js (container ghi ra docker logs) nhưng chỉ in số lượng,
+  // không in cả payload để log khỏi phình theo từng sản phẩm.
+  if (process.env.NODE_ENV !== 'production') {
+    console.log('[home] counts', {
+      featured: featuredProducts.length,
+      categories: fetchCategories.length,
+      posts: latestPosts.length,
+    });
+  }
+
   return (
     <div className="min-h-screen bg-[#f7f8fa]">
       <MainContent featuredProducts={featuredProducts} fetchCategories={fetchCategories} newsPosts={latestPosts} />

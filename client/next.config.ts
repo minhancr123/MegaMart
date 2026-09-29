@@ -33,6 +33,24 @@ const nextConfig: NextConfig = {
   typescript: {
     ignoreBuildErrors: true,
   },
+  // Chỉ dùng khi chạy `next dev` với API ở máy khác (vd trỏ sang production để
+  // test e2e có dữ liệu thật). API production không trả Access-Control-Allow-Origin
+  // nên trình duyệt chặn, và mọi test chạm tới dữ liệu API sẽ fail. Proxy qua
+  // dev server của chính Next giúp mọi request thành cùng origin.
+  async rewrites() {
+    // Chặn cả production: nếu ai đó build kèm biến này thì rewrite sẽ bị bake
+    // cứng vào manifest và chạy cả trong container, đẩy /api của production
+    // sang một host khác.
+    if (process.env.NODE_ENV === 'production' || !process.env.DEV_API_PROXY_TARGET) return [];
+    return [
+      {
+        source: "/api/:path*",
+        // Bỏ dấu `/` cuối để không sinh ra `//api/...` khi biến được cấu hình
+        // kèm dấu gạch chéo.
+        destination: `${process.env.DEV_API_PROXY_TARGET.replace(/\/+$/, '')}/api/:path*`,
+      },
+    ];
+  },
   webpack: (config) => {
     // Handle GLTF/GLB files
     config.module.rules.push({

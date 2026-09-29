@@ -1,9 +1,9 @@
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef, Suspense } from 'react';
 import { ProductCard } from '@/components/product/ProductCard';
 import { fetchProductsPaged, fetchCategoriesList, fetchBrands } from '@/lib/productApi';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams, usePathname } from 'next/navigation';
 import { Product, Category } from '@/interfaces/product';
 import { addToCart } from '@/lib/cartApi';
 import { useAuthStore } from '@/store/authStore';
@@ -17,6 +17,7 @@ import {
     List,
     Package,
     Search,
+    Loader2,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -40,32 +41,251 @@ import {
 import { Badge } from '@/components/ui/badge';
 
 export default function ProductsPage() {
+    // useSearchParams bắt buộc phải nằm trong một Suspense boundary, nếu không
+    // Next.js không cho trang này render tĩnh lúc build (xem SearchPage).
+    return (
+        <Suspense
+            fallback={
+                <div className="flex items-center justify-center min-h-screen">
+                    <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                </div>
+            }
+        >
+            <ProductsPageContent />
+        </Suspense>
+    );
+}
+
+function ProductsPageContent() {
     const router = useRouter();
     const { user } = useAuthStore();
     const cartStore = useCartStore();
+    const searchParams = useSearchParams();
+    const pathname = usePathname();
 
     const [products, setProducts] = useState<Product[]>([]);
     const [categories, setCategories] = useState<Category[]>([]);
     const [brands, setBrands] = useState<{ brand: string; count: number }[]>([]);
     const [loading, setLoading] = useState(true);
-
-    // Filter states
-    const [selectedCategory, setSelectedCategory] = useState<string>('all');
-    const [selectedBrands, setSelectedBrands] = useState<string[]>([]);
-    const [priceRange, setPriceRange] = useState<[number, number]>([0, 50000000]);
-    const [searchQuery, setSearchQuery] = useState('');
-    const [sortBy, setSortBy] = useState('newest');
-    const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
-
-    // Pagination (do server quyết định, client chỉ giữ trang hiện tại)
-    const [currentPage, setCurrentPage] = useState(1);
     const [totalItems, setTotalItems] = useState(0);
     const [totalPages, setTotalPages] = useState(0);
     const itemsPerPage = 36;
 
-    // Gõ tới đâu gọi API tới đó sẽ đụng rate limit (3 req/giây), nên hoãn lại.
-    const [debouncedSearch, setDebouncedSearch] = useState('');
-    const [debouncedPrice, setDebouncedPrice] = useState<[number, number]>([0, 50000000]);
+    // Kiểu hiển thị không nằm trong URL: nó chỉ là tuỳ chọn của thiết bị, và
+    // đưa vào URL sẽ làm nút "Sao chép link" kèm cả thứ không ai quan tâm.
+    const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
+
+    /**
+     * Bộ lọc lấy từ query string chứ không nằm trong useState. Nhờ vậy URL
+     * tự nó là bản sao của trạng thái: khách tìm kiếm rồi lọc, bấm vào một
+     * sản phẩm, rồi bấm quay lại là thấy đúng danh sách và điều kiện lọc cũ,
+     * và link cũng gửi cho ai khác xem được.
+     */
+    const selectedCategory = searchParams.get('category') ?? 'all';
+    const selectedBrands = useMemo(
+        () => (searchParams.get('brand') ?? '').split(',').filter(Boolean),
+        [searchParams],
+    );
+    const searchQuery = searchParams.get('search') ?? '';
+    const sortBy = searchParams.get('sort') ?? 'newest';
+    const currentPage = Math.max(1, Number(searchParams.get('page') ?? '1') || 1);
+
+    // Khoảng giá mặc định trùng với đầu/cuối thanh trượt nên không ghi vào URL
+    // cho tới khi khách thực sự kéo.
+    const PRICE_MAX = 50000000;
+    const priceRange = useMemo<[number, number]>(() => {
+        const read = (key: string, fallback: number) => {
+            const n = Number(searchParams.get(key));
+            // Number('') là 0 nên phải kiểm tra rỗng trước, còn lỗi kiểu
+            // Number('abc') = NaN thì rơi về mặc định.
+            return searchParams.get(key) && Number.isFinite(n) ? n : fallback;
+        };
+        // Kẹp cả hai đầu vào trong tầm thanh trượt, và min không được vượt max
+        // (URL do người dùng sửa tay có thể viết ngược) - nếu không Radix
+        // Slider nhận [40tr, 10tr] sẽ vỡ và danh sách luôn rỗng.
+        const min = Math.min(Math.max(0, read('min', 0)), PRICE_MAX);
+        const max = Math.max(min, Math.min(PRICE_MAX, read('max', PRICE_MAX)));
+        return [min, max];
+    }, [searchParams]);
+
+    /**
+     * Ghi bộ lọc lên URL. Mặc định dùng replace để mỗi lần kéo thanh giá hay
+     * gõ phím không nhồi một entry vào lịch sử trình duyệt - nếu không, khách
+     * bấm nút "quay lại" sẽ phải ấn hàng chục lần mới thoát khỏi trang.
+     * `push` chỉ dùng khi bấm sang trang khác (phân trang), vì đó mới là thao
+     * tác khách thực sự muốn quay lại.
+     */
+    /**
+     * Query string hiện tại, giữ trong ref và cập nhật NGAY trong lúc ghi.
+     *
+     * `useSearchParams()` chỉ trả giá trị mới ở lần render kế tiếp, còn nó là
+     * giá trị của closure tại thời điểm effect được tạo. Nên nếu đọc thẳng
+     * `searchParams` trong `writeUrl`, thao tác thứ hai sát thao tác thứ nhất sẽ
+     * dựng URL từ bản cũ và xoá mất thay đổi vừa rồi: gõ "iphone" xong bấm
+     * chọn hãng trong lúc debounce chưa nổ thì lựa chọn hãng biến mất. Ref
+     * cập nhật đồng bộ giúp các lần ghi nối tiếp trên cùng một nền.
+     */
+    const paramsRef = useRef(searchParams.toString());
+
+    const writeUrl = (patch: Record<string, string | null>, mode: 'replace' | 'push' = 'replace') => {
+        const next = new URLSearchParams(paramsRef.current);
+        for (const [key, value] of Object.entries(patch)) {
+            if (value === null || value === '') next.delete(key);
+            else next.set(key, value);
+        }
+        const qs = next.toString();
+        // Cập nhật ref ngay, không đợi router xong. Nếu không, lần ghi kế tiếp
+        // trước khi router render lại vẫn đọc bản cũ.
+        paramsRef.current = qs;
+        router[mode](qs ? `${pathname}?${qs}` : pathname, { scroll: false });
+    };
+
+    /**
+     * Đồng bộ `paramsRef` theo URL mới - nhưng CHỈ khi URL đổi theo hướng bên
+     * ngoài (bấm Back/Forward, mở link chia sẻ).
+     *
+     * Không đồng bộ vô điều kiện sẽ phá đúng thứ vừa làm: hai lần ghi liên tiếp
+     * (`?q=iphone` rồi `&sort=price-asc`) thì router trả về `searchParams` của
+     * lần ghi TRƯỚC, effect ghi đè làm mất phần `sort` đã ghi. Nên chỉ chấp
+     * nhận giá trị URL khi nó khác `paramsRef` - tức là không phải thứ chính
+     * mình vừa ghi ra.
+     */
+    useEffect(() => {
+        const fromUrl = searchParams.toString();
+        if (fromUrl === paramsRef.current) return;
+        // Chỉ nhận URL mới khi nó khác điều mình vừa ghi. Nhưng router có thể
+        // trả về URL của lần ghi TRƯỚC khi hai lần ghi chạy sát nhau (chọn hãng
+        // rồi đổi sắp xếp): nhận lùi ở đây sẽ làm mất thay đổi mới hơn, và
+        // lần ghi sau đọc `paramsRef` sẽ không còn thấy nó.
+        //
+        // Cách phân biệt: URL của lần ghi trước luôn là TIỀN TỐ của URL mình
+        // đang chờ (thêm `sort=...` không xoá `brand=...`). Nếu `paramsRef`
+        // hiện tại bắt đầu bằng `fromUrl` thì đây là URL cũ hơn, bỏ qua.
+        if (paramsRef.current.startsWith(fromUrl)) return;
+        paramsRef.current = fromUrl;
+    }, [searchParams]);
+
+    /**
+     * Bấm chọn (danh mục, hãng, sắp xếp, phân trang) dùng `push` để nút Back
+     * của trình duyệt quay lại được trạng thái trước đó. Đã kiểm chứng: lọc
+     * hãng -> mở sản phẩm -> bấm Back thì URL về `?brand=Samsung` và checkbox
+     * vẫn tích.
+     *
+     * Gõ tìm kiếm và kéo giá dùng `replace` vì ghi liên tục; `push` mỗi lần
+     * dừng sẽ nhồi entry và khách phải bấm Back nhiều lần mới thoát trang.
+     */
+    const setSelectedCategory = (id: string) =>
+        writeUrl({ category: id === 'all' ? null : id, page: null }, 'push');
+    const setSortBy = (v: string) => writeUrl({ sort: v === 'newest' ? null : v, page: null }, 'push');
+    const setCurrentPage = (p: number) => writeUrl({ page: p === 1 ? null : String(p) }, 'push');
+
+    /**
+     * Checkbox hãng cần phản hồi tức thì, nên giữ lựa chọn ở state cục bộ rồi
+     * mới ghi URL. Nếu để `checked` lấy thẳng từ `useSearchParams`, ô tích phải
+     * đợi router xử lý xong mới đổi trạng thái (~60ms ở máy dev, lâu hơn nữa
+     * trên máy khách) - trông như bấm không ăn, và nhiều khách sẽ bấm lần hai.
+     */
+    const [brandsDraft, setBrandsDraft] = useState<string[]>(selectedBrands);
+
+    /**
+     * Kéo `brandsDraft` về theo URL khi URL đổi mà state chưa khớp.
+     *
+     * So với `paramsRef` (URL mình vừa ghi ra) chứ không so với cờ "đang chờ":
+     * cờ dễ bị lệc nhịp. Cụ thể là tick rồi bỏ chọn xong bấm Back - URL quay về
+     * `?brand=Samsung` trong khi state đang là `[]`, đúng phải kéo về, nhưng
+     * cờ thì vẫn còn giá trị lần ghi trước nên bị bỏ qua và checkbox không
+     * tích lại. `paramsRef` luôn mô tả đúng URL hiện hành.
+     */
+    useEffect(() => {
+        const fromUrl = new URLSearchParams(paramsRef.current).get('brand') ?? '';
+        if (fromUrl === brandsDraft.join(',')) return; // đã đúng sẵn
+        setBrandsDraft(fromUrl ? fromUrl.split(',') : []);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [selectedBrands]);
+
+    const setSelectedBrands = (next: string[]) => {
+        setBrandsDraft(next);
+        writeUrl({ brand: next.length ? next.join(',') : null, page: null }, 'push');
+    };
+
+    // Ô tìm kiếm và thanh giá giữ giá trị cục bộ rồi mới hoãn 400ms mới ghi
+    // URL. Ghi mỗi ký tự sẽ tạo ra hàng chục lần re-render, và mỗi lần lại
+    // lấy `searchParams` mới - mà `searchParams` lại là nguồn của chính ô
+    // nhập, nên con trỏ nhảy và chữ bị mất.
+    //
+    // Khởi tạo thẳng từ URL chứ không để rỗng: mở `/products?q=macbook` thì ô
+    // nhập phải có sẵn "macbook" ngay lần render đầu. Để rỗng rồi đợi effect
+    // điền lại sẽ thấy URL đã khớp với state rỗng-sẵn nên bỏ qua, và ô nhập
+    // trống hoàn toàn dù URL có từ khoá.
+    const [searchInput, setSearchInput] = useState(searchQuery);
+    const [priceDraft, setPriceDraft] = useState<[number, number]>(priceRange);
+
+    // Kéo thanh giá: chỉ cập nhật ô nhập tay, URL để sau.
+    const setPriceRange = (range: [number, number]) => setPriceDraft(range);
+
+    /**
+     * Kéo ô nhập và thanh giá về theo URL.
+     *
+     * Chỉ kéo khi URL thật sự khác những gì mình vừa ghi lên nó (`paramsRef`).
+     * Đây là chỗ chống lỗi "gõ mất chữ": gõ "sam", dừng 400ms cho debounce ghi
+     * `?search=sam`, rồi gõ tiếp "sung" trong lúc router còn đang xử lý. Router
+     * trả `searchQuery = "sam"` đúng lúc đó; nếu kéo state về theo nó thì "sung"
+     * bị xoá. Vì `paramsRef` đã là "samsung" nên URL "sam" bị coi là cũ hơn và
+     * bỏ qua.
+     *
+     * Còn khi khách bấm Back thì `paramsRef` được effect ở trên cập nhật theo
+     * URL thật, nên nó khác state và state được kéo về đúng.
+     */
+    useEffect(() => {
+        const fromUrl = new URLSearchParams(paramsRef.current).get('search') ?? '';
+        if (fromUrl === searchInput) return;
+        setSearchInput(fromUrl);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [searchQuery]);
+
+    useEffect(() => {
+        // Dùng `priceRange` (đã kẹp min <= max) chứ không đọc thẳng từ URL:
+        // link viết tay `?min=40000000&max=10000000` nếu đưa nguyên si vào
+        // Radix Slider sẽ vỡ, và điều kiện giá luôn sai nên ra 0 sản phẩm.
+        if (`${priceRange[0]}-${priceRange[1]}` === `${priceDraft[0]}-${priceDraft[1]}`) return;
+        setPriceDraft(priceRange);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [priceRange]);
+
+    useEffect(() => {
+        const t = setTimeout(() => {
+            const q = searchInput.trim();
+            // So với giá trị đang có trên URL chứ không phải `searchQuery` của
+            // render này (đã cũ sau một lần ghi khác), nếu không timer cũ có
+            // thể ghi đè một thay đổi mới hơn.
+            if (q !== (new URLSearchParams(paramsRef.current).get('search') ?? '')) {
+                // `replace` chứ không phải `push`: gõ là thao tác liên tục, push
+                // mỗi lần dừng sẽ nhồi entry và khách phải bấm Back nhiều lần
+                // mới thoát trang. Từ khoá vẫn quay lại được vì nó nằm trong
+                // các tham số khác mà bấm bằng (danh mục, hãng, trang) đã push.
+                writeUrl({ search: q || null, page: null });
+            }
+        }, 400);
+        return () => clearTimeout(t);
+        // writeUrl dùng ref nên không cần đưa vào deps.
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [searchInput]);
+
+    useEffect(() => {
+        const t = setTimeout(() => {
+            const current = new URLSearchParams(paramsRef.current);
+            const min = current.get('min') ?? '0';
+            const max = current.get('max') ?? String(PRICE_MAX);
+            if (String(priceDraft[0]) === min && String(priceDraft[1]) === max) return;
+            writeUrl({
+                min: priceDraft[0] > 0 ? String(priceDraft[0]) : null,
+                max: priceDraft[1] < PRICE_MAX ? String(priceDraft[1]) : null,
+                page: null,
+            });
+        }, 400);
+        return () => clearTimeout(t);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [priceDraft]);
 
     // Danh mục chỉ cần tải một lần
     useEffect(() => {
@@ -74,39 +294,37 @@ export default function ProductsPage() {
             .catch(() => toast.error('Không thể tải danh mục'));
     }, []);
 
-    // Hoãn ô tìm kiếm và thanh giá 400ms trước khi gọi API
-    useEffect(() => {
-        const t = setTimeout(() => setDebouncedSearch(searchQuery), 400);
-        return () => clearTimeout(t);
-    }, [searchQuery]);
-
-    useEffect(() => {
-        const t = setTimeout(() => setDebouncedPrice(priceRange), 400);
-        return () => clearTimeout(t);
-    }, [priceRange]);
-
+    // Ô tìm kiếm và thanh giá nằm ở URL phải đồng bộ về ô nhập. Đây chính là
+    // lúc khách quay lại trang (bấm nút Back hoặc bấm link được chia sẻ): giá
+    // trị cũ nằm trong URL nên điền lại được, thay vì trống trơn như trước.
+    //
+    // CHỈ kéo về theo URL khi URL đổi theo hướng bên ngoài. Nếu đồng bộ vô
+    // điều kiện thì đây chính là lỗi "gõ mất chữ": gõ "sam" dừng 400ms, router
+    // ghi `q=sam`; khách gõ tiếp "sung" trong lúc router còn xử lý, effect
+    // chạy và đè ô nhập về "sam", nuốt mất "sung".
     // Danh sách hãng đếm theo danh mục + từ khoá đang chọn, đổi 2 điều kiện đó là tải lại
     useEffect(() => {
         let cancelled = false;
         fetchBrands({
-            search: debouncedSearch.trim() || undefined,
+            search: searchQuery.trim() || undefined,
             categoryId: selectedCategory !== 'all' ? selectedCategory : undefined,
         })
             .then((data) => { if (!cancelled) setBrands(data || []); })
             .catch(() => { if (!cancelled) setBrands([]); });
         return () => { cancelled = true; };
-    }, [debouncedSearch, selectedCategory]);
+    }, [searchQuery, selectedCategory]);
 
-    // Đổi điều kiện lọc thì quay về trang 1, nếu không sẽ rơi vào trang trống
-    useEffect(() => {
-        // Việc đồng bộ trang hiện tại với bộ lọc là chủ ý; dữ liệu trang được tải ở effect kế tiếp.
-        // eslint-disable-next-line react-hooks/set-state-in-effect
-        setCurrentPage(1);
-    }, [selectedCategory, selectedBrands, debouncedSearch, debouncedPrice, sortBy]);
+    // Trước đây đổi bộ lọc phải reset về trang 1 bằng useEffect. Nay mọi
+    // setState của bộ lọc đã xoá `page` ngay trong lúc ghi URL nên không cần.
 
     const toggleBrand = (brand: string) => {
-        setSelectedBrands((prev) =>
-            prev.includes(brand) ? prev.filter((b) => b !== brand) : [...prev, brand],
+        // Tính trên `brandsDraft` của lần render hiện tại rồi bấm hai hãng
+        // liên tiếp sẽ mất hãng đầu (lần render sau chưa kịp chạy). Dùng
+        // `paramsRef` - nó được cập nhật đồng bộ ngay trong `writeUrl` nên
+        // luôn mô tả đúng những gì khách đang chọn.
+        const current = (new URLSearchParams(paramsRef.current).get('brand') ?? '').split(',').filter(Boolean);
+        setSelectedBrands(
+            current.includes(brand) ? current.filter((b) => b !== brand) : [...current, brand],
         );
     };
 
@@ -118,11 +336,11 @@ export default function ProductsPage() {
             const page = await fetchProductsPaged({
                 page: currentPage,
                 limit: itemsPerPage,
-                search: debouncedSearch.trim() || undefined,
+                search: searchQuery.trim() || undefined,
                 categoryId: selectedCategory !== 'all' ? selectedCategory : undefined,
-                brand: selectedBrands.length ? selectedBrands : undefined,
-                minPrice: debouncedPrice[0] > 0 ? debouncedPrice[0] : undefined,
-                maxPrice: debouncedPrice[1] < 50000000 ? debouncedPrice[1] : undefined,
+                brand: brandsDraft.length ? brandsDraft : undefined,
+                minPrice: priceRange[0] > 0 ? priceRange[0] : undefined,
+                maxPrice: priceRange[1] < PRICE_MAX ? priceRange[1] : undefined,
                 sort: sortBy,
             });
             // Bỏ qua kết quả của request đã cũ để không ghi đè lên request mới hơn
@@ -130,11 +348,25 @@ export default function ProductsPage() {
             setProducts(page.products);
             setTotalItems(page.total);
             setTotalPages(page.totalPages);
+            // Link cũ hoặc URL gõ tay có thể trỏ tới trang không tồn tại
+            // (bộ lọc đã đổi, kho đã cạn hàng). Kéo về trang cuối thật sự
+            // thay vì để khách nhìn một trang trống không lối ra.
+            if (page.totalPages > 0 && currentPage > page.totalPages) {
+                // replace chứ không push: push sẽ nhồi thêm entry vào lịch sử
+                // mỗi lần tải, bấm Back lại quay về `?page=10` cũ rồi lại bị
+                // đẩy đi - mắc vòng lặp không ra khỏi trang.
+                writeUrl({ page: page.totalPages === 1 ? null : String(page.totalPages) });
+                return;
+            }
             setLoading(false);
         };
         load();
         return () => { cancelled = true; };
-    }, [currentPage, debouncedSearch, debouncedPrice, selectedCategory, selectedBrands, sortBy]);
+        // `brandsDraft` và `priceRange` là mảng tạo mới mỗi lần render, nên
+        // deps phải so nội dung (join / từng phần tử) chứ không so tham chiếu,
+        // nếu không mỗi lần bấm hãng sẽ gọi API hai lần và dính rate limit.
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [currentPage, searchQuery, priceRange[0], priceRange[1], selectedCategory, brandsDraft.join(','), sortBy]);
 
     /**
      * Danh sách nút trang: luôn có trang 1 và trang cuối, kèm 2 trang bên cạnh
@@ -194,16 +426,15 @@ export default function ProductsPage() {
         }
     };
 
-    const handleViewDetails = (productId: string) => {
-        router.push(`/product/${productId}`);
-    };
-
     const resetFilters = () => {
-        setSelectedCategory('all');
-        setSelectedBrands([]);
-        setPriceRange([0, 50000000]);
-        setSearchQuery('');
-        setSortBy('newest');
+        // Xoá sạch query string. Các effect đồng bộ sẽ tự đưa ô nhập, thanh
+        // giá và danh sách hãng về mặc định theo URL mới.
+        setSearchInput('');
+        setPriceDraft([0, PRICE_MAX]);
+        setBrandsDraft([]);
+        paramsRef.current = '';
+        // push để nút Back quay lại được trạng thái trước khi xoá lọc.
+        router.push(pathname, { scroll: false });
     };
 
     // Danh sách hãng dài (vài chục tới hàng trăm hãng), chỉ hiện 12 hãng đầu
@@ -218,14 +449,18 @@ export default function ProductsPage() {
      * luôn, dù lúc nãy khách vừa bấm chọn.
      */
     const brandOptions: { brand: string; count: number }[] = useMemo(() => {
-        const known = new Map(brands.map((b) => [b.brand, b.count]));
-        for (const b of selectedBrands) {
-            if (!known.has(b)) known.set(b, 0);
+        // Server so khớp hãng không phân biệt hoa thường, còn `brands` trả về
+        // tên chuẩn trong DB. Link gõ tay `?brand=apple` thì `brandsDraft` là
+        // "apple" trong khi API trả "Apple" - nếu không gộp lại, sidebar hiện
+        // hai dòng cho cùng một hãng. Khoá là dạng viết thường, giá trị giữ
+        // tên chuẩn từ API để hiển thị.
+        const known = new Map(brands.map((b) => [b.brand.toLowerCase(), { brand: b.brand, count: b.count }]));
+        for (const b of brandsDraft) {
+            const key = b.toLowerCase();
+            if (!known.has(key)) known.set(key, { brand: b, count: 0 });
         }
-        return [...known.entries()]
-            .map(([brand, count]) => ({ brand, count }))
-            .sort((a, b) => b.count - a.count || a.brand.localeCompare(b.brand));
-    }, [brands, selectedBrands]);
+        return [...known.values()].sort((a, b) => b.count - a.count || a.brand.localeCompare(b.brand));
+    }, [brands, brandsDraft]);
 
     const visibleBrands = showAllBrands
         ? brandOptions
@@ -247,8 +482,8 @@ export default function ProductsPage() {
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
                     <Input
                         placeholder="Tìm sản phẩm..."
-                        value={searchQuery}
-                        onChange={(e) => setSearchQuery(e.target.value)}
+                        value={searchInput}
+                        onChange={(e) => setSearchInput(e.target.value)}
                         className="pl-10"
                     />
                 </div>
@@ -293,7 +528,7 @@ export default function ProductsPage() {
                 <div>
                     <div className="flex items-center justify-between mb-3">
                         <Label className="text-sm font-semibold">Hãng</Label>
-                        {selectedBrands.length > 0 && (
+                        {brandsDraft.length > 0 && (
                             <button
                                 onClick={() => setSelectedBrands([])}
                                 className="text-xs text-[#af3200] hover:underline"
@@ -304,7 +539,10 @@ export default function ProductsPage() {
                     </div>
                     <div className="space-y-1.5 max-h-64 overflow-y-auto pr-1">
                         {visibleBrands.map(({ brand, count }) => {
-                            const checked = selectedBrands.includes(brand);
+                            // So khớp không phân biệt hoa thường cho khớp với
+                            // cách server so sánh, nên `?brand=apple` vẫn tích
+                            // đúng dòng "Apple" trong danh sách.
+                            const checked = brandsDraft.some((b) => b.toLowerCase() === brand.toLowerCase());
                             return (
                                 <label
                                     key={brand}
@@ -349,13 +587,13 @@ export default function ProductsPage() {
                         min={0}
                         max={50000000}
                         step={100000}
-                        value={priceRange}
-                        onValueChange={(value) => setPriceRange(value as [number, number])}
+                        value={priceDraft}
+                        onValueChange={(value) => setPriceDraft(value as [number, number])}
                         className="mb-4"
                     />
                     <div className="flex justify-between text-sm text-slate-600">
-                        <span>{(priceRange[0] / 1000000).toFixed(1)}M</span>
-                        <span>{(priceRange[1] / 1000000).toFixed(1)}M</span>
+                        <span>{(priceDraft[0] / 1000000).toFixed(1)}M</span>
+                        <span>{(priceDraft[1] / 1000000).toFixed(1)}M</span>
                     </div>
                 </div>
             </div>
@@ -458,7 +696,8 @@ export default function ProductsPage() {
                         </div>
 
                         {/* Active Filters */}
-                        {(selectedCategory !== 'all' || searchQuery) && (
+                        {(selectedCategory !== 'all' || searchQuery || brandsDraft.length > 0
+                            || priceDraft[0] > 0 || priceDraft[1] < PRICE_MAX) && (
                             <div className="flex flex-wrap gap-2 mb-6">
                                 {selectedCategory !== 'all' && (
                                     <Badge variant="secondary" className="px-3 py-1.5">
@@ -471,11 +710,37 @@ export default function ProductsPage() {
                                         </button>
                                     </Badge>
                                 )}
+                                {brandsDraft.length > 0 && (
+                                    <Badge variant="secondary" className="px-3 py-1.5">
+                                        Hãng: {brandsDraft.map((b) => (b === 'other' ? 'Khác' : b)).join(', ')}
+                                        <button
+                                            onClick={() => setSelectedBrands([])}
+                                            className="ml-2 hover:text-red-600"
+                                        >
+                                            <X className="w-3 h-3" />
+                                        </button>
+                                    </Badge>
+                                )}
+                                {(priceDraft[0] > 0 || priceDraft[1] < PRICE_MAX) && (
+                                    <Badge variant="secondary" className="px-3 py-1.5">
+                                        {(priceDraft[0] / 1000000).toFixed(1)}M &ndash;{' '}
+                                        {(priceDraft[1] / 1000000).toFixed(1)}M
+                                        <button
+                                            onClick={() => setPriceDraft([0, PRICE_MAX])}
+                                            className="ml-2 hover:text-red-600"
+                                        >
+                                            <X className="w-3 h-3" />
+                                        </button>
+                                    </Badge>
+                                )}
                                 {searchQuery && (
                                     <Badge variant="secondary" className="px-3 py-1.5">
                                         Tìm kiếm: &ldquo;{searchQuery}&rdquo;
                                         <button
-                                            onClick={() => setSearchQuery('')}
+                                            onClick={() => {
+                                                setSearchInput('');
+                                                writeUrl({ search: null, page: null }, 'push');
+                                            }}
                                             className="ml-2 hover:text-red-600"
                                         >
                                             <X className="w-3 h-3" />
@@ -531,7 +796,7 @@ export default function ProductsPage() {
                                     <div className="flex justify-center items-center gap-2 mt-12 flex-wrap">
                                         <Button
                                             variant="outline"
-                                            onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                                            onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
                                             disabled={currentPage === 1}
                                         >
                                             Trước
@@ -558,7 +823,7 @@ export default function ProductsPage() {
                                         )}
                                         <Button
                                             variant="outline"
-                                            onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                                            onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
                                             disabled={currentPage === totalPages}
                                         >
                                             Sau

@@ -37,6 +37,15 @@ const ProductCardComponent = ({ product }: ProductCardProps) => {
   const wished = useWishlistStore((s) => s.items.some((i) => i.id === product.id));
   const toggleWishlist = useWishlistStore((s) => s.toggle);
 
+  // Link chi tiết không mang theo query string. Trang /products đã tự `push`
+  // mỗi thay đổi bộ lọc nên lịch sử đã có sẵn `/products?...` và bấm Back quay
+  // về đúng trạng thái. Gắn thêm query vào đây chỉ làm link sản phẩm bị kèm rác
+  // (`/product/123?search=tulanh&brand=Toshiba`) mà người khác mở ra thì thấy
+  // URL vô nghĩa. Cách này cũng giữ card không cần `useSearchParams` - thứ mà
+  // sẽ làm các trang tĩnh khác (`/wishlist`, `/category/[slug]`) vỡ vì thiếu
+  // Suspense boundary.
+  const detailHref = `/product/${product.id}`;
+
   const variants = product.variants ?? [];
   // Biến thể rẻ nhất để hiển thị giá "Từ ...". Sale chỉ hợp lệ khi > 0 và rẻ hơn giá gốc.
   const priced = variants
@@ -136,7 +145,7 @@ const ProductCardComponent = ({ product }: ProductCardProps) => {
       <div className="relative flex h-full min-w-0 flex-col overflow-hidden rounded-2xl border border-zinc-200/80 bg-white transition-all duration-300 hover:-translate-y-1 hover:border-orange-300 hover:shadow-xl dark:border-gray-800 dark:bg-gray-900">
         {/* Product Image */}
         <div className="relative overflow-hidden bg-white dark:bg-gray-900">
-          <Link href={`/product/${product.id}`} className="block">
+          <Link href={detailHref} className="block">
             <div className="aspect-square relative overflow-hidden">
               {productImage ? (
                 <img
@@ -189,7 +198,7 @@ const ProductCardComponent = ({ product }: ProductCardProps) => {
         {/* Content */}
         <div className="flex min-w-0 flex-1 flex-col p-4">
           {/* Tên sản phẩm 2 dòng */}
-          <Link href={`/product/${product.id}`} className="cursor-pointer">
+          <Link href={detailHref} className="cursor-pointer">
             <h3 className="line-clamp-2 min-h-[2.6rem] break-words text-[15px] font-bold leading-snug text-slate-900 transition-colors group-hover:text-primary dark:text-white">
               {product.name}
             </h3>

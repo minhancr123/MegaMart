@@ -139,6 +139,16 @@ jobs:
             aws ecr get-login-password --region "$AWS_REGION" \
               | docker login --username AWS --password-stdin "$AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com"
 
+            # 1b. Dọn disk TRƯỚC khi pull. Mỗi deploy để lại image tag cũ, và
+            # image server chứa cả Prisma engine + node_modules nên vài deploy là
+            # đầy ổ 20GB, khiến `pull` chết với "no space left on device" giữa
+            # chừng. `image prune -a` giữ image của container đang chạy (nên
+            # vẫn rollback được) và chỉ xoá các tag cũ không còn ai dùng.
+            df -h / | tail -1
+            docker image prune -af || true
+            docker container prune -f || true
+            df -h / | tail -1
+
             # 2. Pull image mới
             docker compose -f docker-compose.prod.yml pull
 

@@ -10,11 +10,20 @@ import {
   AuditEntity,
 } from "../audit-log/audit-log.service";
 
+/**
+ * Nhãn nhóm ảo cho sản phẩm không có thương hiệu. getBrands gộp các sản phẩm
+ * đó về chung một mục để chúng không biến mất khỏi bộ lọc, và findAll hiểu
+ * nhãn này để lọc lại được nhóm ảo đó.
+ */
+export const OTHER_BRAND = 'other';
+
 export interface FindAllProductsParams {
   search?: string;
   categoryId?: string;
   minPrice?: number;
   maxPrice?: number;
+  /** Lọc theo một hoặc nhiều hãng (so khớp không phân biệt hoa thường). */
+  brand?: string | string[];
   /** 'newest' (mặc định) | 'price-asc' | 'price-desc' | 'name-asc' */
   sort?: string;
   page?: number;
@@ -51,6 +60,30 @@ export class ProductsService {
 
     const search = params.search?.trim();
     const like = search ? `%${search}%` : null;
+    // Client nối nhiều hãng thành một tham số "HP,Samsung,Dell" (axios mã hoá
+    // mảng thành brand[]=HP&brand[]=Dell nên server không đọc được), nên phải tách
+    // dấu phẩy ra thay vì so khớp cả chuỗi - sẽ ra 0 sản phẩm.
+    const brands = (Array.isArray(params.brand) ? params.brand : [params.brand ?? ''])
+      .flatMap((b) => b.split(','))
+      .map((b) => b.trim().toLowerCase())
+      .filter((b) => b.length > 0);
+
+    // "other" là nhóm ảo cho sản phẩm không có hãng (getBrands gộp NULL/rỗng
+    // vào nhóm này). lower(NULL) là NULL nên phép so khớp bằng không bao giờ
+    // trúng - phải so riêng theo điều kiện rỗng.
+    const wantsOther = brands.includes(OTHER_BRAND);
+    const namedBrands = brands.filter((b) => b !== OTHER_BRAND);
+    const brandFilter = !brands.length
+      ? Prisma.empty
+      : Prisma.sql`AND (
+          ${wantsOther
+            ? Prisma.sql`p.brand IS NULL OR btrim(p.brand) = ''`
+            : Prisma.empty}
+          ${wantsOther && namedBrands.length ? Prisma.sql`OR` : Prisma.empty}
+          ${namedBrands.length
+            ? Prisma.sql`lower(btrim(p.brand)) = ANY(${namedBrands})`
+            : Prisma.empty}
+        )`;
     const min =
       Number(params.minPrice) > 0
         ? BigInt(Math.round(Number(params.minPrice)))
@@ -69,6 +102,7 @@ export class ProductsService {
             ) vp ON true
             WHERE p."deletedAt" IS NULL
             ${categoryIds ? Prisma.sql`AND p."categoryId" = ANY(${categoryIds})` : Prisma.empty}
+            ${brandFilter}
             ${
               like
                 ? Prisma.sql`AND (
@@ -384,6 +418,59 @@ export class ProductsService {
       totalItems: total,
     };
   }
+  /**
+   * Danh sách hãng kèm số sản phẩm, để dựng bộ lọc hãng ở trang danh mục.
+   *
+   * Đếm theo điều kiện lọc hiện tại (danh mục, từ khoá) để con số khớp với
+   * danh sách đang xem. Sản phẩm không có hãng gom vào nhóm "other" để không
+   * biến mất khỏi danh sách.
+   */
+  async getBrands(
+    params: { search?: string; categoryId?: string } = {},
+  ): Promise<{ brand: string; count: number }[]> {
+    const categoryIds = params.categoryId
+      ? [
+          ...new Set([
+            params.categoryId,
+            ...(await this.prisma.category.findMany({
+              where: { parentId: params.categoryId },
+              select: { id: true },
+            })).map((c) => c.id),
+          ]),
+        ]
+      : null;
+
+    const like = params.search?.trim() ? `%${params.search.trim()}%` : null;
+
+    // btrim ở cả đây lẫn findAll: dữ liệu từ crawler có thể có khoảng trắng
+    // thừa quanh tên hãng, nếu chỉ lower() thì " Samsung" không khớp "samsung".
+    const rows = await this.prisma.$queryRaw<{ brand: string; count: bigint }[]>`
+      SELECT
+        CASE
+          WHEN p.brand IS NULL OR btrim(p.brand) = '' THEN ${OTHER_BRAND}
+          ELSE btrim(p.brand)
+        END AS brand,
+        count(*)::bigint AS count
+      FROM "Product" p
+      WHERE p."deletedAt" IS NULL
+      ${categoryIds ? Prisma.sql`AND p."categoryId" = ANY(${categoryIds})` : Prisma.empty}
+      ${
+        like
+          ? Prisma.sql`AND (
+              p.name ILIKE ${like}
+              OR p.description ILIKE ${like}
+              OR p.brand ILIKE ${like}
+              OR EXISTS (SELECT 1 FROM "Variant" sv WHERE sv."productId" = p.id AND sv.sku ILIKE ${like})
+            )`
+          : Prisma.empty
+      }
+      GROUP BY 1
+      ORDER BY count(*) DESC, 1 ASC
+    `;
+
+    return rows.map((row) => ({ brand: row.brand, count: Number(row.count) }));
+  }
+
   async getProductById(id: string): Promise<ProductResponseDto | null> {
     const product = await this.prisma.product.findFirst({
       where: {

@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import { ProductCard } from '@/components/product/ProductCard';
-import { fetchProductsPaged, fetchCategoriesList } from '@/lib/productApi';
+import { fetchProductsPaged, fetchCategoriesList, fetchBrands } from '@/lib/productApi';
 import { useRouter } from 'next/navigation';
 import { Product, Category } from '@/interfaces/product';
 import { addToCart } from '@/lib/cartApi';
@@ -46,10 +46,12 @@ export default function ProductsPage() {
 
     const [products, setProducts] = useState<Product[]>([]);
     const [categories, setCategories] = useState<Category[]>([]);
+    const [brands, setBrands] = useState<{ brand: string; count: number }[]>([]);
     const [loading, setLoading] = useState(true);
 
     // Filter states
     const [selectedCategory, setSelectedCategory] = useState<string>('all');
+    const [selectedBrands, setSelectedBrands] = useState<string[]>([]);
     const [priceRange, setPriceRange] = useState<[number, number]>([0, 50000000]);
     const [searchQuery, setSearchQuery] = useState('');
     const [sortBy, setSortBy] = useState('newest');
@@ -83,12 +85,30 @@ export default function ProductsPage() {
         return () => clearTimeout(t);
     }, [priceRange]);
 
+    // Danh sách hãng đếm theo danh mục + từ khoá đang chọn, đổi 2 điều kiện đó là tải lại
+    useEffect(() => {
+        let cancelled = false;
+        fetchBrands({
+            search: debouncedSearch.trim() || undefined,
+            categoryId: selectedCategory !== 'all' ? selectedCategory : undefined,
+        })
+            .then((data) => { if (!cancelled) setBrands(data || []); })
+            .catch(() => { if (!cancelled) setBrands([]); });
+        return () => { cancelled = true; };
+    }, [debouncedSearch, selectedCategory]);
+
     // Đổi điều kiện lọc thì quay về trang 1, nếu không sẽ rơi vào trang trống
     useEffect(() => {
         // Việc đồng bộ trang hiện tại với bộ lọc là chủ ý; dữ liệu trang được tải ở effect kế tiếp.
         // eslint-disable-next-line react-hooks/set-state-in-effect
         setCurrentPage(1);
-    }, [selectedCategory, debouncedSearch, debouncedPrice, sortBy]);
+    }, [selectedCategory, selectedBrands, debouncedSearch, debouncedPrice, sortBy]);
+
+    const toggleBrand = (brand: string) => {
+        setSelectedBrands((prev) =>
+            prev.includes(brand) ? prev.filter((b) => b !== brand) : [...prev, brand],
+        );
+    };
 
     // Lấy đúng một trang từ server, kèm toàn bộ điều kiện lọc
     useEffect(() => {
@@ -100,6 +120,7 @@ export default function ProductsPage() {
                 limit: itemsPerPage,
                 search: debouncedSearch.trim() || undefined,
                 categoryId: selectedCategory !== 'all' ? selectedCategory : undefined,
+                brand: selectedBrands.length ? selectedBrands : undefined,
                 minPrice: debouncedPrice[0] > 0 ? debouncedPrice[0] : undefined,
                 maxPrice: debouncedPrice[1] < 50000000 ? debouncedPrice[1] : undefined,
                 sort: sortBy,
@@ -113,7 +134,7 @@ export default function ProductsPage() {
         };
         load();
         return () => { cancelled = true; };
-    }, [currentPage, debouncedSearch, debouncedPrice, selectedCategory, sortBy]);
+    }, [currentPage, debouncedSearch, debouncedPrice, selectedCategory, selectedBrands, sortBy]);
 
     /**
      * Danh sách nút trang: luôn có trang 1 và trang cuối, kèm 2 trang bên cạnh
@@ -179,10 +200,36 @@ export default function ProductsPage() {
 
     const resetFilters = () => {
         setSelectedCategory('all');
+        setSelectedBrands([]);
         setPriceRange([0, 50000000]);
         setSearchQuery('');
         setSortBy('newest');
     };
+
+    // Danh sách hãng dài (vài chục tới hàng trăm hãng), chỉ hiện 12 hãng đầu
+    // rồi mới mở rộng, tránh một sidebar dài lê thê.
+    const BRAND_COLLAPSED = 12;
+    const [showAllBrands, setShowAllBrands] = useState(false);
+
+    /**
+     * Hãng đang chọn phải luôn hiện được, kể cả khi tìm kiếm/đổi danh mục làm
+     * nó biến khỏi `brands` (count = 0). Nếu không, lựa chọn của khách biến
+     * mất im lặng: gõ tìm kiếm không ra hãng đó rồi xoá tìm kiếm thì cũng mất
+     * luôn, dù lúc nãy khách vừa bấm chọn.
+     */
+    const brandOptions: { brand: string; count: number }[] = useMemo(() => {
+        const known = new Map(brands.map((b) => [b.brand, b.count]));
+        for (const b of selectedBrands) {
+            if (!known.has(b)) known.set(b, 0);
+        }
+        return [...known.entries()]
+            .map(([brand, count]) => ({ brand, count }))
+            .sort((a, b) => b.count - a.count || a.brand.localeCompare(b.brand));
+    }, [brands, selectedBrands]);
+
+    const visibleBrands = showAllBrands
+        ? brandOptions
+        : brandOptions.slice(0, BRAND_COLLAPSED);
 
     // totalPages/totalItems do server trả về; products đã đúng là trang hiện tại.
     const currentProducts = products;
@@ -240,6 +287,59 @@ export default function ProductsPage() {
                     ))}
                 </div>
             </div>
+
+            {/* Brand Filter */}
+            {brandOptions.length > 0 && (
+                <div>
+                    <div className="flex items-center justify-between mb-3">
+                        <Label className="text-sm font-semibold">Hãng</Label>
+                        {selectedBrands.length > 0 && (
+                            <button
+                                onClick={() => setSelectedBrands([])}
+                                className="text-xs text-[#af3200] hover:underline"
+                            >
+                                Bỏ chọn
+                            </button>
+                        )}
+                    </div>
+                    <div className="space-y-1.5 max-h-64 overflow-y-auto pr-1">
+                        {visibleBrands.map(({ brand, count }) => {
+                            const checked = selectedBrands.includes(brand);
+                            return (
+                                <label
+                                    key={brand}
+                                    className="flex items-center gap-2.5 px-1 py-1.5 rounded-lg cursor-pointer hover:bg-slate-50"
+                                >
+                                    <input
+                                        type="checkbox"
+                                        checked={checked}
+                                        onChange={() => toggleBrand(brand)}
+                                        className="w-4 h-4 rounded border-slate-300 text-[#fc4c00] focus:ring-[#fc4c00]/30 cursor-pointer"
+                                    />
+                                    <span className={`text-sm flex-1 truncate ${checked
+                                        ? 'text-[#af3200] font-medium'
+                                        : 'text-slate-600'}`}>
+                                        {brand === 'other' ? 'Khác' : brand}
+                                    </span>
+                                    <span className="text-xs text-slate-400 tabular-nums">
+                                        {count.toLocaleString('vi-VN')}
+                                    </span>
+                                </label>
+                            );
+                        })}
+                    </div>
+                    {brandOptions.length > BRAND_COLLAPSED && (
+                        <button
+                            onClick={() => setShowAllBrands((v) => !v)}
+                            className="mt-2 text-xs font-medium text-[#af3200] hover:underline"
+                        >
+                            {showAllBrands
+                                ? 'Thu gọn'
+                                : `Xem tất cả ${brandOptions.length} hãng`}
+                        </button>
+                    )}
+                </div>
+            )}
 
             {/* Price Range */}
             <div>

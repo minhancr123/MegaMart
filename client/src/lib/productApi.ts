@@ -16,11 +16,15 @@ const productsAPI = {
   getProductsByCategory: (categorySlug: string) => axiosClient.get(`/products/category/${categorySlug}`),
   getAllProducts: (params?: ProductQuery) => axiosClient.get("/products", { params }),
   searchProducts: (params: ProductQuery) => axiosClient.get("/products", { params }),
+  getBrands: (params?: { search?: string; categoryId?: string }) =>
+    axiosClient.get("/products/brands", { params }),
 };
 
 export interface ProductQuery {
   search?: string;
   categoryId?: string;
+  /** Lọc theo một hoặc nhiều hãng. */
+  brand?: string[];
   minPrice?: number;
   maxPrice?: number;
   /** 'newest' (mặc định) | 'price-asc' | 'price-desc' | 'name-asc' */
@@ -46,8 +50,14 @@ const EMPTY_PAGE: PagedProducts = { products: [], total: 0, page: 1, limit: 12, 
 export const fetchProductsPaged = async (query: ProductQuery = {}): Promise<PagedProducts> => {
   try {
     // Bỏ tham số rỗng để không gửi ?search=&categoryId= vô nghĩa lên server.
+    // Mảng phải nối thành chuỗi, nếu không axios gửi brand[]=HP&brand[]=Dell
+    // còn server chỉ đọc tham số "brand".
     const params = Object.fromEntries(
-      Object.entries(query).filter(([, v]) => v !== undefined && v !== null && v !== '')
+      Object.entries(query)
+        .map(([k, v]) => [k, Array.isArray(v) ? v.join(',') : v] as const)
+        // Lọc SAU khi nối: brand=[] nối ra "" thì mới bị loại. Lọc trước thì
+        // [] !== '' nên lọt qua rồi biến thành ?brand= rỗng trên URL.
+        .filter(([, v]) => v !== undefined && v !== null && v !== ''),
     );
     const res = await productsAPI.getAllProducts(params);
     const body = res as unknown as Partial<PagedProducts>;
@@ -88,6 +98,24 @@ export const fetchFeaturedProducts = async () => {
     return [];
   } catch (error: unknown) {
     console.error("Fetch featured products error:", error);
+    return [];
+  }
+};
+
+/**
+ * Danh sách hãng kèm số sản phẩm, đếm theo danh mục và từ khoá đang lọc.
+ * Hãng "other" là nhóm gom các sản phẩm không có dữ liệu hãng.
+ */
+export const fetchBrands = async (
+  params: { search?: string; categoryId?: string } = {},
+): Promise<{ brand: string; count: number }[]> => {
+  try {
+    const res = await productsAPI.getBrands(params);
+    const apiRes = res as unknown as ApiResponse<{ brand: string; count: number }[]>;
+    if (apiRes.success && Array.isArray(apiRes.data)) return apiRes.data;
+    return [];
+  } catch (error: unknown) {
+    console.error('Fetch brands error:', error);
     return [];
   }
 };

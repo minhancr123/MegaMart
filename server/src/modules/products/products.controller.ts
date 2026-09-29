@@ -33,6 +33,9 @@ export class ProductsController {
     @Query("categoryId") categoryId?: string,
     @Query("minPrice") minPrice?: string,
     @Query("maxPrice") maxPrice?: string,
+    // Chấp nhận cả "?brand=HP" và "?brand=HP,Samsung" để lọc nhiều hãng.
+    // "?brand=HP&brand=Samsung" thì Express trả về mảng, nên khai báo string | string[].
+    @Query("brand") brand?: string | string[],
     @Query("sort") sort?: string,
     @Query("page") page?: string,
     @Query("limit") limit?: string,
@@ -44,6 +47,9 @@ export class ProductsController {
       categoryId,
       minPrice: minPrice ? Number(minPrice) : undefined,
       maxPrice: maxPrice ? Number(maxPrice) : undefined,
+      // Chuẩn hoá tham số hãng về mảng; service cũng tách dấu phẩy được nên
+      // chỉ cần bỏ rỗng ở đây.
+      brand: brand === undefined ? undefined : brand,
       sort,
       page: page ? Number(page) : undefined,
       limit: limit ? Number(limit) : undefined,
@@ -66,6 +72,36 @@ export class ProductsController {
         {
           success: false,
           message: "Lỗi server khi lấy sản phẩm nổi bật",
+          detail: error.message,
+        },
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
+
+  /**
+   * Danh sách hãng kèm số sản phẩm, phục vụ bộ lọc hãng ở trang /products.
+   * Khai báo trước @Get(":id") để không bị route động bắt mất.
+   */
+  @Get("brands")
+  async getBrands(
+    @Query("search") search?: string,
+    @Query("categoryId") categoryId?: string,
+  ): Promise<any> {
+    try {
+      const brands = await this.productsService.getBrands({ search, categoryId });
+      return {
+        data: {
+          success: true,
+          data: brands,
+          message: "Lấy danh sách hãng thành công",
+        },
+      };
+    } catch (error) {
+      throw new HttpException(
+        {
+          success: false,
+          message: "Lỗi server khi lấy danh sách hãng",
           detail: error.message,
         },
         HttpStatus.INTERNAL_SERVER_ERROR,

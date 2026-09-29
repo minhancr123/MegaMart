@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { ProductCard } from '@/components/product/ProductCard';
 import { fetchProductsPaged, fetchCategoriesList } from '@/lib/productApi';
 import { useRouter } from 'next/navigation';
@@ -59,7 +59,7 @@ export default function ProductsPage() {
     const [currentPage, setCurrentPage] = useState(1);
     const [totalItems, setTotalItems] = useState(0);
     const [totalPages, setTotalPages] = useState(0);
-    const itemsPerPage = 12;
+    const itemsPerPage = 36;
 
     // Gõ tới đâu gọi API tới đó sẽ đụng rate limit (3 req/giây), nên hoãn lại.
     const [debouncedSearch, setDebouncedSearch] = useState('');
@@ -114,6 +114,30 @@ export default function ProductsPage() {
         load();
         return () => { cancelled = true; };
     }, [currentPage, debouncedSearch, debouncedPrice, selectedCategory, sortBy]);
+
+    /**
+     * Danh sách nút trang: luôn có trang 1 và trang cuối, kèm 2 trang bên cạnh
+     * trang đang xem, các đoạn bị bỏ qua thay bằng dấu "…".
+     *
+     * Danh mục có vài nghìn sản phẩm nên hàng trăm trang. Kiểu cũ chỉ render 5
+     * trang đầu, muốn tới trang cuối phải bấm "Sau" hàng trăm lần.
+     */
+    const pageNumbers: (number | 'gap')[] = useMemo(() => {
+        if (totalPages <= 1) return [];
+        const pages = new Set<number>([1, totalPages]);
+        for (let p = currentPage - 2; p <= currentPage + 2; p++) {
+            if (p >= 1 && p <= totalPages) pages.add(p);
+        }
+        const sorted = [...pages].sort((a, b) => a - b);
+        const out: (number | 'gap')[] = [];
+        let prev = 0;
+        for (const page of sorted) {
+            if (prev && page - prev > 1) out.push('gap');
+            out.push(page);
+            prev = page;
+        }
+        return out;
+    }, [currentPage, totalPages]);
 
     const handleAddToCart = async (variantId: string, quantity: number) => {
         if (!user?.id) {
@@ -404,7 +428,7 @@ export default function ProductsPage() {
 
                                 {/* Pagination */}
                                 {totalPages > 1 && (
-                                    <div className="flex justify-center items-center gap-2 mt-12">
+                                    <div className="flex justify-center items-center gap-2 mt-12 flex-wrap">
                                         <Button
                                             variant="outline"
                                             onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
@@ -412,20 +436,26 @@ export default function ProductsPage() {
                                         >
                                             Trước
                                         </Button>
-                                        {Array.from({ length: Math.min(totalPages, 5) }, (_, i) => i + 1).map((page) => (
-                                            <Button
-                                                key={page}
-                                                variant={currentPage === page ? 'default' : 'outline'}
-                                                onClick={() => setCurrentPage(page)}
-                                                className={
-                                                    currentPage === page
-                                                        ? 'bg-[#fc4c00] hover:bg-[#af3200] text-white rounded-full shadow-md'
-                                                        : ''
-                                                }
-                                            >
-                                                {page}
-                                            </Button>
-                                        ))}
+                                        {pageNumbers.map((page, idx) =>
+                                            page === 'gap' ? (
+                                                <span key={`gap-${idx}`} className="px-2 text-muted-foreground select-none">
+                                                    …
+                                                </span>
+                                            ) : (
+                                                <Button
+                                                    key={page}
+                                                    variant={currentPage === page ? 'default' : 'outline'}
+                                                    onClick={() => setCurrentPage(page as number)}
+                                                    className={
+                                                        currentPage === page
+                                                            ? 'bg-[#fc4c00] hover:bg-[#af3200] text-white rounded-full shadow-md'
+                                                            : ''
+                                                    }
+                                                >
+                                                    {page}
+                                                </Button>
+                                            ),
+                                        )}
                                         <Button
                                             variant="outline"
                                             onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}

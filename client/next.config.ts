@@ -19,6 +19,9 @@ const nextConfig: NextConfig = {
       { protocol: 'https', hostname: 'cdn.coreventure.vn' },
       { protocol: 'https', hostname: 'imgs.search.brave.com' },
       { protocol: 'https', hostname: 'i.pravatar.cc' },
+      // Ảnh sản phẩm giờ nằm trong bucket R2 của chính domain này, nginx
+      // proxy đường dẫn /products/** sang r2.dev.
+      { protocol: 'https', hostname: 'megamart24.tech', pathname: '/products/**' },
     ],
     formats: ['image/avif', 'image/webp'], // Modern formats for better performance
     deviceSizes: [640, 750, 828, 1080, 1200, 1920, 2048, 3840],

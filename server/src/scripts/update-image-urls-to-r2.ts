@@ -38,17 +38,18 @@ function loadMap(): UrlMap {
 }
 
 /**
- * Gom ảnh R2 theo slug sản phẩm.
+ * Gom ảnh R2 theo slug sản phẩm, đồng thời loại ảnh review vì ảnh mô tả xen
+ * trong bài viết tới từ ảnh của người đánh giá chứ không phải ảnh sản phẩm.
  *
- * URL R2 có dạng https://host/products/<slug>/<ten-anh>.webp, nên slug nằm
- * ngay sau /products/. Giữ nguyên thứ tự trong map để ghép với thứ tự ảnh
- * trong DB (displayOrder).
+ * URL R2 có dạng https://host/products/<slug>/<ten-anh>.webp nên slug nằm
+ * ngay sau /products/.
  */
 function buildSlugIndex(map: UrlMap): Map<string, string[]> {
   const byslug = new Map<string, string[]>();
   for (const r2url of Object.values(map)) {
     const match = r2url.match(/\/products\/([^/]+)\//);
     if (!match) continue;
+    if (/thuyvy|review|rating|danh-gia/i.test(r2url)) continue;
     const list = byslug.get(match[1]) ?? [];
     list.push(r2url);
     byslug.set(match[1], list);
@@ -108,14 +109,25 @@ async function main() {
 
     const desc = product.descriptionImages.filter(isStale);
     if (desc.length > 0) {
-      if (r2list) {
-        descHit += desc.length;
+      if (r2list && r2list.length > 0) {
+        // Mỗi ảnh mô tả phải trỏ tới ảnh R2 khác nhau. Trước đây gán tất cả
+        // về r2list[0] nên toàn bộ ảnh trong bài viết trùng một ảnh.
+        // Giới hạn theo số ảnh R2 có sẵn, thiếu thì bỏ trống cho trình duyệt
+        // bỏ qua chứ không lặp lại ảnh cũ.
+        let cursor = 0;
+        const next = product.descriptionImages.map((url) => {
+          if (!isStale(url)) return url;
+          const picked = r2list[cursor];
+          if (!picked) return "";
+          cursor += 1;
+          return picked;
+        });
+        descHit += cursor;
+        descMiss += next.length - cursor;
         prodOps.push({
           update: {
             where: { id: product.id },
-            data: { descriptionImages: product.descriptionImages.map((url) =>
-              isStale(url) ? r2list[0] : url,
-            ) },
+            data: { descriptionImages: next.filter(Boolean) },
           },
         });
       } else {

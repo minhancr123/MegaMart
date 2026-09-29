@@ -140,13 +140,44 @@ export const ProductInfo = ({
     );
   })();
 
+  /** Tên màu của biến thể, null nếu chưa được gán. */
+  const variantColorName = (v: Variant): string | null => {
+    const colors = Array.isArray(v.colors) ? (v.colors as { name?: string }[]) : [];
+    const name = colors[0]?.name?.trim();
+    return name ? name : null;
+  };
+
+  /**
+   * Nhãn của một biến thể: tên màu nếu có, sau đó giá trị option, cuối cùng mới
+   * tới SKU. Chỉ khi không có tên màu mới hiện mã hàng — mã kiểu HD16CEPATZ vô
+   * nghĩa với khách, còn "Ceramic Patina" thì có nghĩa.
+   */
   const variantOptionValue = (v: Variant): string => {
+    const colorName = variantColorName(v);
+    if (colorName) return colorName;
+
     if (variantOptionKey) {
       const val = (v.attributes as Record<string, unknown> | undefined)?.[variantOptionKey];
       if (val != null && String(val).trim() !== "") return String(val);
     }
     return v.sku;
   };
+
+  /** Mã màu để tô chấm tròn bên cạnh nút, null nếu không xác định được. */
+  const variantColorHex = (v: Variant): string | null => {
+    const colors = Array.isArray(v.colors) ? (v.colors as { hex?: string }[]) : [];
+    const hex = colors[0]?.hex?.trim();
+    return hex && /^#[0-9a-f]{3,8}$/i.test(hex) ? hex : null;
+  };
+
+  // Đa số biến thể có tên màu thì hiện dạng chọn màu thay vì liệt kê phiên bản.
+  // Yêu cầu phần lớn có màu, tránh trường hợp 3 biến thể mà chỉ 1 có tên màu
+  // thì 2 nút còn lại lại rơi về hiện SKU.
+  const hasColorOptions =
+    variants.length > 1 &&
+    variants.filter((v) => variantColorName(v) != null).length >= Math.ceil(variants.length / 2);
+
+  const selectedColorName = selectedVariant ? variantColorName(selectedVariant) : null;
 
   const handleSelectVariant = (idx: number) => {
     setSelectedVariantIndex(idx);
@@ -249,7 +280,12 @@ export const ProductInfo = ({
       {variants.length > 1 && (
         <div className="space-y-2">
           <label className="text-sm text-foreground block">
-            {variantOptionKey ? (
+            {hasColorOptions ? (
+              <>
+                <span className="text-muted-foreground">Màu sắc: </span>
+                <span className="font-bold">{selectedColorName ?? "—"}</span>
+              </>
+            ) : variantOptionKey ? (
               <>
                 <span className="text-muted-foreground">{prettyAttrKey(variantOptionKey)}: </span>
                 <span className="font-bold">{variantOptionValue(selectedVariant ?? variants[0])}</span>
@@ -262,18 +298,31 @@ export const ProductInfo = ({
             {variants.map((variant, idx) => {
               const isSelected = selectedVariantIndex === idx;
               const label = variantOptionValue(variant);
+              const hex = variantColorHex(variant);
+              const soldOut = Number(variant.stock ?? 0) <= 0;
 
               return (
                 <button
                   key={variant.id || idx}
                   onClick={() => handleSelectVariant(idx)}
-                  className={`px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold border transition-all cursor-pointer ${
+                  aria-pressed={isSelected}
+                  title={label}
+                  className={`inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold border transition-all cursor-pointer ${
                     isSelected
                       ? "border-primary bg-primary/10 text-primary shadow-sm ring-1 ring-primary"
                       : "border-border bg-card text-foreground hover:border-primary/40"
-                  }`}
+                  } ${soldOut ? "opacity-50" : ""}`}
                 >
+                  {/* Chấm màu: viền mảnh quanh chấm để màu sáng vẫn thấy trên nền trắng */}
+                  {hex && (
+                    <span
+                      aria-hidden="true"
+                      className="w-4 h-4 rounded-full shrink-0 border border-black/15 shadow-[0_0_0_1.5px_rgba(255,255,255,0.9)]"
+                      style={{ backgroundColor: hex }}
+                    />
+                  )}
                   {label}
+                  {soldOut && <span className="text-[10px] font-normal opacity-70">(hết hàng)</span>}
                 </button>
               );
             })}

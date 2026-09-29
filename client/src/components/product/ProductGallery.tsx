@@ -36,19 +36,32 @@ export const ProductGallery = ({ images = [], productName, discountPercent, vari
    * Dyson HD16: ảnh Ceramic Pink displayOrder=15 (variantId null) luôn đè ảnh
    * Amber silk (từ 16) dù khách đang chọn Amber silk.
    */
+  /**
+   * Sắp xếp ảnh: ảnh của biến thể đang chọn LUÔN lên trước, ảnh chung xếp sau.
+   *
+   * Chỉ lấy ảnh SẢN PHẨM. Ảnh minh họa trong bài mô tả (bảng thông số,
+   * infographic) vẫn nằm trong ProductImage nhưng được đẩy sang displayOrder
+   * lớn hơn 1000 và chuyển vào descriptionImages, nên phải chặn lại ở đây —
+   * nếu không bảng thông số lại hiện ở vị trí đầu gallery.
+   *
+   * Lỗi cũ: gộp hai nhóm rồi sort chung theo isPrimary/displayOrder, nên ảnh
+   * chung có displayOrder nhỏ sẽ nhảy lên vị trí 0 và đè ảnh của màu đang chọn.
+   */
+  const productImages = useMemo(() => images.filter((i) => (i.displayOrder ?? 0) < 1000), [images]);
+
   const validImages = useMemo(() => {
     const byOrder = (a: ProductImage, b: ProductImage) => {
       if (!!a.isPrimary !== !!b.isPrimary) return a.isPrimary ? -1 : 1;
       return (a.displayOrder ?? 0) - (b.displayOrder ?? 0);
     };
-    const forVariant = images
+    const forVariant = productImages
       .filter((i) => variantId && i.variantId === variantId)
       .sort(byOrder);
-    const shared = images.filter((i) => !i.variantId).sort(byOrder);
+    const shared = productImages.filter((i) => !i.variantId).sort(byOrder);
     // KHÔNG fallback sang ảnh của biến thể khác: ảnh Trắng hiện làm ảnh chính
     // khi khách chọn Đen thì sai hoàn toàn, thà hiện "Chưa có hình ảnh".
     return [...forVariant, ...shared];
-  }, [images, variantId]);
+  }, [productImages, variantId]);
 
   // Chuyển màu thì ảnh đầu cũng đổi, reset về ảnh đầu của màu mới.
   useEffect(() => {

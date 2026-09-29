@@ -16,25 +16,19 @@ import { formatDate } from "@/lib/utils";
 type Line = { text: string; kind: "heading" | "bullet" | "paragraph" };
 
 /**
- * URL ảnh minh họa cho marker [DESCIMG:n].
+ * URL ảnh minh họa cho marker [DESCIMG:n], lấy theo đúng thứ tự trong
+ * `descriptionImages`.
  *
- * Ưu tiên mảng `descriptionImages` (ảnh mô tả thật còn sống). Khi mảng đó rỗng
- * — 2.312 sản phẩm vì URL gốc trỏ Cloudinary đã bị disable — lấy theo ĐÚNG
- * QUY TẮC VỊ TRÍ: ảnh mô tả chính là ảnh thứ n trong gallery.
+ * Ảnh minh họa đã được tách khỏi gallery bằng cách đo pixel viền (ảnh sản phẩm
+ * nền trắng vs ảnh bảng thông số/infographic), rồi chuyển vào chính mảng này theo
+ * thứ tự displayOrder nên marker [DESCIMG:n] trỏ đúng ảnh.
  *
- * Quy tắc này không phải phỏng đoán: đo trên 746 sản phẩm còn ảnh mô tả thật,
- * 584 sản phẩm (78,3%) khớp đúng `descriptionImages[i] === images[i]` cho mọi
- * i. Crawler lấy cùng một danh sách ảnh cho cả hai trường.
- *
- * Marker vượt quá số ảnh gallery (bài cào về có 7 ảnh mô tả nhưng chỉ lưu được
- * 4 ảnh) thì bỏ trống thay vì quay vòng lặp — hiện lại ảnh cũ ở sai vị trí còn
- * tệ hơn là không có ảnh.
+ * Không còn bù bằng ảnh gallery: URL mô tả gốc từng trỏ Cloudinary đã bị disable
+ * nên không tải lại được, và mượn ảnh sản phẩm chỉ làm bài mô tả hiện ảnh lặp
+ * đã thấy ở gallery. Marker không có ảnh thì bỏ trống.
  */
 export function resolveDescriptionImage(product: Product, idx: number): string | undefined {
-  const descImages = product.descriptionImages ?? [];
-  if (descImages[idx]) return descImages[idx];
-  const gallery = (product.images ?? []).map((img) => img.url).filter(Boolean);
-  return gallery[idx];
+  return (product.descriptionImages ?? [])[idx];
 }
 
 const HEADING_KEYWORDS = /^(tổng quan|thiết kế|tính năng|đặc điểm|công nghệ|thông số|hướng dẫn|bảo hành|đánh giá|ưu điểm|khuyến mãi|mô tả|giới thiệu|chi tiết)/i;

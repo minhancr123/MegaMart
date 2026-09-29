@@ -488,7 +488,7 @@ export class ProductsService {
         createdAt: true,
         updatedAt: true,
         variants: true,
-        images: true,
+        images: { orderBy: { displayOrder: "asc" } },
         category: {
           select: {
             id: true,

@@ -6,11 +6,18 @@ import { Cpu, ChevronDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 /**
- * Thông số nằm trong Variant.attributes; biến thể đầu có thể là biến thể seed
- * không có gì, nên lấy biến thể đầu tiên thực sự có bảng thông số.
+ * Thông số nằm trong Variant.attributes. Ưu tiên biến thể đang chọn (khách vừa
+ * bấm cấu hình nào thì bảng nhảy theo cấu hình đó), sau đó mới tới biến thể
+ * đầu tiên thực sự có bảng thông số.
  */
-export function getSpecAttributes(product: Product): VariantAttributes | undefined {
+export function getSpecAttributes(product: Product, selectedVariantId?: string | null): VariantAttributes | undefined {
   const variants = product.variants ?? [];
+  const selected = selectedVariantId
+    ? variants.find((v) => v.id === selectedVariantId)
+    : undefined;
+  if (selected && ((selected.attributes?.specsTable?.length ?? 0) > 0 || (selected.attributes?.specs?.length ?? 0) > 0)) {
+    return selected.attributes;
+  }
   return (
     variants.find((v) => (v.attributes?.specsTable?.length ?? 0) > 0)?.attributes ??
     variants.find((v) => (v.attributes?.specs?.length ?? 0) > 0)?.attributes ??
@@ -18,8 +25,8 @@ export function getSpecAttributes(product: Product): VariantAttributes | undefin
   );
 }
 
-export function getSpecRows(product: Product): SpecRow[] {
-  return getSpecAttributes(product)?.specsTable ?? [];
+export function getSpecRows(product: Product, selectedVariantId?: string | null): SpecRow[] {
+  return getSpecAttributes(product, selectedVariantId)?.specsTable ?? [];
 }
 
 const SUMMARY_ROWS = 7;
@@ -58,10 +65,10 @@ function SpecRowsTable({ rows }: { rows: SpecRow[] }) {
   );
 }
 
-export const ProductSpecsSidebar = ({ product }: { product: Product }) => {
+export const ProductSpecsSidebar = ({ product, selectedVariantId }: { product: Product; selectedVariantId?: string | null }) => {
   const [expanded, setExpanded] = useState(false);
-  const specRows = getSpecRows(product);
-  const highlights = getSpecAttributes(product)?.specs ?? [];
+  const specRows = getSpecRows(product, selectedVariantId);
+  const highlights = getSpecAttributes(product, selectedVariantId)?.specs ?? [];
 
   const visibleRows = expanded ? specRows : specRows.slice(0, SUMMARY_ROWS);
 

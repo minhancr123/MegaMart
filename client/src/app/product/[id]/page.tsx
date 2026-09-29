@@ -292,6 +292,7 @@ export default function ProductDetailPage() {
           <div className="lg:col-span-8 w-full min-w-0">
             <ProductTabs
               product={product}
+              selectedVariantId={activeVariant?.id ?? null}
               reviews={reviews}
               averageRating={averageRating}
               reviewCount={reviewCount}
@@ -305,7 +306,7 @@ export default function ProductDetailPage() {
             />
           </div>
           <div className="lg:col-span-4 w-full lg:sticky lg:top-24">
-            <ProductSpecsSidebar product={product} />
+            <ProductSpecsSidebar product={product} selectedVariantId={activeVariant?.id ?? null} />
           </div>
         </div>
 

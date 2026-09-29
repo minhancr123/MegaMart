@@ -28,20 +28,26 @@ export const ProductGallery = ({ images = [], productName, discountPercent, vari
   const [selectedIndex, setSelectedIndex] = useState(0);
 
   /**
-   * Sắp xếp ảnh: ảnh của biến thể đang chọn lên đầu, sau đó ảnh chính
-   * (isPrimary), rồi theo displayOrder.
+   * Sắp xếp ảnh: ảnh của biến thể đang chọn LUÔN lên trước, ảnh chung xếp sau.
    *
-   * Ảnh mang variantId thuộc đúng màu/cấu hình đó, nên khi khách bấm chọn màu
-   * gallery phải đổi theo thay vì giữ nguyên ảnh cũ. Ảnh không có variantId là
-   * ảnh chung, luôn dùng được cho mọi biến thể nên xếp sau nhưng vẫn hiện.
+   * Lỗi cũ: gộp hai nhóm rồi sort chung theo isPrimary/displayOrder, nên ảnh
+   * chung (bảng thông số, ảnh màu khác nhưng chưa gắn variantId) có
+   * displayOrder nhỏ sẽ nhảy lên vị trí 0 và đè ảnh của màu đang chọn. Ví dụ
+   * Dyson HD16: ảnh Ceramic Pink displayOrder=15 (variantId null) luôn đè ảnh
+   * Amber silk (từ 16) dù khách đang chọn Amber silk.
    */
   const validImages = useMemo(() => {
-    const forVariant = images.filter((i) => variantId && i.variantId === variantId);
-    const shared = images.filter((i) => !i.variantId);
-    return [...forVariant, ...shared].sort((a, b) => {
+    const byOrder = (a: ProductImage, b: ProductImage) => {
       if (!!a.isPrimary !== !!b.isPrimary) return a.isPrimary ? -1 : 1;
       return (a.displayOrder ?? 0) - (b.displayOrder ?? 0);
-    });
+    };
+    const forVariant = images
+      .filter((i) => variantId && i.variantId === variantId)
+      .sort(byOrder);
+    const shared = images.filter((i) => !i.variantId).sort(byOrder);
+    // KHÔNG fallback sang ảnh của biến thể khác: ảnh Trắng hiện làm ảnh chính
+    // khi khách chọn Đen thì sai hoàn toàn, thà hiện "Chưa có hình ảnh".
+    return [...forVariant, ...shared];
   }, [images, variantId]);
 
   // Chuyển màu thì ảnh đầu cũng đổi, reset về ảnh đầu của màu mới.

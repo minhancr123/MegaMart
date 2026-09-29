@@ -21,6 +21,8 @@ import {
   ShoppingCart,
   Truck,
   Zap,
+  ChevronDown,
+  Store,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
@@ -86,6 +88,7 @@ export const ProductInfo = ({
   const [quantity, setQuantity] = useState(1);
   const [isAdding, setIsAdding] = useState(false);
   const [availability, setAvailability] = useState<WarehouseAvailability[]>([]);
+  const [stockOpen, setStockOpen] = useState(false);
 
   // Tình trạng hàng theo kho cho biến thể đang chọn (không lộ số lượng exact)
   useEffect(() => {
@@ -148,13 +151,48 @@ export const ProductInfo = ({
   };
 
   /**
-   * Nhãn của một biến thể: tên màu nếu có, sau đó giá trị option, cuối cùng mới
-   * tới SKU. Chỉ khi không có tên màu mới hiện mã hàng — mã kiểu HD16CEPATZ vô
-   * nghĩa với khách, còn "Ceramic Patina" thì có nghĩa.
+   * Các key cấu hình KHÁC NHAU giữa các biến thể (CPU, RAM, dung lượng...),
+   * bỏ key màu vì màu hiển thị riêng bằng chấm màu + tên.
+   */
+  const specOptionKeys: string[] = (() => {
+    if (variants.length === 0) return [];
+    const candidates: string[] = [];
+    for (const v of variants) {
+      const attrs = (v.attributes ?? {}) as Record<string, unknown>;
+      for (const k of Object.keys(attrs)) {
+        const lower = k.toLowerCase();
+        // Bỏ key màu (color/colors lẫn biến thể tiếng Việt) vì màu hiển thị
+        // riêng bằng chấm màu + tên, nếu không nhãn thành "Bạc / Bạc".
+        if (!INTERNAL_ATTR_KEYS.has(k) && lower !== "color" && lower !== "colors" &&
+            lower !== "mau" && lower !== "mausac" && lower !== "mau_sac" && lower !== "colour" &&
+            !candidates.includes(k)) {
+          candidates.push(k);
+        }
+      }
+    }
+    const valOf = (v: Variant, k: string) => {
+      const val = (v.attributes as Record<string, unknown> | undefined)?.[k];
+      return val == null ? "" : String(val).trim();
+    };
+    return candidates.filter((k) => new Set(variants.map((v) => valOf(v, k))).size > 1);
+  })();
+
+  /**
+   * Nhãn 1 hàng cho một biến thể: cấu hình + màu gộp lại.
+   * Ví dụ: "i5 / 8GB / 512GB", "Ceramic Patina", "Core 7 / 16GB / Vàng".
+   * SKU chỉ hiện khi không còn gì khác để hiện.
    */
   const variantOptionValue = (v: Variant): string => {
+    const attrs = (v.attributes ?? {}) as Record<string, unknown>;
+    const parts = specOptionKeys
+      .map((k) => {
+        const val = attrs[k];
+        return val == null ? "" : String(val).trim();
+      })
+      .filter(Boolean);
     const colorName = variantColorName(v);
-    if (colorName) return colorName;
+    if (colorName) parts.push(colorName);
+    if (parts.length > 0) return parts.join(" / ");
 
     if (variantOptionKey) {
       const val = (v.attributes as Record<string, unknown> | undefined)?.[variantOptionKey];
@@ -280,24 +318,44 @@ export const ProductInfo = ({
       {variants.length > 1 && (
         <div className="space-y-2">
           <label className="text-sm text-foreground block">
-            {hasColorOptions ? (
+            {hasColorOptions && specOptionKeys.length === 0 ? (
               <>
                 <span className="text-muted-foreground">Màu sắc: </span>
                 <span className="font-bold">{selectedColorName ?? "—"}</span>
               </>
-            ) : variantOptionKey ? (
+            ) : (
               <>
-                <span className="text-muted-foreground">{prettyAttrKey(variantOptionKey)}: </span>
+                <span className="text-muted-foreground">Phiên bản: </span>
                 <span className="font-bold">{variantOptionValue(selectedVariant ?? variants[0])}</span>
               </>
-            ) : (
-              <span className="font-semibold">Lựa chọn phiên bản:</span>
             )}
           </label>
           <div className="flex flex-wrap gap-2.5">
-            {variants.map((variant, idx) => {
-              const isSelected = selectedVariantIndex === idx;
-              const label = variantOptionValue(variant);
+            {(() => {
+              // Hai variant có thể trùng nhãn 1 hàng (cùng cấu hình + màu nhưng
+              // khác nhà cung cấp/giá, vd 2 bản MacBook Neo 256GB/Bạc). Nhãn
+              // trùng thì kèm giá; trùng cả giá thì kèm nốt SKU. Nhãn duy nhất
+              // giữ gọn không kèm gì.
+              const baseLabels = variants.map(variantOptionValue);
+              const priceOf = (v: Variant) => Number(v.salePrice ?? v.price ?? 0);
+              const labelCounts = new Map<string, number>();
+              const comboCounts = new Map<string, number>();
+              baseLabels.forEach((l, i) => {
+                labelCounts.set(l, (labelCounts.get(l) ?? 0) + 1);
+                const k = `${l}||${priceOf(variants[i])}`;
+                comboCounts.set(k, (comboCounts.get(k) ?? 0) + 1);
+              });
+              return variants.map((variant, idx) => {
+                const isSelected = selectedVariantIndex === idx;
+                const base = baseLabels[idx];
+                const price = priceOf(variant);
+                let label = base;
+                if ((labelCounts.get(base) ?? 0) > 1) {
+                  label = price > 0 ? `${base} · ${formatPrice(price)}` : base;
+                  if ((comboCounts.get(`${base}||${price}`) ?? 0) > 1) {
+                    label = `${label} · ${variant.sku}`;
+                  }
+                }
               const hex = variantColorHex(variant);
               const soldOut = Number(variant.stock ?? 0) <= 0;
 
@@ -324,8 +382,9 @@ export const ProductInfo = ({
                   {label}
                   {soldOut && <span className="text-[10px] font-normal opacity-70">(hết hàng)</span>}
                 </button>
-              );
-            })}
+                );
+              });
+            })()}
           </div>
         </div>
       )}
@@ -456,44 +515,65 @@ export const ProductInfo = ({
         </div>
       </div>
 
-      {/* 8b. Tình trạng kho hàng theo chi nhánh (theo biến thể đang chọn) */}
-      {availability.length > 0 && selectedVariant && (
-        <div className="rounded-2xl border border-border overflow-hidden">
-          <p className="px-3.5 pt-3 pb-1 text-xs sm:text-sm font-bold text-foreground">
-            Tình trạng kho hàng
-          </p>
-          <div className="divide-y divide-border">
-            {availability.map((wh) => {
-              const entry = wh.variants.find((v) => v.variantId === selectedVariant.id);
-              const state = !entry || !entry.inStock
-                ? { dot: "bg-zinc-300", text: "Hết hàng", cls: "text-muted-foreground" }
-                : entry.lowStock
-                  ? { dot: "bg-amber-500", text: "Sắp hết", cls: "text-amber-600" }
-                  : { dot: "bg-green-500", text: "Còn hàng", cls: "text-green-600" };
-              const region = getWarehouseRegion({
-                code: wh.warehouseCode,
-                name: wh.warehouseName,
-              });
-              return (
-                <div key={wh.warehouseId} className="flex items-center gap-2.5 px-3.5 py-2.5 text-xs sm:text-sm">
-                  <span className={`w-2 h-2 rounded-full shrink-0 ${state.dot}`} />
-                  <span className="font-semibold text-foreground truncate">
-                    {wh.warehouseName}
-                  </span>
-                  <span
-                    className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-full border shrink-0 ${regionBadgeClass(region.tone)}`}
-                  >
-                    {region.label}
-                  </span>
-                  <span className={`ml-auto font-bold shrink-0 ${state.cls}`}>
-                    {state.text}
-                  </span>
-                </div>
-              );
-            })}
+      {/* 8b. Tình trạng kho hàng theo chi nhánh (theo biến thể đang chọn).
+          Gọn trong một dòng tóm tắt, bấm mới mở chi tiết từng kho - trước đây
+          render hết 5-10 dòng đẩy trang dài lê thê. */}
+      {availability.length > 0 && selectedVariant && (() => {
+        const inStockCount = availability.filter((wh) =>
+          wh.variants.some((v) => v.variantId === selectedVariant.id && v.inStock),
+        ).length;
+        return (
+          <div className="rounded-2xl border border-border overflow-hidden">
+            <button
+              type="button"
+              onClick={() => setStockOpen((o) => !o)}
+              aria-expanded={stockOpen}
+              className="w-full flex items-center gap-2.5 px-3.5 py-3 text-xs sm:text-sm cursor-pointer hover:bg-muted/40 transition-colors"
+            >
+              <Store className="w-4 h-4 text-primary shrink-0" />
+              <span className="font-bold text-foreground">Tình trạng kho hàng</span>
+              <span className={`ml-auto font-semibold shrink-0 ${inStockCount > 0 ? "text-green-600" : "text-muted-foreground"}`}>
+                {inStockCount > 0 ? `Còn hàng tại ${inStockCount} chi nhánh` : "Tạm hết hàng"}
+              </span>
+              <ChevronDown
+                className={`w-4 h-4 text-muted-foreground shrink-0 transition-transform ${stockOpen ? "rotate-180" : ""}`}
+              />
+            </button>
+            {stockOpen && (
+              <div className="divide-y divide-border border-t border-border">
+                {availability.map((wh) => {
+                  const entry = wh.variants.find((v) => v.variantId === selectedVariant.id);
+                  const state = !entry || !entry.inStock
+                    ? { dot: "bg-zinc-300", text: "Hết hàng", cls: "text-muted-foreground" }
+                    : entry.lowStock
+                      ? { dot: "bg-amber-500", text: "Sắp hết", cls: "text-amber-600" }
+                      : { dot: "bg-green-500", text: "Còn hàng", cls: "text-green-600" };
+                  const region = getWarehouseRegion({
+                    code: wh.warehouseCode,
+                    name: wh.warehouseName,
+                  });
+                  return (
+                    <div key={wh.warehouseId} className="flex items-center gap-2.5 px-3.5 py-2.5 text-xs sm:text-sm">
+                      <span className={`w-2 h-2 rounded-full shrink-0 ${state.dot}`} />
+                      <span className="font-semibold text-foreground truncate">
+                        {wh.warehouseName}
+                      </span>
+                      <span
+                        className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-full border shrink-0 ${regionBadgeClass(region.tone)}`}
+                      >
+                        {region.label}
+                      </span>
+                      <span className={`ml-auto font-bold shrink-0 ${state.cls}`}>
+                        {state.text}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
-        </div>
-      )}
+        );
+      })()}
 
       {/* Sticky Bottom Bar trên mobile */}
       <ProductMobileStickyBar

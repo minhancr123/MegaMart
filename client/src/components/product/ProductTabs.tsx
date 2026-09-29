@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { Product, SpecRow } from "@/interfaces/product";
-import { Star, CheckCircle2, Loader2, FileText, MessageCircleQuestion } from "lucide-react";
+import { Star, CheckCircle2, Loader2, FileText, MessageCircleQuestion, ChevronDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { getSpecAttributes, getSpecRows } from "@/components/product/ProductSpecsSidebar";
 import { formatDate } from "@/lib/utils";
@@ -10,15 +10,41 @@ import { formatDate } from "@/lib/utils";
 /**
  * Mô tả cào về là text nhiều dòng: xen kẽ tiêu đề mục và đoạn văn, gạch đầu
  * dòng bắt đầu bằng "•" hoặc "-". Không có markup nào để bám vào nên phân loại
- * theo hình dạng câu: dòng ngắn và không kết thúc bằng dấu chấm là tiêu đề.
+ * theo hình dạng câu — nhưng phải chặt chẽ, nếu không câu văn cụt (vd caption
+ * ảnh) sẽ bị in thành thẻ <h3> to đậm vô lý.
  */
 type Line = { text: string; kind: "heading" | "bullet" | "paragraph" };
+
+/**
+ * URL ảnh minh họa cho marker [DESCIMG:n]: ưu tiên mảng descriptionImages,
+ * thiếu thì bù bằng ảnh gallery (trừ ảnh đại diện đầu). Nhiều sản phẩm có
+ * marker nhưng mảng ảnh rỗng — không bù thì bài viết trơ trụi không một ảnh.
+ */
+export function resolveDescriptionImage(product: Product, idx: number): string | undefined {
+  const descImages = product.descriptionImages ?? [];
+  if (descImages[idx]) return descImages[idx];
+  const pool = (product.images ?? []).map((img) => img.url).filter(Boolean).slice(1);
+  if (pool.length === 0) return undefined;
+  return pool[idx % pool.length];
+}
+
+const HEADING_KEYWORDS = /^(tổng quan|thiết kế|tính năng|đặc điểm|công nghệ|thông số|hướng dẫn|bảo hành|đánh giá|ưu điểm|khuyến mãi|mô tả|giới thiệu|chi tiết)/i;
 
 function classifyLine(text: string): Line {
   if (/^[•\-–—*]\s+/.test(text)) {
     return { text: text.replace(/^[•\-–—*]\s+/, ""), kind: "bullet" };
   }
-  if (text.length <= 100 && !/[.!?:;,]$/.test(text)) {
+  const words = text.split(/\s+/).length;
+  const startsUpper = /^[A-ZÀ-Ỹ0-9]/.test(text);
+  if (
+    text.length <= 60 &&
+    words <= 10 &&
+    startsUpper &&
+    !/[.!?:;,]$/.test(text) &&
+    // Câu mở đầu bằng động từ ("Có...", "Được trang bị...") là câu văn
+    !/^(có|là|được|sử dụng|mang|giúp|cho|cung cấp|trang bị|sở hữu)\b/i.test(text) &&
+    (HEADING_KEYWORDS.test(text) || words <= 6)
+  ) {
     return { text, kind: "heading" };
   }
   return { text, kind: "paragraph" };
@@ -45,6 +71,8 @@ export interface ReviewItem {
 
 interface ProductTabsProps {
   product: Product;
+  /** Biến thể đang chọn — tab mô tả/highlights nhảy theo cùng sidebar. */
+  selectedVariantId?: string | null;
   reviews: ReviewItem[];
   averageRating: number;
   reviewCount: number;
@@ -59,6 +87,7 @@ interface ProductTabsProps {
 
 export const ProductTabs = ({
   product,
+  selectedVariantId,
   reviews,
   averageRating,
   reviewCount,
@@ -71,9 +100,10 @@ export const ProductTabs = ({
   submittingReview,
 }: ProductTabsProps) => {
   // Bảng thông số đã chuyển sang sidebar cạnh tabs; ở đây chỉ giữ lại để
-  // loại trùng lặp giữa mô tả và bảng thông số.
-  const attributes = useMemo(() => getSpecAttributes(product), [product]);
-  const specRows: SpecRow[] = useMemo(() => getSpecRows(product), [product]);
+  // loại trùng lặp giữa mô tả và bảng thông số. Dùng cùng biến thể đang chọn
+  // với sidebar để hai bên không lệch nhau.
+  const attributes = useMemo(() => getSpecAttributes(product, selectedVariantId), [product, selectedVariantId]);
+  const specRows: SpecRow[] = useMemo(() => getSpecRows(product, selectedVariantId), [product, selectedVariantId]);
   const highlights: string[] = attributes?.specs ?? [];
   // Chuẩn hóa để so sánh trùng lặp giữa mô tả và bảng thông số.
   const norm = (s: string) => s.toLowerCase().trim();
@@ -92,7 +122,7 @@ export const ProductTabs = ({
     [specRows],
   );
   // Dòng rác từ khung trang nguồn (link "xem thêm", placeholder video...).
-  const JUNK_LINE = /^(xem thêm|hiện tại chưa có|chúng tôi đang cập nhật|đang cập nhật)/i;
+  const JUNK_LINE = /^(xem thêm|hiện tại chưa có|chúng tôi đang cập nhật|đang cập nhật|<\s*br\s*\/?>|quảng cáo)/i;
 
   // Mô tả cào về thường có cặp dòng "nhãn / giá trị" đứng liền nhau
   // (vd: "Tốc độ vắt" + "Tối đa 1400 vòng/phút"). Gộp thành một hàng ngang
@@ -107,8 +137,21 @@ export const ProductTabs = ({
     type Block =
       | { kind: "row"; label: string; value: string }
       | { kind: "line"; line: Line }
-      | { kind: "image"; index: number };
+      | { kind: "image"; index: number; src: string };
     const blocks: Block[] = [];
+    const descImages = product.descriptionImages ?? [];
+    // Tránh lặp cùng một ảnh bù nhiều lần: sản phẩm chỉ có 2 ảnh gallery mà
+    // bài có 5 marker thì 5 vị trí sẽ hiện cùng một ảnh. Ảnh bù đã dùng rồi
+    // thì bỏ qua marker sau.
+    const usedSrc = new Set<string>();
+    const imageSrc = (idx: number): string | undefined => {
+      const real = descImages[idx];
+      if (real) return real;
+      const src = resolveDescriptionImage(product, idx);
+      if (!src || usedSrc.has(src)) return undefined;
+      usedSrc.add(src);
+      return src;
+    };
     // Mô tả thường ôm luôn cả phần thông số của bài gốc. Nếu tab Thông số
     // kỹ thuật đã có bảng specsTable thì bỏ các dòng trùng trong mô tả để
     // khỏi hiển thị hai lần (chỉ so nhãn + tên nhóm, giữ lại nếu bảng thiếu).
@@ -122,14 +165,14 @@ export const ProductTabs = ({
         (r) => norm(r.label) === norm(label) && norm(r.value) === norm(value),
       );
     };
-    const descImages = product.descriptionImages ?? [];
     for (let i = 0; i < raw.length; i++) {
       if (JUNK_LINE.test(raw[i])) continue;
       // Marker vị trí ảnh minh họa do crawler đánh dấu: [DESCIMG:n]
       const marker = raw[i].match(/^\[DESCIMG:(\d+)\]$/);
       if (marker) {
         const idx = Number(marker[1]);
-        if (descImages[idx]) blocks.push({ kind: "image", index: idx });
+        const src = imageSrc(idx);
+        if (src) blocks.push({ kind: "image", index: idx, src });
         continue;
       }
       const current = classifyLine(raw[i]);
@@ -167,6 +210,11 @@ export const ProductTabs = ({
     return blocks;
   }, [product.description, product.descriptionImages, specRows, specLabels, specGroups]);
   const hasDescription = descriptionBlocks.length > 0 || highlights.length > 0;
+  // Bài mô tả cào về thường rất dài — thu gọn mặc định, bấm mới mở hết.
+  // Bài ngắn (vài dòng, không ảnh) thì hiện thẳng, khỏi gradient + nút thừa.
+  const [descExpanded, setDescExpanded] = useState(false);
+  const needsCollapse =
+    descriptionBlocks.length > 8 || descriptionBlocks.some((b) => b.kind === "image");
   // Mặc định mở tab Mô tả sản phẩm.
   const [activeTab, setActiveTab] = useState<"description" | "reviews" | "qa">(
     "description",
@@ -262,18 +310,24 @@ export const ProductTabs = ({
             )}
 
             {descriptionBlocks.length > 0 && (
-              <div className="max-w-none text-muted-foreground leading-relaxed space-y-3">
-                {descriptionBlocks.map((block, index) =>
-                  block.kind === "image" ? (
-                    <figure key={index} className="py-2">
-                      <img
-                        src={(product.descriptionImages ?? [])[block.index]}
-                        alt={`${product.name} - ảnh minh họa`}
-                        loading="lazy"
-                        className="w-full h-auto rounded-xl border border-border"
-                      />
-                    </figure>
-                  ) : block.kind === "row" ? (
+              <div className="relative">
+                <div
+                  className={`max-w-none text-muted-foreground leading-relaxed space-y-3 overflow-hidden transition-[max-height] ${
+                    descExpanded || !needsCollapse ? "" : "max-h-[480px]"
+                  }`}
+                  style={descExpanded || !needsCollapse ? undefined : { maxHeight: 480 }}
+                >
+                  {descriptionBlocks.map((block, index) =>
+                    block.kind === "image" ? (
+                      <figure key={index} className="py-2">
+                        <img
+                          src={block.src}
+                          alt={`${product.name} - ảnh minh họa`}
+                          loading="lazy"
+                          className="w-full h-auto rounded-xl border border-border"
+                        />
+                      </figure>
+                    ) : block.kind === "row" ? (
                     <div
                       key={index}
                       className="flex items-baseline justify-between gap-4 py-2 border-b border-border/60 last:border-b-0"
@@ -302,6 +356,24 @@ export const ProductTabs = ({
                   ) : (
                     <p key={index}>{block.line.text}</p>
                   ),
+                )}
+                </div>
+                {needsCollapse && !descExpanded && (
+                  <div className="pointer-events-none absolute bottom-10 inset-x-0 h-24 bg-gradient-to-t from-card to-transparent" />
+                )}
+                {needsCollapse && (
+                  <div className="pt-3 text-center">
+                    <Button
+                      variant="ghost"
+                      onClick={() => setDescExpanded((v) => !v)}
+                      className="rounded-xl text-xs font-bold text-primary hover:text-primary hover:bg-primary/10 gap-1"
+                    >
+                      {descExpanded ? "Thu gọn mô tả" : "Xem thêm mô tả"}
+                      <ChevronDown
+                        className={`w-3.5 h-3.5 transition-transform ${descExpanded ? "rotate-180" : ""}`}
+                      />
+                    </Button>
+                  </div>
                 )}
               </div>
             )}

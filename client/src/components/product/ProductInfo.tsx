@@ -41,8 +41,22 @@ interface ProductInfoProps {
 /**
  * Các key kỹ thuật trong attributes (crawler/meta), không phải tùy chọn
  * biến thể để hiển thị.
+ *
+ * Crawler nhét cả metadata của nguồn cào vào attributes: source, sourceUrl,
+ * sourceCategory, stockStatus, gift. Nếu không chặn, trang chi tiết hiện luôn
+ * dòng "sourceUrl: https://www.nguyenkim.com/..." cho khách xem.
  */
-const INTERNAL_ATTR_KEYS = new Set(["specs", "specsTable", "rating", "reviewCount"]);
+const INTERNAL_ATTR_KEYS = new Set([
+  "specs",
+  "specsTable",
+  "rating",
+  "reviewCount",
+  "source",
+  "sourceUrl",
+  "sourceCategory",
+  "stockStatus",
+  "gift",
+]);
 
 /** Việt hóa tên key attribute tiếng Anh thường gặp. */
 const ATTR_LABEL_VI: Record<string, string> = {

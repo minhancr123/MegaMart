@@ -11,6 +11,8 @@ interface ProductImage {
   alt?: string | null;
   isPrimary?: boolean;
   displayOrder?: number;
+  /** Biến thể (màu/cấu hình) sở hữu ảnh. Rỗng = ảnh chung cho mọi biến thể. */
+  variantId?: string | null;
 }
 
 interface ProductGalleryProps {
@@ -18,25 +20,34 @@ interface ProductGalleryProps {
   productName: string;
   /** % giảm giá của biến thể đang chọn - hiện badge góc trái ảnh chính */
   discountPercent?: number | null;
+  /** Biến thể đang chọn - ưu tiên ảnh của biến thể này lên đầu gallery */
+  variantId?: string | null;
 }
 
-export const ProductGallery = ({ images = [], productName, discountPercent }: ProductGalleryProps) => {
+export const ProductGallery = ({ images = [], productName, discountPercent, variantId }: ProductGalleryProps) => {
   const [selectedIndex, setSelectedIndex] = useState(0);
 
-  // Sắp xếp: ảnh chính (isPrimary) trước, rồi theo displayOrder; reset về
-  // ảnh đầu mỗi khi chuyển sang sản phẩm khác.
-  const validImages = useMemo(
-    () =>
-      [...images].sort((a, b) => {
-        if (!!a.isPrimary !== !!b.isPrimary) return a.isPrimary ? -1 : 1;
-        return (a.displayOrder ?? 0) - (b.displayOrder ?? 0);
-      }),
-    [images],
-  );
+  /**
+   * Sắp xếp ảnh: ảnh của biến thể đang chọn lên đầu, sau đó ảnh chính
+   * (isPrimary), rồi theo displayOrder.
+   *
+   * Ảnh mang variantId thuộc đúng màu/cấu hình đó, nên khi khách bấm chọn màu
+   * gallery phải đổi theo thay vì giữ nguyên ảnh cũ. Ảnh không có variantId là
+   * ảnh chung, luôn dùng được cho mọi biến thể nên xếp sau nhưng vẫn hiện.
+   */
+  const validImages = useMemo(() => {
+    const forVariant = images.filter((i) => variantId && i.variantId === variantId);
+    const shared = images.filter((i) => !i.variantId);
+    return [...forVariant, ...shared].sort((a, b) => {
+      if (!!a.isPrimary !== !!b.isPrimary) return a.isPrimary ? -1 : 1;
+      return (a.displayOrder ?? 0) - (b.displayOrder ?? 0);
+    });
+  }, [images, variantId]);
 
+  // Chuyển màu thì ảnh đầu cũng đổi, reset về ảnh đầu của màu mới.
   useEffect(() => {
     setSelectedIndex(0);
-  }, [images]);
+  }, [variantId]);
 
   const currentImage = validImages[selectedIndex] || validImages[0];
 

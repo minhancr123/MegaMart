@@ -214,30 +214,6 @@ export default function ProductDetailPage() {
   // % giảm giá của biến thể đang chọn - hiện badge trên ảnh gallery
   const activeVariant = product.variants?.[selectedVariantIndex] ?? product.variants?.[0];
 
-  /**
-   * Ảnh gallery theo màu đang chọn.
-   *
-   * Sau khi gộp các bản ghi cùng dòng, mọi màu dùng chung một danh sách
-   * ProductImage nên không có cách nào biết ảnh nào thuộc màu nào. Mỗi ảnh
-   * lại mang tên file chứa thông tin màu, nên lấy ảnh có tên khớp màu của
-   * biến thể; không tìm được thì giữ nguyên danh sách cũ.
-   */
-  const galleryImages = (() => {
-    const images = product.images ?? [];
-    if (images.length === 0) return images;
-    const colors = (activeVariant?.colors ?? []) as { name?: string; hex?: string }[];
-    const colorName = colors[0]?.name?.trim().toLowerCase();
-    if (!colorName) return images;
-    // Chuẩn hóa để so khớp: "Ceramic Pink" -> "ceramic pink"
-    const slug = colorName.replace(/[^a-z0-9]+/g, "");
-    const match = images.find((img) =>
-      img.url.toLowerCase().replace(/[^a-z0-9]+/g, "").includes(slug),
-    );
-    if (!match) return images;
-    // Ảnh của màu đang chọn lên đầu, phần còn lại giữ nguyên thứ tự.
-    return [match, ...images.filter((i) => i.id !== match.id)];
-  })();
-
   const activeOriginal = activeVariant?.salePrice ? Number(activeVariant.price) : null;
   const activeCurrent = Number(
     activeVariant?.salePrice != null
@@ -291,9 +267,10 @@ export default function ProductDetailPage() {
             {/* Cột Trái (6 span): Gallery Ảnh */}
             <div className="lg:col-span-6 w-full">
               <ProductGallery
-                images={galleryImages}
+                images={product.images}
                 productName={product.name}
                 discountPercent={activeDiscount}
+                variantId={activeVariant?.id ?? null}
               />
             </div>
 

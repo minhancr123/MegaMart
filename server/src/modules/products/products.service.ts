@@ -130,6 +130,8 @@ export class ProductsService {
             isPrimary: true,
             displayOrder: true,
             alt: true,
+            // Biến thể sở hữu ảnh: client dùng để đổi ảnh theo màu khách chọn.
+            variantId: true,
           },
           orderBy: [
             { isPrimary: "desc" }, // Primary image first
@@ -332,6 +334,8 @@ export class ProductsService {
               id: true,
               url: true,
               alt: true,
+              // Biến thể sở hữu ảnh: client dùng để đổi ảnh theo màu khách chọn.
+              variantId: true,
             },
           },
           variants: {

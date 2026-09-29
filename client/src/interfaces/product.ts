@@ -52,6 +52,8 @@ export interface ProductImage {
   isPrimary: boolean;
   displayOrder?: number;
   alt?: string;
+  /** Biến thể (màu/cấu hình) sở hữu ảnh. Rỗng = ảnh chung cho mọi biến thể. */
+  variantId?: string | null;
 }
 
 export interface Category {

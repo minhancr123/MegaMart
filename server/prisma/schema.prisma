@@ -102,10 +102,14 @@ model ProductImage {
   alt          String?
   isPrimary    Boolean @default(false)
   displayOrder Int     @default(0)
+  // Ảnh thuộc biến thể nào (màu/cấu hình). NULL = ảnh chung cho mọi biến thể.
+  // Nhờ đây gallery đổi theo màu khách đang chọn thay vì luôn hiện ảnh đầu.
+  variantId    String?
   product      Product @relation(fields: [productId], references: [id], onDelete: Cascade)
 
   @@index([productId])
   @@index([isPrimary])
+  @@index([variantId])
 }
 
 model Category {

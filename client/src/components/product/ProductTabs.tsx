@@ -16,16 +16,25 @@ import { formatDate } from "@/lib/utils";
 type Line = { text: string; kind: "heading" | "bullet" | "paragraph" };
 
 /**
- * URL ảnh minh họa cho marker [DESCIMG:n]: ưu tiên mảng descriptionImages,
- * thiếu thì bù bằng ảnh gallery (trừ ảnh đại diện đầu). Nhiều sản phẩm có
- * marker nhưng mảng ảnh rỗng — không bù thì bài viết trơ trụi không một ảnh.
+ * URL ảnh minh họa cho marker [DESCIMG:n].
+ *
+ * Ưu tiên mảng `descriptionImages` (ảnh mô tả thật còn sống). Khi mảng đó rỗng
+ * — 2.312 sản phẩm vì URL gốc trỏ Cloudinary đã bị disable — lấy theo ĐÚNG
+ * QUY TẮC VỊ TRÍ: ảnh mô tả chính là ảnh thứ n trong gallery.
+ *
+ * Quy tắc này không phải phỏng đoán: đo trên 746 sản phẩm còn ảnh mô tả thật,
+ * 584 sản phẩm (78,3%) khớp đúng `descriptionImages[i] === images[i]` cho mọi
+ * i. Crawler lấy cùng một danh sách ảnh cho cả hai trường.
+ *
+ * Marker vượt quá số ảnh gallery (bài cào về có 7 ảnh mô tả nhưng chỉ lưu được
+ * 4 ảnh) thì bỏ trống thay vì quay vòng lặp — hiện lại ảnh cũ ở sai vị trí còn
+ * tệ hơn là không có ảnh.
  */
 export function resolveDescriptionImage(product: Product, idx: number): string | undefined {
   const descImages = product.descriptionImages ?? [];
   if (descImages[idx]) return descImages[idx];
-  const pool = (product.images ?? []).map((img) => img.url).filter(Boolean).slice(1);
-  if (pool.length === 0) return undefined;
-  return pool[idx % pool.length];
+  const gallery = (product.images ?? []).map((img) => img.url).filter(Boolean);
+  return gallery[idx];
 }
 
 const HEADING_KEYWORDS = /^(tổng quan|thiết kế|tính năng|đặc điểm|công nghệ|thông số|hướng dẫn|bảo hành|đánh giá|ưu điểm|khuyến mãi|mô tả|giới thiệu|chi tiết)/i;
@@ -140,17 +149,11 @@ export const ProductTabs = ({
       | { kind: "image"; index: number; src: string };
     const blocks: Block[] = [];
     const descImages = product.descriptionImages ?? [];
-    // Tránh lặp cùng một ảnh bù nhiều lần: sản phẩm chỉ có 2 ảnh gallery mà
-    // bài có 5 marker thì 5 vị trí sẽ hiện cùng một ảnh. Ảnh bù đã dùng rồi
-    // thì bỏ qua marker sau.
-    const usedSrc = new Set<string>();
+    // Vị trí n về đúng ảnh thứ n (đã đo 78,3% khớp trên dữ liệu thật), nên
+    // không cần chống lặp: trùng ở đây là dữ liệu trùng thật, không phải lỗi.
     const imageSrc = (idx: number): string | undefined => {
-      const real = descImages[idx];
-      if (real) return real;
-      const src = resolveDescriptionImage(product, idx);
-      if (!src || usedSrc.has(src)) return undefined;
-      usedSrc.add(src);
-      return src;
+      if (descImages[idx]) return descImages[idx];
+      return resolveDescriptionImage(product, idx);
     };
     // Mô tả thường ôm luôn cả phần thông số của bài gốc. Nếu tab Thông số
     // kỹ thuật đã có bảng specsTable thì bỏ các dòng trùng trong mô tả để

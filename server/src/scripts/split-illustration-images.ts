@@ -15,6 +15,11 @@
  *
  * Ảnh KHÔNG bị xóa khỏi hệ thống, chỉ đổi bảng chứa — chạy lại được.
  *
+ * LƯU Ý NK: Nguyễn Kim đã tách đúng gallery vs descriptionImages ngay từ crawler
+ * (parse_detail → images vs extract_description_images), nên KHÔNG chạy tách NK.
+ * Trước đây script này prepend [...move, ...existingLive] vào descriptionImages
+ * làm lệch toàn bộ marker [DESCIMG:n] và đẩy ảnh gallery lên displayOrder 1000.
+ *
  * Chạy (từ server/):
  *   npx ts-node src/scripts/split-illustration-images.ts          # xem trước
  *   APPLY=1 npx ts-node src/scripts/split-illustration-images.ts  # ghi thật
@@ -98,15 +103,25 @@ async function main() {
     select: {
       id: true,
       slug: true,
+      description: true,
       descriptionImages: true,
       images: { orderBy: { displayOrder: "asc" } },
+      variants: { select: { attributes: true } },
     },
   });
 
   const allow = ONLY_SLUGS ? new Set(ONLY_SLUGS.split(",")) : null;
+  const isNguyenKim = (p: (typeof products)[number]) =>
+    p.variants.some((v: any) => (v.attributes as any)?.source === "NGUYEN_KIM");
   const candidates = products.filter(
-    (p) => p.images.length > 1 && p.images.length <= MAX_IMAGES_PER_PRODUCT && (!allow || allow.has(p.slug)),
+    (p) =>
+      p.images.length > 1 &&
+      p.images.length <= MAX_IMAGES_PER_PRODUCT &&
+      (!allow || allow.has(p.slug)) &&
+      !isNguyenKim(p),
   );
+  const skippedNK = products.length - candidates.length - products.filter((p) => p.images.length <= 1 || p.images.length > MAX_IMAGES_PER_PRODUCT || (allow && !allow.has(p.slug))).length;
+  if (skippedNK > 0) console.log(`Bỏ qua ${skippedNK} SP Nguyễn Kim (đã tách đúng từ crawler).`);
   const totalImgs = candidates.reduce((s, p) => s + p.images.length, 0);
   const cache = loadCache();
   const allUrls = candidates.flatMap((p) => p.images.map((i) => i.url));
@@ -169,13 +184,11 @@ async function main() {
     }
     if (!apply) continue;
 
-    // Ảnh minh họa lên đầu mảng mô tả theo thứ tự marker; ảnh cũ còn sống giữ lại sau.
-    const moveUrls = new Set(move.map((i) => i.url));
-    const existingLive = (p.descriptionImages ?? []).filter((u) => u && !moveUrls.has(u));
-    await prisma.product.update({
-      where: { id: p.id },
-      data: { descriptionImages: [...move.map((i) => i.url), ...existingLive] },
-    });
+    // KHÔNG prepend vào descriptionImages — sẽ làm lệch marker [DESCIMG:n].
+    // Nếu cần chuyển ảnh minh họa, chỉ demote gallery (displayOrder 1000) và
+    // để bước rebuild/restore quyết định có đưa vào descriptionImages không.
+    // Giữ descriptionImages nguyên để không trộn gallery vào bài viết.
+    // await prisma.product.update(...) — removed
     // Ảnh sản phẩm đánh lại thứ tự liền mạch, ảnh đầu làm chính.
     for (let idx = 0; idx < keep.length; idx++) {
       await prisma.productImage.update({

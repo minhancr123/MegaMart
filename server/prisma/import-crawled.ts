@@ -274,9 +274,12 @@ async function main() {
     }
 
     const hasDescImages = Array.isArray((p as any).descriptionImages);
-    const descImages = ((p.descriptionImages ?? []) as Array<string | { url: string }>)
-      .map((d) => (typeof d === "string" ? d : d?.url))
-      .filter((u): u is string => !!u);
+    // Giữ positional "" cho URL chết để marker [DESCIMG:n] không lệch.
+    const descImages = ((p.descriptionImages ?? []) as Array<string | { url: string; sourceUrl?: string }>)
+      .map((d) => {
+        const u = typeof d === "string" ? d : (d as any)?.sourceUrl ?? (d as any)?.url;
+        return u && !String(u).includes("res.cloudinary.com") ? String(u) : "";
+      });
     let product: { id: string };
     if (mergeTarget) {
       // GỘP vào SP sẵn có: giữ tên/danh mục/mô tả/soldCount (có thể đã AI-enrich),

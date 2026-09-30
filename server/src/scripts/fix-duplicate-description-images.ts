@@ -3,7 +3,12 @@
  *
  * Đợt đổi URL sang R2 gán mọi ảnh mô tả của một sản phẩm về cùng một ảnh,
  * nên bài viết hiện 3 ảnh giống nhau. Script này gán lại từng ảnh một URL
- * R2 khác nhau, lấy theo thứ tự displayOrder của ảnh sản phẩm.
+ * R2 khác nhau.
+ *
+ * ⚠️  ĐÃ NGỪNG DÙNG cho Nguyễn Kim: ảnh mô tả NK có nguồn riêng (companies/Thuyvy)
+ * và đã có key R2 riêng dạng desc-*. Trước đây script này gán nhầm gallery R2
+ * vào descriptionImages làm trộn hai loại ảnh. Hiện script vẫn chạy được cho
+ * các SP khác nhưng sẽ lọc chỉ ảnh desc-* và bỏ qua Thuyvy/gallery.
  *
  * Chạy (từ server/):
  *   npx ts-node src/scripts/fix-duplicate-description-images.ts         # xem trước
@@ -29,8 +34,10 @@ function buildSlugIndex(): Map<string, string[]> {
   for (const r2url of Object.values(map)) {
     const match = r2url.match(/\/products\/([^/]+)\//);
     if (!match) continue;
-    // Ảnh review của khách, không phải ảnh sản phẩm.
-    if (/thuyvy|review|rating|danh-gia/i.test(r2url)) continue;
+    // /Thuyvy/ là thư mục ảnh minh họa của Nguyễn Kim, không phải review.
+    if (/review|rating|danh-gia/i.test(r2url)) continue;
+    // Chỉ lấy ảnh mô tả (desc-), không lấy gallery — tránh trộn gallery vào bài viết.
+    if (!/\/desc-\d+\.webp/i.test(r2url)) continue;
     byslug.set(match[1], [...(byslug.get(match[1]) ?? []), r2url]);
   }
   return byslug;
@@ -55,7 +62,14 @@ async function main() {
   const noAssets: string[] = [];
 
   for (const row of dupes) {
-    const unique = [...new Set(byslug.get(row.slug) ?? [])];
+    const raw = [...new Set(byslug.get(row.slug) ?? [])];
+    // Sort theo index desc-* để marker [DESCIMG:n] giữ đúng thứ tự.
+    raw.sort((a, b) => {
+      const na = Number(a.match(/desc-(\d+)/)?.[1] ?? 0);
+      const nb = Number(b.match(/desc-(\d+)/)?.[1] ?? 0);
+      return na - nb;
+    });
+    const unique = raw;
     if (unique.length < 2) {
       noAssets.push(row.slug);
       continue;

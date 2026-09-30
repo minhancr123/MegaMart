@@ -68,6 +68,10 @@ def collect_targets() -> list[tuple[str, str]]:
     Ưu tiên sourceUrl vì ảnh Nguyễn Kim có sẵn link gốc; ảnh Điện Máy
     Chợ Lớn thì url đã là link gốc. Bỏ qua ảnh đã trỏ Cloudinary vì không
     tải được.
+
+    Mirror cả ảnh gallery (images) lẫn ảnh minh họa trong mô tả
+    (descriptionImages). Ảnh mô tả dùng key riêng `desc-{idx}` để không
+    đè lên gallery và giữ đúng vị trí marker [DESCIMG:n].
     """
     data = json.loads(SOURCE_JSON.read_text(encoding="utf-8"))
     targets: dict[str, str] = {}
@@ -85,10 +89,27 @@ def collect_targets() -> list[tuple[str, str]]:
                 continue
             if "ytimg.com" in source:
                 continue
-            ext = Path(source.split("?")[0]).suffix.lower()
+            clean = source.split("?")[0]
+            ext = Path(clean).suffix.lower()
             if ext not in {".jpg", ".jpeg", ".png", ".webp", ".gif", ".avif"}:
                 ext = ".jpg"
-            key = f"products/{slug}/{Path(source).stem}{ext}"
+            key = f"products/{slug}/{Path(clean).stem}{ext}"
+            targets.setdefault(key, source)
+
+        # Ảnh minh họa trong mô tả: giữ index gốc để key không lệch với DB.
+        for idx, entry in enumerate(product.get("descriptionImages") or []):
+            if isinstance(entry, dict):
+                candidates = [entry.get("sourceUrl") or "", entry.get("url") or ""]
+            else:
+                candidates = [str(entry or "")]
+            source = ""
+            for cand in candidates:
+                if isinstance(cand, str) and cand.startswith("http") and "res.cloudinary.com" not in cand and "ytimg.com" not in cand:
+                    source = cand
+                    break
+            if not source:
+                continue
+            key = f"products/{slug}/desc-{idx}.webp"
             targets.setdefault(key, source)
 
     return sorted(targets.items())
@@ -130,7 +151,7 @@ def put_with_retry(s3, bucket: str, key: str, body: bytes, attempts: int = 5):
 
 
 def upload_one(s3, bucket: str, key: str, url: str, session: requests.Session):
-    webp_key = os.path.splitext(key)[0] + ".webp"
+    webp_key = key if key.endswith(".webp") else os.path.splitext(key)[0] + ".webp"
     try:
         head = s3.head_object(Bucket=bucket, Key=webp_key)
         return key, url, "skip", head.get("ContentLength", 0)
@@ -216,6 +237,15 @@ def main() -> int:
                     f"fail={stats['fail']} | {rate:.1f}/s | {total_bytes/1024/1024:.0f} MB")
 
     MAP_JSON.parent.mkdir(parents=True, exist_ok=True)
+    # Merge với map cũ để không mất entry đã mirror trước đó (mirror chạy lại chỉ bổ sung).
+    existing: dict[str, str] = {}
+    if MAP_JSON.exists():
+        try:
+            existing = json.loads(MAP_JSON.read_text(encoding="utf-8"))
+        except Exception:
+            existing = {}
+    for k, v in existing.items():
+        mapping.setdefault(k, v)
     MAP_JSON.write_text(json.dumps(mapping, ensure_ascii=False, indent=2), encoding="utf-8")
 
     log(f"Xong: ok={stats['ok']} skip={stats['skip']} fail={stats['fail']}")

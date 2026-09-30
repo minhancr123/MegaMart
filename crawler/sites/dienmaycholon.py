@@ -22,6 +22,7 @@ from normalize import (
     build_product,
     extract_description_images,
     html_to_text,
+    img_basename,
     make_sku,
     normalize_brand,
     parse_price,
@@ -198,14 +199,31 @@ def parse_detail(html: str) -> dict | None:
 
     specs_table = _spec_rows(soup)
 
-    desc_node = soup.select_one(".info_pro-tab")
+    images: list[str] = []
+    for img in soup.select('.dmcl-gallery img, [data-gallery="images-gallery"] img'):
+        src = img.get("data-src") or img.get("data-original") or img.get("src") or ""
+        if src.startswith("//"):
+            src = "https:" + src
+        if src.startswith("http") and src not in images:
+            images.append(src)
+
+    # Chỉ lấy .des_pro (nằm trong tab content "Mô tả sản phẩm").
+    # KHÔNG dùng .info_pro-tab: nó bao trọn cả tab "Hình sản phẩm" phía trên,
+    # nên ảnh sản phẩm (main/multi) lẫn vào descriptionImages và hiện ra
+    # trong bài mô tả, lặp với gallery. Thêm lớp chặn thứ hai: ảnh nào đã có
+    # trong gallery thì loại khỏi bài viết ngay từ khâu cào.
+    gallery_names = {img_basename(i) for i in images}
+    desc_node = (
+        soup.select_one('div.content-t[data-gallery="detail-products-gallery"] .des_pro')
+        or soup.select_one(".des_pro")
+    )
     description = None
     description_images: list[str] = []
     if desc_node:
         desc_html = desc_node.decode_contents()
-        all_images = extract_description_images(desc_html, BASE_URL)
+        all_images = extract_description_images(desc_html, BASE_URL, exclude=gallery_names)
         lines = []
-        for line in (html_to_text(desc_html, max_len=0, mark_images=True, base_url=BASE_URL) or "").split("\n"):
+        for line in (html_to_text(desc_html, max_len=0, mark_images=True, base_url=BASE_URL, exclude=gallery_names) or "").split("\n"):
             if _DESC_STOP_RE.match(line):
                 break
             lines.append(line)
@@ -217,25 +235,32 @@ def parse_detail(html: str) -> dict | None:
         used = [o for o in used if o < len(all_images)]
         remap = {old: new for new, old in enumerate(used)}
         description_images = [all_images[o] for o in used]
-        lines = [
-            re.sub(r"\[DESCIMG:(\d+)\]", lambda m: f"[DESCIMG:{remap[int(m.group(1))]}]", line)
-            for line in lines
-        ]
-        description = html_to_text("\n".join(lines))
+        # html_to_text đánh số marker trên MỌI ảnh còn lại, còn
+        # extract_description_images chỉ giữ 10 ảnh đầu. Nên marker có thể
+        # mang index >= 10, không tồn tại trong remap -> remap.get trả None và
+        # dòng đó bị loại, thay vì ném KeyError làm hỏng cả sản phẩm.
+        def _renumber(match: re.Match) -> str:
+            new = remap.get(int(match.group(1)))
+            return f"[DESCIMG:{new}]" if new is not None else ""
+
+        lines = [re.sub(r"\[DESCIMG:(\d+)\]", _renumber, line) for line in lines]
+        # `lines` đã là text thuần nên KHÔNG gọi lại html_to_text: hàm đó
+        # thấy "<" trong thông số kiểu "công suất < 50W" sẽ tưởng là HTML
+        # và nuốt mất chữ đứng sau. Chỉ cần gộp lại dòng trống.
+        out_lines: list[str] = []
+        for line in lines:
+            if not line:
+                if out_lines and out_lines[-1]:
+                    out_lines.append("")
+            else:
+                out_lines.append(line)
+        description = "\n".join(out_lines).strip()
 
     features = [_text(li) for li in soup.select(".feature_pro .feature_item li")]
     features = [f for f in features if f]
 
     brand_node = soup.select_one(".trademark_detail a") or soup.select_one(".trademark_detail")
     brand = _text(brand_node).split(":")[-1].strip() if brand_node else ""
-
-    images: list[str] = []
-    for img in soup.select('.dmcl-gallery img, [data-gallery="images-gallery"] img'):
-        src = img.get("data-src") or img.get("data-original") or img.get("src") or ""
-        if src.startswith("//"):
-            src = "https:" + src
-        if src.startswith("http") and src not in images:
-            images.append(src)
 
     return {
         "description": description,

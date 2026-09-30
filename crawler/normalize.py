@@ -54,10 +54,29 @@ def _normalize_img_src(src: str | None, base_url: str = "") -> str | None:
     return src
 
 
-def _iter_kept_images(soup: "BeautifulSoup", base_url: str = "") -> list[str]:
+def img_basename(url: str | None) -> str:
+    """Khóa so khớp ảnh: bỏ query, đuôi file (kể cả đuôi kép `.png.webp`)
+    và hậu tố kích thước (`_450`, `_182_1020`). Giữ số sau `-`/`--` vì đó là
+    định danh ảnh (`-main--991` khác `-main--992`).
+    """
+    name = ((url or "").split("/")[-1].split("?")[0] or "").lower()
+    name = re.sub(r"(\.\w+)+$", "", name)
+    # Như basename() bên TS: chỉ gọt hậu tố kích thước 2-4 chữ số.
+    return re.sub(r"_\d{2,4}(_\d{2,4})*$", "", name)
+
+
+def _iter_kept_images(
+    soup: "BeautifulSoup",
+    base_url: str = "",
+    exclude: set[str] | None = None,
+) -> list[str]:
     """URL ảnh nội dung giữ lại, theo đúng thứ tự xuất hiện trong HTML.
 
-    Bỏ icon/tracking pixel (có width/height < 100px) và trùng URL.
+    Bỏ icon/tracking pixel (có width/height < 100px), trùng URL, và ảnh đã
+    có trong `exclude` (tên file rút gọn qua `img_basename`). `exclude`
+    thường là gallery của chính sản phẩm — sàn hay nhúng lại ảnh sản phẩm
+    đầu bài mô tả, giữ lại sẽ khiến cùng một ảnh hiện cả ở carousel lẫn
+    trong bài viết.
     """
     urls: list[str] = []
     seen: set[str] = set()
@@ -67,6 +86,8 @@ def _iter_kept_images(soup: "BeautifulSoup", base_url: str = "") -> list[str]:
             base_url,
         )
         if not src or src in seen:
+            continue
+        if exclude and img_basename(src) in exclude:
             continue
         try:
             w = int(img.get("width") or 0)
@@ -80,12 +101,16 @@ def _iter_kept_images(soup: "BeautifulSoup", base_url: str = "") -> list[str]:
     return urls
 
 
-def extract_description_images(html: str | None, base_url: str = "") -> list[str]:
+def extract_description_images(
+    html: str | None,
+    base_url: str = "",
+    exclude: set[str] | None = None,
+) -> list[str]:
     """Tách URL ảnh minh họa trong HTML mô tả (tối đa 10 ảnh/sản phẩm)."""
     if not html or "<" not in html:
         return []
     soup = BeautifulSoup(html, "html.parser")
-    return _iter_kept_images(soup, base_url)[:10]
+    return _iter_kept_images(soup, base_url, exclude)[:10]
 
 
 def html_to_text(
@@ -93,6 +118,7 @@ def html_to_text(
     max_len: int = 6000,
     mark_images: bool = False,
     base_url: str = "",
+    exclude: set[str] | None = None,
 ) -> str | None:
     """Bài mô tả của cả hai sàn là HTML (heading, ảnh banner, link về site gốc).
 
@@ -103,7 +129,9 @@ def html_to_text(
 
     mark_images=True: thay mỗi ảnh giữ lại bằng marker dòng riêng
     "[DESCIMG:n]" (n là index trong extract_description_images của cùng HTML)
-    để frontend biết vị trí chèn ảnh minh họa.
+    để frontend biết vị trí chèn ảnh minh họa. `exclude` là tập tên rút gọn
+    (qua `img_basename`) của ảnh gallery: ảnh đã có trong gallery thì không
+    đưa vào bài viết nữa.
     """
     if not html:
         return None
@@ -112,7 +140,10 @@ def html_to_text(
     else:
         soup = BeautifulSoup(html, "html.parser")
         if mark_images:
-            kept = _iter_kept_images(soup, base_url)
+            # Cắt [:10] giống extract_description_images: nếu không, bài trên
+            # 10 ảnh sẽ sinh marker [DESCIMG:10+] mà descriptionImages không
+            # có phần tử tương ứng -> frontend đọc ra undefined, vỡ khung.
+            kept = _iter_kept_images(soup, base_url, exclude)[:10]
             kept_set = set(kept)
             emitted: set[str] = set()
             for img in soup.find_all("img"):

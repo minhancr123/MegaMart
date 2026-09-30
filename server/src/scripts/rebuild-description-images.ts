@@ -26,7 +26,7 @@ const JSON_PATH = join(__dirname, "../../../crawler/out/megamart-products.json")
 const MAP_PATH = join(__dirname, "../../../crawler/out/r2-url-map.json");
 
 const asUrl = (u: unknown): string =>
-  typeof u === "string" ? u : String((u as any)?.url ?? (u as any)?.src ?? "");
+  typeof u === "string" ? u : String((u as any)?.sourceUrl ?? (u as any)?.url ?? (u as any)?.src ?? "");
 
 const isDead = (u: string): boolean => !u || u.includes("cloudinary");
 
@@ -39,6 +39,7 @@ async function main() {
   const r2map: Record<string, string> = JSON.parse(readFileSync(MAP_PATH, "utf8"));
 
   // slug -> mảng đúng vị trí ("" giữ chỗ cho URL chết).
+  // Ưu tiên sourceUrl (ảnh NK còn sống), map R2 bao gồm cả desc-* nên hit đúng.
   const positionalBySlug = new Map<string, string[]>();
   for (const p of products) {
     const src: unknown[] = p.descriptionImages ?? [];
@@ -46,11 +47,22 @@ async function main() {
     positionalBySlug.set(
       p.slug,
       src.map((u) => {
-        const url = asUrl(u).trim();
-        if (!url) return "";
-        if (r2map[url]) return r2map[url];
-        if (isDead(url)) return "";
-        return url;
+        const raw = asUrl(u).trim(); // sourceUrl nếu có
+        if (!raw) {
+          const fallback = typeof u === "string" ? "" : String((u as any)?.url ?? "");
+          if (!fallback.trim() || fallback.includes("cloudinary")) return "";
+          if (r2map[fallback]) return r2map[fallback];
+          return fallback;
+        }
+        if (r2map[raw]) return r2map[raw];
+        if (isDead(raw)) {
+          if (typeof u !== "string" && (u as any)?.url && !isDead((u as any).url)) {
+            const alt = String((u as any).url).trim();
+            return r2map[alt] ?? alt;
+          }
+          return "";
+        }
+        return raw;
       }),
     );
   }

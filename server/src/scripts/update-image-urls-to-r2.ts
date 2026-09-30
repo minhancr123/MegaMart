@@ -43,18 +43,26 @@ function loadMap(): UrlMap {
  *
  * URL R2 có dạng https://host/products/<slug>/<ten-anh>.webp nên slug nằm
  * ngay sau /products/.
+ *
+ * LƯU Ý: /companies/_1/Thuyvy/... là thư mục ảnh minh họa tính năng của Nguyễn Kim,
+ * KHÔNG phải ảnh review — đừng lọc nhầm.
  */
 function buildSlugIndex(map: UrlMap): Map<string, string[]> {
   const byslug = new Map<string, string[]>();
   for (const r2url of Object.values(map)) {
     const match = r2url.match(/\/products\/([^/]+)\//);
     if (!match) continue;
-    if (/thuyvy|review|rating|danh-gia/i.test(r2url)) continue;
+    if (/review|rating|danh-gia/i.test(r2url)) continue;
     const list = byslug.get(match[1]) ?? [];
     list.push(r2url);
     byslug.set(match[1], list);
   }
   return byslug;
+}
+
+/** Chỉ ảnh gallery (không chứa /desc-) mới dùng để đổi ProductImage. */
+function isGalleryR2(url: string): boolean {
+  return !/\/desc-\d+\.webp(\?|$)/.test(url);
 }
 
 const isStale = (url: string) => url.includes("res.cloudinary.com");
@@ -85,12 +93,13 @@ async function main() {
 
   for (const product of products) {
     const r2list = byslug.get(product.slug);
+    const galleryR2 = r2list ? r2list.filter(isGalleryR2) : undefined;
 
-    if (r2list && product.images.length > 0) {
+    if (galleryR2 && product.images.length > 0) {
       // Ảnh thừa trong R2 (crawler lấy nhiều góc hơn DB đang giữ) thì bỏ qua.
       const pairs = product.images.map((image, index) => ({
         image,
-        r2url: r2list[index],
+        r2url: galleryR2[index],
       }));
       for (const pair of pairs) {
         if (!isStale(pair.image.url)) continue;
@@ -107,37 +116,17 @@ async function main() {
       imgMiss += product.images.filter((i) => isStale(i.url)).length;
     }
 
-    const desc = product.descriptionImages.filter(isStale);
-    if (desc.length > 0) {
-      if (r2list && r2list.length > 0) {
-        // Mỗi ảnh mô tả phải trỏ tới ảnh R2 khác nhau. Trước đây gán tất cả
-        // về r2list[0] nên toàn bộ ảnh trong bài viết trùng một ảnh.
-        // Giới hạn theo số ảnh R2 có sẵn, thiếu thì bỏ trống cho trình duyệt
-        // bỏ qua chứ không lặp lại ảnh cũ.
-        let cursor = 0;
-        const next = product.descriptionImages.map((url) => {
-          if (!isStale(url)) return url;
-          const picked = r2list[cursor];
-          if (!picked) return "";
-          cursor += 1;
-          return picked;
-        });
-        descHit += cursor;
-        descMiss += next.length - cursor;
-        prodOps.push({
-          update: {
-            where: { id: product.id },
-            data: { descriptionImages: next.filter(Boolean) },
-          },
-        });
-      } else {
-        descMiss += desc.length;
-      }
+    // KHÔNG tự gán gallery R2 vào descriptionImages. Việc đổi desc sang R2
+    // phải làm bằng map đúng nguồn (desc-*.webp) trong rebuild/backfill hoặc
+    // restore script, nếu không sẽ trộn gallery vào bài mô tả và làm lệch marker.
+    const staleDesc = product.descriptionImages.filter(isStale);
+    if (staleDesc.length > 0) {
+      descMiss += staleDesc.length;
     }
   }
 
   console.log(`Ảnh chính:  sẽ đổi ${imgHit}, không tìm thấy bản R2 ${imgMiss}`);
-  console.log(`Ảnh mô tả: sẽ đổi ${descHit}, không tìm thấy bản R2 ${descMiss}`);
+  console.log(`Ảnh mô tả hỏng (cần restore riêng): ${descMiss} — chạy restore-nguyenkim-images.ts / rebuild-description-images.ts`);
 
   if (!apply) {
     console.log("\nĐặt APPLY=1 để ghi vào DB.");
@@ -152,14 +141,8 @@ async function main() {
     );
     console.log(`  ảnh: ${Math.min(i + BATCH, imgOps.length)}/${imgOps.length}`);
   }
-  for (let i = 0; i < prodOps.length; i += BATCH) {
-    await prisma.$transaction(
-      prodOps.slice(i, i + BATCH).map((op) => prisma.product.update(op.update)),
-    );
-    console.log(`  sản phẩm: ${Math.min(i + BATCH, prodOps.length)}/${prodOps.length}`);
-  }
 
-  console.log(`\nXong. ${imgHit} ảnh + ${descHit} ảnh mô tả đã đổi sang R2.`);
+  console.log(`\nXong. ${imgHit} ảnh gallery đã đổi sang R2. ${descMiss} ảnh mô tả hỏng giữ nguyên để script restore xử lý.`);
 }
 
 main()

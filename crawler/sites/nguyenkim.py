@@ -23,6 +23,7 @@ from normalize import (
     extract_description_images,
     guess_brand,
     html_to_text,
+    img_basename,
     normalize_brand,
     slugify,
 )
@@ -125,12 +126,19 @@ def parse_detail(html: str) -> dict | None:
 
     images = [data.get("thumbnail")] + list(data.get("images") or [])
 
+    # Bài mô tả của NK hay nhúng lại đúng ảnh sản phẩm đầu trang. Loại ngay
+    # từ khâu cào, kẻo cùng một ảnh hiện cả ở gallery lẫn trong bài viết.
+    gallery_names = {img_basename(i) for i in images if i}
     raw_description = _vi(data.get("description"))
     return {
-        "description": html_to_text(raw_description, mark_images=True, base_url=BASE_URL)
+        "description": html_to_text(
+            raw_description, max_len=0, mark_images=True, base_url=BASE_URL, exclude=gallery_names
+        )
         or _vi(data.get("shortDescription"))
         or ("\n".join(features) if features else None),
-        "descriptionImages": extract_description_images(raw_description, BASE_URL),
+        "descriptionImages": extract_description_images(
+            raw_description, BASE_URL, exclude=gallery_names
+        ),
         "brand": normalize_brand(_vi(data.get("brandName")) or _vi(data.get("brand"))),
         "specs": features,
         "specsTable": specs_table,

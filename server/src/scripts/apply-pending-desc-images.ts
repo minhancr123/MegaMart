@@ -79,7 +79,16 @@ async function main() {
 
   let mirrored = 0;
   let lost = 0;
-  const changes = [];
+  const changes: {
+    id: string;
+    slug: string;
+    description: string | null;
+    descriptionImages: string[];
+    before: number;
+    after: number;
+    beforeMarkers: number;
+    afterMarkers: number;
+  }[] = [];
   for (const [slug, entries] of Object.entries(pending)) {
     const product = await prisma.product.findUnique({
       where: { slug },

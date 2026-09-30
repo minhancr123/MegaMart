@@ -89,7 +89,14 @@ async function main() {
   let totalImages = 0;
   let mappedImages = 0;
 
-  const rows = [];
+  const rows: {
+    id: string;
+    slug: string;
+    before: number;
+    after: number;
+    description: string;
+    descriptionImages: string[];
+  }[] = [];
   for (const [slug, entry] of Object.entries(desc)) {
     const product = await prisma.product.findUnique({
       where: { slug },

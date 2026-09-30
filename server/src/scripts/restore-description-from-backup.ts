@@ -44,7 +44,7 @@ async function main() {
     select: { id: true, slug: true, description: true, descriptionImages: true },
   });
 
-  const changes = [];
+  const changes: { id: string; slug: string; oldDesc: string }[] = [];
   for (const p of products) {
     const b = byId.get(p.id);
     if (!b) continue;

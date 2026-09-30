@@ -1,17 +1,17 @@
 /**
- * Tách ảnh minh họa (nền không trắng) khỏi gallery sản phẩm.
+ * Tách ảnh minh họa (bảng thông số, infographic) khỏi gallery sản phẩm.
  *
- * Crawler đổ cả ảnh sản phẩm nền trắng lẫn ảnh minh họa trong bài mô tả
- * (bảng thông số, infographic) vào cùng bảng ProductImage, nên khách mở
- * trang chi tiết thấy ảnh bảng thông số ở ngay vị trí đầu gallery.
+ * Crawler đổ cả ảnh sản phẩm lẫn ảnh minh họa vào cùng bảng ProductImage, nên
+ * khách mở trang chi tiết thấy ảnh bảng thông số ở ngay vị trí đầu gallery.
  *
- * Phân biệt bằng cách đo pixel: ảnh sản phẩm có viền gần như trắng hết
- * (đo thật 81%–97%), ảnh minh họa thì viền nhiều màu (0%–6%). Việc đo do
- * crawler/measure_edge_whiteness.py thực hiện (PIL), script này chỉ đọc/ghi DB.
+ * PHÂN BIỆT BẰNG MẬT ĐỘ CHỮ, KHÔNG PHẢI VIỀN TRẮNG. Bảng thông số cũng có nền
+ * trắng, nên lần đầu tôi chỉ nhìn viền và sai: ảnh sản phẩm sáng (tủ lạnh màu
+ * kem) bị đẩy nhầm sang mô tả, còn bảng thông số vẫn nằm ở gallery. Đo trên
+ * 291 ảnh ngẫu nhiên cho thấy 70% ảnh có mật độ chữ ≥15% (chữ/bảng thông số) và
+ * 25% <10% (ảnh sản phẩm), 5% nằm vùng kéo không phân định được.
  *
- * Ảnh minh họa chuyển vào Product.descriptionImages theo đúng thứ tự
- * displayOrder để marker [DESCIMG:n] trong mô tả trỏ đúng ảnh; ảnh sản phẩm ở
- * lại gallery và được đánh lại displayOrder liền mạch.
+ * Vì vậy chỉ chuyển ảnh khi CHẮC CHẮN là minh họa (mật độ chữ cao). Ảnh mơ hồ
+ * thì để trong gallery: thừa một ảnh còn hơn mất ảnh sản phẩm.
  *
  * Ảnh KHÔNG bị xóa khỏi hệ thống, chỉ đổi bảng chứa — chạy lại được.
  *
@@ -27,13 +27,13 @@ import { dirname, join } from "path";
 
 const prisma = new PrismaClient();
 
-/** Viền ảnh gần trắng ≥ ngưỡng này thì coi là ảnh sản phẩm. */
-const WHITE_EDGE_THRESHOLD = 80;
-/** Luôn giữ tối thiểu 1 ảnh trong gallery, không thì trang mất ảnh chính. */
-const MIN_WHITE_KEPT = 1;
+/** Mật độ chữ ≥ ngưỡng này thì chắc chắn là bảng thông số/infographic. */
+const INK_THRESHOLD = 20;
 /** Trên số ảnh này thì bỏ qua, đo quá lâu mà lợi ích nhỏ. */
 const MAX_IMAGES_PER_PRODUCT = 60;
 const ONLY_SLUGS = process.env.ONLY_SLUGS;
+
+type Measurement = { edge: number; ink: number } | null;
 
 /**
  * `__dirname` khi chạy ts-node trỏ về server/ chứ không phải server/src/scripts
@@ -61,7 +61,7 @@ function cachePath(): string {
   return p;
 }
 
-function loadCache(): Record<string, number> {
+function loadCache(): Record<string, Measurement> {
   try {
     const p = cachePath();
     return existsSync(p) ? JSON.parse(readFileSync(p, "utf8")) : {};
@@ -70,11 +70,11 @@ function loadCache(): Record<string, number> {
   }
 }
 
-function saveCache(cache: Record<string, number>) {
+function saveCache(cache: Record<string, Measurement>) {
   writeFileSync(cachePath(), JSON.stringify(cache));
 }
 
-function measureAll(urls: string[]): (number | null)[] {
+function measureAll(urls: string[]): Measurement[] {
   const script = join(repoRoot(), "crawler/measure_edge_whiteness.py");
   const res = spawnSync("python3", [script], {
     input: urls.join("\n"),
@@ -84,7 +84,7 @@ function measureAll(urls: string[]): (number | null)[] {
   if (res.status !== 0) {
     throw new Error(`Đo ảnh thất bại: ${res.stderr?.slice(0, 400)}`);
   }
-  return JSON.parse(res.stdout) as (number | null)[];
+  return JSON.parse(res.stdout) as Measurement[];
 }
 
 type Img = { id: string; url: string; order: number };
@@ -136,7 +136,7 @@ async function main() {
     }
   }
 
-  const scoreById = new Map<string, number | null>();
+  const scoreById = new Map<string, Measurement>();
   for (const p of candidates) {
     for (const img of p.images) scoreById.set(img.id, cache[img.url] ?? null);
   }
@@ -153,16 +153,13 @@ async function main() {
       url: i.url,
       order: i.displayOrder ?? 0,
     }));
-    // Ảnh không đo được -> coi là ảnh sản phẩm (an toàn, không bỏ nhầm).
-    const white = imgs.filter((i) => (scoreById.get(i.id) ?? 100) >= WHITE_EDGE_THRESHOLD);
-    const nonWhite = imgs.filter(
-      (i) => (scoreById.get(i.id) ?? 100) < WHITE_EDGE_THRESHOLD,
-    );
-    if (!white.length || !nonWhite.length) continue;
-    if (white.length < MIN_WHITE_KEPT) continue;
-
-    const keep = [...white].sort((a, b) => a.order - b.order);
-    const move = [...nonWhite].sort((a, b) => a.order - b.order);
+    // Chỉ ảnh mật độ chữ cao mới chắc chắn là bảng thông số/infographic. Ảnh
+    // không đo được hoặc mật độ thấp thì coi là ảnh sản phẩm và giữ lại —
+    // thừa ảnh trong gallery còn hơn mất ảnh sản phẩm.
+    const isIllustration = (im: Img) => (scoreById.get(im.id)?.ink ?? 0) >= INK_THRESHOLD;
+    const keep = imgs.filter((i) => !isIllustration(i)).sort((a, b) => a.order - b.order);
+    const move = imgs.filter(isIllustration).sort((a, b) => a.order - b.order);
+    if (!move.length || !keep.length) continue;
     moved += move.length;
     productsChanged += 1;
     if (preview.length < 6) {

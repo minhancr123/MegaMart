@@ -14,6 +14,8 @@ const productsAPI = {
   getProductById: (id: string) => axiosClient.get(`/products/${id}`),
   getProductAvailability: (id: string) => axiosClient.get(`/products/${id}/availability`),
   getProductsByCategory: (categorySlug: string) => axiosClient.get(`/products/category/${categorySlug}`),
+  getSuggestions: (params: { q: string; limit?: number }) =>
+    axiosClient.get("/products/suggest", { params }),
   getAllProducts: (params?: ProductQuery) => axiosClient.get("/products", { params }),
   searchProducts: (params: ProductQuery) => axiosClient.get("/products", { params }),
   getBrands: (params?: { search?: string; categoryId?: string }) =>
@@ -225,4 +227,42 @@ export const fetchProductsByCategory = async (categorySlug: string) => {
 export const searchProducts = async (params: ProductQuery): Promise<Product[]> => {
   const page = await fetchProductsPaged(params);
   return page.products;
+};
+
+/** Một dòng gợi ý trong dropdown tìm kiếm: chỉ trường tối thiểu để nhẹ. */
+export interface ProductSuggestion {
+  id: string;
+  slug: string;
+  name: string;
+  brand: string | null;
+  price: number | null;
+  imageUrl: string | null;
+}
+
+/** Cache gợi ý trong session: gõ-xóa-gõ lại cùng từ thì hiện ngay, khỏi gọi API. */
+const suggestionCache = new Map<string, ProductSuggestion[]>();
+const SUGGESTION_CACHE_MAX = 50;
+
+/** Gợi ý nhanh cho ô tìm kiếm header. Từ khóa dưới 2 ký tự trả rỗng ngay. */
+export const fetchSuggestions = async (q: string, limit = 6): Promise<ProductSuggestion[]> => {
+  const query = q.trim();
+  if (query.length < 2) return [];
+  const cacheKey = `${query.toLowerCase().replace(/\s+/g, " ")}|${limit}`;
+  const hit = suggestionCache.get(cacheKey);
+  if (hit) return hit;
+  try {
+    const res = await productsAPI.getSuggestions({ q: query, limit });
+    const apiRes = res as unknown as ApiResponse<ProductSuggestion[]>;
+    if (apiRes.success && Array.isArray(apiRes.data)) {
+      if (suggestionCache.size >= SUGGESTION_CACHE_MAX) {
+        suggestionCache.delete(suggestionCache.keys().next().value!);
+      }
+      suggestionCache.set(cacheKey, apiRes.data);
+      return apiRes.data;
+    }
+    return [];
+  } catch (error: unknown) {
+    console.error("Fetch suggestions error:", error);
+    return [];
+  }
 };

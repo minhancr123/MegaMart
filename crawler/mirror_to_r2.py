@@ -185,12 +185,12 @@ def main() -> int:
 
     total_bytes = 0
     log(f"Bucket: {bucket} | Public URL: {public_url}")
-    log(f"Anh se mirror: {len(targets)}")
+    log(f"Images to mirror: {len(targets)}")
 
     if args.dry_run:
         for key, url in targets[:10]:
             print(f"  {key} <- {url}")
-        log("dry-run xong, khong tai gi.")
+        log("dry-run done, nothing downloaded.")
         return 0
 
     mapping: dict[str, str] = {}
@@ -248,9 +248,9 @@ def main() -> int:
         mapping.setdefault(k, v)
     MAP_JSON.write_text(json.dumps(mapping, ensure_ascii=False, indent=2), encoding="utf-8")
 
-    log(f"Xong: ok={stats['ok']} skip={stats['skip']} fail={stats['fail']}")
-    log(f"Tong dung luong upload: {total_bytes/1024/1024:.0f} MB")
-    log(f"Map URL -> {MAP_JSON} ({len(mapping)} muc)")
+    log(f"Done: ok={stats['ok']} skip={stats['skip']} fail={stats['fail']}")
+    log(f"Total uploaded: {total_bytes/1024/1024:.0f} MB")
+    log(f"Map URL -> {MAP_JSON} ({len(mapping)} entries)")
     return 0 if stats["ok"] else 1
 
 

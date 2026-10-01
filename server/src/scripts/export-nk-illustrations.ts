@@ -115,7 +115,7 @@ async function main() {
     }
   }
 
-  console.log(`SP NK có ảnh mô tả: ${prods.filter((p) => (p.descriptionImages ?? []).length).length}`);
+  console.log(`NK products with description images: ${prods.filter((p) => (p.descriptionImages ?? []).length).length}`);
   console.log(`  trùng gallery (bỏ): ${nDupeGallery}`);
   console.log(`  lặp nội bộ (bỏ): ${nInternalDupe}`);
   console.log(`  cloudinary chết (bỏ): ${nCloudinary}`);
@@ -135,7 +135,7 @@ async function main() {
   }
   fs.writeFileSync(DEST, JSON.stringify(out, null, 1));
   const total = Object.values(out).reduce((n, v) => n + v.length, 0);
-  console.log(`-> ${DEST}: ${Object.keys(out).length} SP, ${total} ảnh`);
+  console.log(`-> ${DEST}: ${Object.keys(out).length} products, ${total} images`);
   if (total) {
     console.log("Tiếp theo:");
     console.log("  1. mirror_dmcl_desc_to_r2.py --input crawler/out/pending-nk-mirror.json --map-out crawler/out/pending-nk-r2-map.json");

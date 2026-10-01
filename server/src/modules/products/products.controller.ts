@@ -156,6 +156,27 @@ export class ProductsController {
     };
   }
 
+  /**
+   * Gợi ý nhanh cho ô tìm kiếm header. Khai báo trước @Get(":id") để
+   * không bị route động bắt mất.
+   */
+  @Get("suggest")
+  async suggestProducts(
+    @Query("q") q?: string,
+    @Query("limit") limit?: string,
+  ): Promise<any> {
+    const data = await this.productsService.suggestProducts(
+      q ?? "",
+      limit ? Number(limit) : undefined,
+    );
+    return {
+      data: {
+        success: true,
+        data,
+      },
+    };
+  }
+
   @Get(":id/availability")
   @ApiOperation({
     summary: "Tình trạng hàng theo kho (public, không lộ số lượng)",

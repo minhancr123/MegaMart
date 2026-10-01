@@ -1,4 +1,6 @@
-import { HttpException, HttpStatus, Injectable } from "@nestjs/common";
+import { HttpException, HttpStatus, Inject, Injectable } from "@nestjs/common";
+import { CACHE_MANAGER } from "@nestjs/cache-manager";
+import type { Cache } from "cache-manager";
 import { Prisma } from "@prisma/client";
 import { PrismaService } from "src/prismaClient/prisma.service";
 import { ProductResponseDto } from "./dto/product.dto";
@@ -35,6 +37,7 @@ export class ProductsService {
   constructor(
     private prisma: PrismaService,
     private auditLogService: AuditLogService,
+    @Inject(CACHE_MANAGER) private cache: Cache,
   ) {}
   /**
    * Danh sách sản phẩm: phân trang + lọc + sắp xếp đều làm ở server.
@@ -283,6 +286,61 @@ export class ProductsService {
 
     return products.map((product) => this.formatProductResponse(product));
   }
+  /**
+   * Gợi ý nhanh khi gõ tìm kiếm: chỉ trả trường tối thiểu (id/slug/tên/
+   * hãng/giá thấp nhất/1 ảnh) để dropdown header nhẹ, không kéo cả
+   * description như endpoint /products.
+   */
+  async suggestProducts(query: string, limit = 8) {
+    const q = query?.trim() ?? "";
+    if (q.length < 2) return [];
+    const take = Math.min(10, Math.max(1, Number(limit) || 8));
+    // Từ khóa gợi ý gõ lặp đi lặp lại rất nhiều (mỗi phím gõ là một request
+    // sau debounce). Cache in-memory 5 phút để request trùng về trong vài ms
+    // thay vì scan ILIKE cả bảng.
+    const key = `suggest:${q.toLowerCase().replace(/\s+/g, " ")}:${take}`;
+    const hit = await this.cache.get(key);
+    if (hit) return hit;
+    const rows = await this.prisma.product.findMany({
+      where: {
+        deletedAt: null,
+        OR: [
+          { name: { contains: q, mode: "insensitive" } },
+          { brand: { contains: q, mode: "insensitive" } },
+          { variants: { some: { sku: { contains: q, mode: "insensitive" } } } },
+        ],
+      },
+      select: {
+        id: true,
+        slug: true,
+        name: true,
+        brand: true,
+        images: {
+          select: { url: true },
+          orderBy: [{ isPrimary: "desc" }, { displayOrder: "asc" }],
+          take: 1,
+        },
+        variants: {
+          select: { price: true },
+          orderBy: { price: "asc" },
+          take: 1,
+        },
+      },
+      orderBy: { soldCount: "desc" },
+      take,
+    });
+    const result = rows.map((r) => ({
+      id: r.id,
+      slug: r.slug,
+      name: r.name,
+      brand: r.brand,
+      price: r.variants[0]?.price ?? null,
+      imageUrl: r.images[0]?.url ?? null,
+    }));
+    await this.cache.set(key, result);
+    return result;
+  }
+
   async getCategoryList() {
     return this.prisma.category.findMany({
       where: { parentId: null },

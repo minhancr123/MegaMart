@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, type FormEvent } from "react";
+import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
@@ -33,7 +33,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Input } from "@/components/ui/input";
+import SearchBox from "@/components/SearchBox";
 import {
   Sheet,
   SheetClose,
@@ -71,21 +71,11 @@ export default function Header() {
   const cartStore = useCartStore();
   const wishlist = useWishlistStore();
   const compare = useCompareStore();
-  const [searchQuery, setSearchQuery] = useState("");
   const [mobileSearchOpen, setMobileSearchOpen] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   // Hotline lấy từ Admin → Cài đặt để khớp với cấu hình cửa hàng
   const storeContact = useStoreSettings();
   const cartCount = cartStore.items.reduce((total, item) => total + item.quantity, 0);
-
-  const handleSearch = (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    const query = searchQuery.trim();
-    if (!query) return;
-    router.push(`/search?query=${encodeURIComponent(query)}`);
-    setMobileSearchOpen(false);
-    setMobileOpen(false);
-  };
 
   const handleCartClick = () => {
     router.push(user ? "/cart" : "/auth");
@@ -115,10 +105,11 @@ export default function Header() {
             <span className="text-2xl font-black tracking-tight text-[#ff4d00]">MegaMart</span>
           </Link>
 
-          <form onSubmit={handleSearch} className="relative mx-auto hidden w-full max-w-xl flex-1 md:flex">
-            <Input value={searchQuery} onChange={(event) => setSearchQuery(event.target.value)} placeholder="Tìm kiếm sản phẩm..." className="h-11 rounded-full border-zinc-300 bg-zinc-50 pl-5 pr-12 focus-visible:border-[#ff4d00] focus-visible:ring-[#ff4d00]/20" />
-            <Button type="submit" size="icon" aria-label="Tìm kiếm" className="absolute right-1 top-1/2 h-9 w-9 -translate-y-1/2 rounded-full bg-transparent text-zinc-500 shadow-none hover:bg-orange-50 hover:text-[#ff4d00]"><Search className="h-4.5 w-4.5" /></Button>
-          </form>
+          <SearchBox
+            formClassName="mx-auto hidden w-full max-w-xl flex-1 md:flex"
+            inputClassName="h-11 rounded-full border-zinc-300 bg-zinc-50 pl-5 pr-12 focus-visible:border-[#ff4d00] focus-visible:ring-[#ff4d00]/20"
+            submitVariant="icon"
+          />
 
           <div className="ml-auto flex items-center gap-1 sm:gap-2">
             <Button variant="ghost" size="icon" className="relative rounded-full text-zinc-700 hover:bg-orange-50 hover:text-[#c53b00] md:hidden" onClick={() => setMobileSearchOpen((open) => !open)} aria-label="Tìm kiếm"><Search className="h-5 w-5" /></Button>
@@ -176,7 +167,7 @@ export default function Header() {
           </div>
         </div>
 
-        {mobileSearchOpen && <div className="border-t border-zinc-200 px-4 py-3 md:hidden"><form onSubmit={handleSearch} className="mx-auto flex max-w-2xl"><Input autoFocus value={searchQuery} onChange={(event) => setSearchQuery(event.target.value)} placeholder="Tìm kiếm sản phẩm..." className="h-10 rounded-l-full border-zinc-300 pl-5" /><Button type="submit" className="h-10 rounded-r-full bg-[#ff4d00] text-white hover:bg-[#d94100]"><Search className="h-4 w-4" /></Button></form></div>}
+          {mobileSearchOpen && <div className="border-t border-zinc-200 px-4 py-3 md:hidden"><SearchBox formClassName="mx-auto flex max-w-2xl" inputClassName="h-10 rounded-l-full border-zinc-300 pl-5" submitVariant="bar" autoFocus onNavigate={() => setMobileSearchOpen(false)} /></div>}
       </header>
     </div>
   );

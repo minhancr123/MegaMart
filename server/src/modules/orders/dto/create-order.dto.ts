@@ -75,7 +75,11 @@ export class OrderTotalsDto {
   @IsOptional()
   discount?: number;
 
-  @ApiProperty({ required: false, description: "Phí vận chuyển GHN (VND)" })
+  @ApiProperty({
+    required: false,
+    description:
+      "Phí ship client ước tính (tham khảo). Server re-quote GHN và lấy giá server làm chuẩn.",
+  })
   @IsNumber()
   @IsOptional()
   shippingFee?: number;

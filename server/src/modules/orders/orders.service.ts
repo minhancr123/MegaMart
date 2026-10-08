@@ -185,6 +185,64 @@ export class OrdersService {
     // Không check tồn ở đây nữa: việc giữ hàng làm atomic ngay trong
     // transaction bên dưới để chống oversell khi checkout đồng thời.
 
+    // P0.1: Re-quote phí ship server-side TRƯỚC transaction (không giữ DB
+    // connection trong lúc gọi GHN 8s). Không tin totals.shippingFee từ client.
+    const previewSubtotal = cart.items.reduce(
+      (sum, item) =>
+        sum +
+        getEffectivePrice(item.variant as any) * Number(item.quantity || 0),
+      0,
+    );
+    let serverShippingQuote = 0;
+    {
+      const toDistrictId = Number((shipping as any)?.districtId || 0);
+      const toWardCode = String((shipping as any)?.wardCode || "");
+      // Mô hình B: khách trả đúng phí GHN nên bắt buộc địa chỉ có mã GHN.
+      // Thiếu mã mà cho phí 0 là lỗ ship (review P0.3) -> chặn ngay.
+      if (!toDistrictId || !toWardCode) {
+        throw new HttpException(
+          {
+            success: false,
+            message:
+              "Địa chỉ thiếu mã Quận/Xã GHN. Vui lòng chọn lại Tỉnh/Quận/Xã từ danh sách để tính phí vận chuyển.",
+          },
+          HttpStatus.BAD_REQUEST,
+        );
+      }
+      {
+        const itemCount = cart.items.reduce(
+          (s, i: any) => s + Number(i.quantity || 0),
+          0,
+        );
+        const weight = Math.min(
+          20000,
+          Math.max(300, itemCount * 500),
+        );
+        try {
+          const quoted = await this.shippingService.calculateFee({
+            toDistrictId,
+            toWardCode,
+            weight,
+            insuranceValue: Math.round(previewSubtotal),
+          });
+          serverShippingQuote = Math.max(0, Math.round(Number(quoted?.fee || 0)));
+          const clientFee = Math.max(0, Math.round(totals.shippingFee || 0));
+          if (Math.abs(serverShippingQuote - clientFee) > 5000) {
+            this.logger.warn(
+              `Shipping fee mismatch code=NEW cart=${cartId}: client=${clientFee} server=${serverShippingQuote}`,
+            );
+          }
+        } catch (e) {
+          // GHN chưa cấu hình / timeout: fallback phí client để dev không vỡ,
+          // nhưng log để đối soát. Khi GHN có token thì quote là chuẩn.
+          this.logger.warn(
+            `GHN quote failed, fallback client fee: ${(e as Error).message}`,
+          );
+          serverShippingQuote = Math.max(0, Math.round(totals.shippingFee || 0));
+        }
+      }
+    }
+
     // Create order in transaction with extended timeout (15s instead of default 5s)
     const order = await this.prisma.$transaction(
       async (tx) => {
@@ -197,8 +255,20 @@ export class OrdersService {
             getEffectivePrice(item.variant as any) * Number(item.quantity || 0),
           0,
         );
-        const serverTax = Math.round(serverSubtotal * 0.1);
-        const serverShipping = Math.max(0, Math.round(totals.shippingFee || 0));
+        // P2.2-lite: VAT đọc từ env (VAT_RATE=0.1 hoặc 10 đều hiểu là 10%),
+        // fallback 10% để không vỡ đơn cũ. Hỗ trợ VAT_RATE=0 (falsy-safe).
+        const vatEnvRaw = process.env.VAT_RATE;
+        const rawVat =
+          vatEnvRaw === undefined || vatEnvRaw === ""
+            ? 0.1
+            : Number(vatEnvRaw);
+        const vatRate = Number.isNaN(rawVat)
+          ? 0.1
+          : rawVat > 1
+            ? Math.min(rawVat, 100) / 100
+            : Math.max(0, rawVat);
+        const serverTax = Math.round(serverSubtotal * vatRate);
+        const serverShipping = serverShippingQuote;
         // Giảm giá do client gửi lên nhưng kẹp không vượt quá giá trị đơn để
         // chống request giả mạo (voucher đã validate lúc áp mã ở checkout).
         const discount = Math.min(
@@ -1126,8 +1196,26 @@ export class OrdersService {
   ) {
     const order = await this.prisma.order.findUnique({
       where: { id: orderId },
+      include: { payments: true },
     });
     if (!order) throw new NotFoundException("Không tìm thấy đơn hàng");
+    // P0.2: Chặn bàn giao đơn online chưa trả tiền. COD/OTHER/WALLET-PAID
+    // vẫn qua được (updateOrderStatus đã loại trừ nhóm này khỏi pending check).
+    const hasPendingOnline = (order.payments || []).some(
+      (p: any) =>
+        !["COD", "OTHER", "WALLET"].includes(String(p.provider)) &&
+        p.status === PaymentStatus.PENDING,
+    );
+    if (hasPendingOnline) {
+      throw new HttpException(
+        {
+          success: false,
+          message:
+            "Đơn online chưa thanh toán. Vui lòng xác nhận đã nhận tiền (đánh PAID) trước khi bàn giao shipper.",
+        },
+        HttpStatus.BAD_REQUEST,
+      );
+    }
     const useGhn = !!order.shippingOrderCode;
     if (useGhn) {
       const metadata =
@@ -1177,7 +1265,6 @@ export class OrdersService {
           : "Bàn giao shipper nhà (giao nội bộ, không qua GHN)",
       } as any,
       adminId,
-      { skipPaymentCheck: true },
     );
   }
 
@@ -1491,15 +1578,11 @@ export class OrdersService {
       return;
     }
 
-    // Webhook do admin tạo đơn mà ra nên được bypass guard thanh toán.
+    // Webhook GHN ở chế độ SYNC cũ: vẫn tôn trọng guard thanh toán của
+    // updateOrderStatus (đơn online chưa trả thì warn thay vì cố giao).
     const moveTo = async (s: OrderStatus, reason?: string) => {
       try {
-        await this.updateOrderStatus(
-          order.id,
-          { status: s, reason } as any,
-          undefined,
-          { skipPaymentCheck: true },
-        );
+        await this.updateOrderStatus(order.id, { status: s, reason } as any, undefined);
         order.status = s;
       } catch (e) {
         this.logger?.warn?.(
@@ -1508,7 +1591,8 @@ export class OrdersService {
       }
     };
 
-    // Đi từng nấc để qua được VALID_TRANSITIONS (CONFIRMED->PROCESSING->SHIPPING->DELIVERED).
+    // Đi từng nấc để qua được VALID_TRANSITIONS (PAID/CONFIRMED->PROCESSING->SHIPPING->DELIVERED).
+    // Đơn online đã trả (PAID) cũng phải tiến được khi GHN đã lấy hàng (review P1.10).
     if (
       [
         "picking",
@@ -1521,12 +1605,16 @@ export class OrdersService {
         "money_collect_delivering",
       ].includes(status)
     ) {
+      if (order.status === OrderStatus.PAID)
+        await moveTo(OrderStatus.PROCESSING);
       if (order.status === OrderStatus.CONFIRMED)
         await moveTo(OrderStatus.PROCESSING);
       if (order.status === OrderStatus.PROCESSING)
         await moveTo(OrderStatus.SHIPPING);
     } else if (status === "delivered") {
       // COD đánh PAID nằm trong updateOrderStatus (chỉ khi DELIVERED thật).
+      if (order.status === OrderStatus.PAID)
+        await moveTo(OrderStatus.PROCESSING);
       if (order.status === OrderStatus.CONFIRMED)
         await moveTo(OrderStatus.PROCESSING);
       if (order.status === OrderStatus.PROCESSING)
@@ -1536,6 +1624,8 @@ export class OrdersService {
       }
     } else if (status === "delivery_fail") {
       // Giữ SHIPPING để giao lại, chỉ ghi INCIDENT (đã ghi ở trên).
+      if (order.status === OrderStatus.PAID)
+        await moveTo(OrderStatus.PROCESSING);
       if (order.status === OrderStatus.CONFIRMED)
         await moveTo(OrderStatus.PROCESSING);
       if (order.status === OrderStatus.PROCESSING)

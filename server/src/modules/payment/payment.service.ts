@@ -131,6 +131,28 @@ export class PaymentService {
 
     // Update payment and order status
     if (responseCode === "00") {
+      // Đối soát số tiền: VNPay gửi vnp_Amount = VND*100. So với phần online
+      // còn phải thu (pending VNPay) hoặc tổng đơn. Thiếu hụt -> ghi FAILED
+      // chứ không gạch nợ (review P1.11). Vẫn return để IPN trả 00 (đã xử lý).
+      const paidVnd = Math.round(Number(vnpParams["vnp_Amount"] || 0) / 100);
+      const pendingOnline = (order.payments || []).find(
+        (p: any) =>
+          String(p.provider) === "VNPAY" && p.status === PaymentStatus.PENDING,
+      );
+      const expectedVnd = Number(
+        (pendingOnline as any)?.amount ?? order.total ?? 0,
+      );
+      if (paidVnd > 0 && expectedVnd > 0 && paidVnd < expectedVnd) {
+        await this.prisma.payment.updateMany({
+          where: { orderId: order.id, status: PaymentStatus.PENDING },
+          data: { status: PaymentStatus.FAILED, raw: vnpParams },
+        });
+        return {
+          success: false,
+          message: `Số tiền VNPay (${paidVnd}) thiếu so với đơn (${expectedVnd})`,
+          orderCode: orderCode,
+        };
+      }
       // Payment successful
       const FINALIZED_STATUSES: OrderStatus[] = [
         OrderStatus.PAID,

@@ -80,6 +80,48 @@ export class PaymentController {
     }
   }
 
+  @SkipThrottle()
+  @Get("vnpay-ipn")
+  @Post("vnpay-ipn")
+  @ApiOperation({
+    summary:
+      "VNPay IPN server-to-server (VNPay gọi ngay sau thanh toán, không phụ thuộc user redirect)",
+  })
+  async vnpayIpn(@Query() query: any, @Body() body: any, @Res() res: any) {
+    // VNPay gửi params qua query (GET) hoặc body tùy cấu hình; gộp cả 2.
+    // handleVNPayCallback đã idempotent qua FINALIZED_STATUSES nên IPN retry an toàn.
+    const params =
+      query && Object.keys(query).length > 0
+        ? query
+        : body && typeof body === "object"
+          ? body
+          : {};
+    try {
+      // Checksum đúng + đã ghi nhận kết quả (kể cả thanh toán thất bại) -> 00
+      // để VNPay không retry. Chỉ sai chữ ký mới 97, không thấy đơn mới 01.
+      await this.paymentService.handleVNPayCallback({
+        ...params,
+      });
+      return res.status(HttpStatus.OK).json({
+        RspCode: "00",
+        Message: "Confirm Success",
+      });
+    } catch (error) {
+      const msg = (error as Error)?.message || "Unknown error";
+      const status =
+        error instanceof HttpException ? error.getStatus() : undefined;
+      if (msg.includes("Chữ ký"))
+        return res
+          .status(HttpStatus.OK)
+          .json({ RspCode: "97", Message: "Invalid checksum" });
+      if (status === HttpStatus.NOT_FOUND || msg.includes("Không tìm thấy đơn"))
+        return res
+          .status(HttpStatus.OK)
+          .json({ RspCode: "01", Message: "Order not found" });
+      return res.status(HttpStatus.OK).json({ RspCode: "99", Message: msg });
+    }
+  }
+
   @Post("cod/:orderId")
   @ApiOperation({ summary: "Process COD payment" })
   @ApiResponse({

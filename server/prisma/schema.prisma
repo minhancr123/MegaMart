@@ -574,6 +574,9 @@ enum OrderStatus {
   SHIPPING // Đang giao hàng
   DELIVERED // Đã giao thành công
   COMPLETED // Hoàn thành (customer confirm)
+  // @deprecated PAID là legacy (vừa tiền vừa fulfillment). Đơn mới vẫn tạo
+  // PAID khi đã thu đủ tiền nhưng chờ xử lý; đừng dùng PAID làm trạng thái
+  // giao hàng. PENDING -> PROCESSING/CONFIRMED là đường chuẩn cho đơn đã trả.
   PAID // Đã thanh toán (legacy - for backward compatibility)
   FAILED // Thanh toán thất bại
   REFUNDED // Đã hoàn tiền

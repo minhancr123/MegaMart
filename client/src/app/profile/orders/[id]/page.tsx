@@ -135,14 +135,20 @@ export default function OrderDetailPage() {
     }
   }, [params.id]);
 
-  // Tự động kiểm tra trạng thái thanh toán mỗi 5s khi đơn BANK_TRANSFER chưa trả,
-  // khỏi cần F5. Dừng khi đơn đổi trạng thái hoặc sau ~30 phút.
+  // Tự động kiểm tra trạng thái thanh toán mỗi 5s khi đơn online chưa trả,
+  // khỏi cần F5 (VNPay IPN / SePay webhook có thể về sau khi user quay lại).
+  // Dừng khi đơn đổi trạng thái hoặc sau ~30 phút.
+  // Lưu ý mixed-payment Ví + Online: payments[0] là WALLET nên phải tìm
+  // payment online (review P0.5). Đơn CONFIRMED vẫn poll nếu còn PENDING.
   useEffect(() => {
     if (!order?.id) return;
-    const provider = order.payments?.[0]?.provider;
+    const onlinePayment = order.payments?.find((p: any) => p.provider !== "WALLET");
+    const onlineProvider = onlinePayment?.provider;
+    const hasPendingOnline = order.payments?.some((p: any) => p.status === "PENDING" && p.provider !== "WALLET");
     const stillUnpaid =
-      provider === "BANK_TRANSFER" &&
-      !["PAID", "COMPLETED", "DELIVERED", "CANCELED", "FAILED", "REFUNDED"].includes(order.status);
+      ["BANK_TRANSFER", "VNPAY", "MOMO"].includes(onlineProvider) &&
+      hasPendingOnline &&
+      !["PAID", "PROCESSING", "SHIPPING", "COMPLETED", "DELIVERED", "CANCELED", "FAILED", "REFUNDED"].includes(order.status);
     if (!stillUnpaid) return;
 
     let attempts = 0;
@@ -157,7 +163,7 @@ export default function OrderDetailPage() {
         const fresh = (res as any)?.id ? res : (res as any)?.data || res;
         if (fresh?.status && fresh.status !== order.status) {
           setOrder(fresh);
-          if (["PAID", "COMPLETED", "DELIVERED"].includes(fresh.status)) {
+          if (["PAID", "PROCESSING", "CONFIRMED", "COMPLETED", "DELIVERED"].includes(fresh.status)) {
             toast.success("Thanh toán thành công! Cảm ơn bạn đã mua hàng.", {
               duration: 6000,
             });
@@ -328,6 +334,19 @@ export default function OrderDetailPage() {
     Boolean(order.code) &&
     !isPaid &&
     !["CANCELED", "FAILED", "REFUNDED"].includes(order.status);
+  // P1.3: MoMo chưa có API tạo QR động -> hiện card hướng dẫn thủ công với
+  // nội dung ORD{code} để webhook/bank-note vẫn match được khi đối soát tay.
+  const showMomoManual =
+    payment?.provider === "MOMO" &&
+    Boolean(order.code) &&
+    !isPaid &&
+    !["CANCELED", "FAILED", "REFUNDED"].includes(order.status);
+  // VNPay PENDING/FAILED (user tắt tab, sai OTP, hủy) mà đơn còn hạn: cho thanh toán lại.
+  const showVnpayRepay =
+    payment?.provider === "VNPAY" &&
+    ["PENDING", "FAILED"].includes(payment?.status) &&
+    !isPaid &&
+    ["PENDING", "CONFIRMED"].includes(order.status);
 
   return (
     <div className="space-y-6 pb-16">
@@ -628,6 +647,44 @@ export default function OrderDetailPage() {
           {/* QR chuyển khoản SePay/VietQR - chỉ hiện khi đơn BANK_TRANSFER chưa thanh toán */}
           {showVietQr && (
             <VietQrPayCard orderCode={order.code} amount={Math.max(0, finalTotal - walletPaid)} createdAt={order.createdAt} />
+          )}
+
+          {/* MoMo thủ công: chưa tích hợp MoMo API, hướng dẫn khách ghi đúng nội dung ORD */}
+          {showMomoManual && (
+            <Card className="border border-pink-200 bg-pink-50/60 rounded-2xl p-5 shadow-sm space-y-3">
+              <div className="flex items-center gap-2 font-bold text-foreground text-sm">
+                <div className="w-5 h-5 rounded bg-[#A50064] flex items-center justify-center text-white text-[10px] font-bold">Mo</div>
+                <span>Thanh toán MoMo (thủ công)</span>
+              </div>
+              <p className="text-xs text-muted-foreground leading-relaxed">
+                Chuyển đúng số tiền <span className="font-bold text-foreground">{formatPrice(Math.max(0, finalTotal - walletPaid))}</span> tới MoMo <span className="font-bold text-foreground">{process.env.NEXT_PUBLIC_MOMO_PHONE || process.env.NEXT_PUBLIC_MOMO_ACCOUNT || "shop (xem Zalo/CSKH 1900 1234)"}</span> và ghi nội dung <span className="font-mono font-bold text-primary">{order.code}</span> để hệ thống đối soát. Sau khi chuyển, đơn sẽ tự chuyển sang đã thanh toán trong vài phút.
+              </p>
+              <p className="text-[11px] text-muted-foreground">Cần hỗ trợ? Gọi CSKH 1900 1234 kèm mã đơn #{order.code}.</p>
+            </Card>
+          )}
+
+          {/* VNPay thanh toán lại khi user tắt tab trước redirect */}
+          {showVnpayRepay && (
+            <Card className="border border-blue-200 bg-blue-50/60 rounded-2xl p-5 shadow-sm space-y-3">
+              <p className="text-sm font-bold text-foreground">Đơn VNPay chưa thanh toán</p>
+              <p className="text-xs text-muted-foreground">Bạn đã thoát trang VNPay trước khi hoàn tất. Bấm bên dưới để lấy link thanh toán mới (link cũ hết hạn sau 15 phút).</p>
+              <Button
+                className="w-full h-10 rounded-xl text-xs font-bold"
+                onClick={async () => {
+                  try {
+                    const { createVNPayPayment } = await import("@/lib/paymentApi");
+                    const res: any = await createVNPayPayment(order.id);
+                    const url = res?.data?.paymentUrl || res?.paymentUrl;
+                    if (url) window.location.href = url;
+                    else toast.error("Không tạo được link thanh toán, thử lại sau");
+                  } catch (e: any) {
+                    toast.error(getErrorMessage(e, "Không tạo được link thanh toán"));
+                  }
+                }}
+              >
+                Thanh toán lại qua VNPay
+              </Button>
+            </Card>
           )}
         </div>
 

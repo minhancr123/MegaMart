@@ -46,7 +46,15 @@ export default function CheckoutPage() {
     return s + (itemPrice * itemQuantity);
   }, 0) || 0;
 
-  const tax = Math.round(subtotal * 0.1); // Thuế VAT 10%, làm tròn
+  // VAT đọc từ env để khớp server (VAT_RATE=0.1 hoặc 10 đều là 10%), fallback 10%. Hỗ trợ VAT=0.
+  const vatRate = (() => {
+    const envRaw = process.env.NEXT_PUBLIC_VAT_RATE;
+    if (envRaw === undefined || envRaw === "") return 0.1;
+    const raw = Number(envRaw);
+    if (Number.isNaN(raw)) return 0.1;
+    return raw > 1 ? Math.min(raw, 100) / 100 : Math.max(0, raw);
+  })();
+  const tax = Math.round(subtotal * vatRate); // Thuế VAT, làm tròn
   // Phí ship thật từ GHN theo địa chỉ đã chọn (fallback 0 nếu chưa có mã GHN)
   const [shippingFee, setShippingFee] = useState(0);
   const [feeLoading, setFeeLoading] = useState(false);

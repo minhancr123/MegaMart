@@ -6,10 +6,13 @@ import { BadRequestException } from "@nestjs/common";
  * Each status can only transition to specific next statuses
  */
 export const VALID_TRANSITIONS: Record<OrderStatus, OrderStatus[]> = {
-  // Chờ xác nhận -> thanh toán online xong vào xử lý, COD vẫn có thể admin xác nhận trực tiếp.
+  // Chờ xác nhận -> admin xác nhận tay, online trả xong vào xử lý, COD vẫn có
+  // thể admin xác nhận trực tiếp. PAID là nấc "đã thu tiền, chờ xử lý" để admin
+  // xác nhận thủ công chuyển khoản/MoMo (review P0.1: thiếu là kẹt đơn).
   [OrderStatus.PENDING]: [
     OrderStatus.PROCESSING,
     OrderStatus.CONFIRMED,
+    OrderStatus.PAID,
     OrderStatus.CANCELED,
     OrderStatus.FAILED,
   ],
@@ -37,19 +40,23 @@ export const VALID_TRANSITIONS: Record<OrderStatus, OrderStatus[]> = {
   // Hoàn thành -> Có thể hoàn tiền nếu có vấn đề
   [OrderStatus.COMPLETED]: [OrderStatus.REFUNDED],
 
-  // Đã thanh toán (legacy) -> Chờ admin xử lý hoặc hủy
+  // Đã thanh toán (legacy, deprecated): giữ transition để đơn cũ admin xử lý
+  // tiếp. Đơn MỚI không nên dừng ở PAID — webhook/thanh toán xong nên đi
+  // thẳng PROCESSING (xem payment.service). Không xóa enum để khỏi vỡ DB.
+  // Cho PAID -> SHIPPING trực tiếp để admin bàn giao ngay sau khi thu tiền
+  // (review P0.2: thiếu là đơn đã trả không giao được).
   [OrderStatus.PAID]: [
     OrderStatus.PROCESSING,
     OrderStatus.CONFIRMED,
+    OrderStatus.SHIPPING,
     OrderStatus.CANCELED,
   ],
 
-  // Thất bại (giao thất bại/thất lạc/hư hỏng) -> Có thể thử lại, hủy, hoặc hoàn tiền
-  [OrderStatus.FAILED]: [
-    OrderStatus.PENDING,
-    OrderStatus.CANCELED,
-    OrderStatus.REFUNDED,
-  ],
+  // Thất bại (giao thất bại/thất lạc/hư hỏng) -> hủy hoặc hoàn tiền.
+  // KHÔNG cho FAILED -> PENDING để tránh resurrect đơn + trừ kho 2 lần.
+  // Muốn giao lại: giữ SHIPPING + ghi INCIDENT (delivery_fail). Muốn đặt lại:
+  // FAILED -> CANCELED rồi tạo đơn mới.
+  [OrderStatus.FAILED]: [OrderStatus.CANCELED, OrderStatus.REFUNDED],
 
   // Terminal states - không thể chuyển đi đâu nữa
   [OrderStatus.REFUNDED]: [],

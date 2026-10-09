@@ -149,7 +149,7 @@ function AuthPageContent() {
 
             if (islogin) {
                 console.log("Login data: ", data);
-                const result = await fetch('http://localhost:3001/api/auth/signin', {
+                const result = await fetch(`${API_BASE}/api/auth/signin`, {
                     headers: { 'Content-Type': 'application/json' },
                     method: 'POST',
                     body: JSON.stringify(data)
@@ -169,7 +169,7 @@ function AuthPageContent() {
 
                 console.log("Login data: ", resData);
             } else {
-                const result = await fetch('http://localhost:3001/api/auth/signup', {
+                const result = await fetch(`${API_BASE}/api/auth/signup`, {
                     headers: { 'Content-Type': 'application/json' },
                     method: 'POST',
                     body: JSON.stringify(data)

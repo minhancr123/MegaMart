@@ -16,6 +16,9 @@ import { ApiTags, ApiOperation, ApiResponse } from "@nestjs/swagger";
 import { ProductsService } from "./products.service";
 import { AuthGuard } from "@nestjs/passport";
 import { JwtAuthGuard } from "src/guards/auth.gaurd";
+import { Roles } from "src/decorators/roles.decorator";
+import { RolesGuard } from "src/guards/roles.guard";
+import { UserRole } from "@prisma/client";
 import {
   UpdateProductDto,
   CreateProductWithVariantsDto,
@@ -230,6 +233,35 @@ export class ProductsController {
           success: false,
           message: "Lỗi server khi lấy thông tin sản phẩm",
           detail: error.message,
+        },
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
+
+  @Post("merge")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ADMIN)
+  @ApiOperation({ summary: "Gộp nhiều product rời rạc thành 1 (Admin)" })
+  async mergeProducts(
+    @Body() body: { keeperId: string; donorIds: string[] },
+    @Req() req: any,
+  ): Promise<any> {
+    try {
+      const adminId = req.user?.userId || req.user?.sub;
+      const result = await this.productsService.mergeProducts(
+        body?.keeperId,
+        body?.donorIds,
+        adminId,
+      );
+      return { success: true, data: result, message: "Gộp sản phẩm thành công" };
+    } catch (error) {
+      if (error instanceof HttpException) throw error;
+      throw new HttpException(
+        {
+          success: false,
+          message: "Lỗi khi gộp sản phẩm",
+          detail: (error as Error).message,
         },
         HttpStatus.INTERNAL_SERVER_ERROR,
       );

@@ -1269,3 +1269,17 @@ model DailyVariantSale {
   @@index([date])
   @@index([variantId])
 }
+
+// ==================== PRODUCT MERGE (gộp biến thể rời rạc) ====================
+// Khi gộp nhiều Product rời rạc (do crawler xé lẻ theo màu/cấu hình) thành 1
+// Product nhiều Variant, lưu vết slug/id cũ ở đây để API redirect 301 và
+// bookmark/link Google cũ không gãy.
+model ProductRedirect {
+  id              String   @id @default(cuid())
+  sourceSlug      String?  @unique
+  sourceId        String?  @unique
+  targetProductId String
+  createdAt       DateTime @default(now())
+
+  @@index([targetProductId])
+}

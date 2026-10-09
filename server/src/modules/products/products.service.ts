@@ -5,6 +5,7 @@ import { Prisma } from "@prisma/client";
 import { PrismaService } from "src/prismaClient/prisma.service";
 import { ProductResponseDto } from "./dto/product.dto";
 import { formatPrice } from "src/utils/price.util";
+import { matchImageVariant } from "src/utils/image-variant-matcher";
 
 import {
   AuditLogService,
@@ -529,7 +530,7 @@ export class ProductsService {
     return rows.map((row) => ({ brand: row.brand, count: Number(row.count) }));
   }
 
-  async getProductById(id: string): Promise<ProductResponseDto | null> {
+  async getProductById(id: string, depth = 0): Promise<ProductResponseDto | null> {
     const product = await this.prisma.product.findFirst({
       where: {
         id: id,
@@ -558,10 +559,292 @@ export class ProductsService {
     });
 
     if (!product) {
+      // Link/bookmark cũ trỏ vào product đã gộp: redirect về keeper.
+      // Tra cả sourceId lẫn sourceSlug (P0-3: slug Google/bookmark cũ).
+      // Đệ quy có chặn sâu để xử lý chuỗi gộp nhiều tầng A->B->C.
+      const redir = await (this.prisma as any).productRedirect.findFirst({
+        where: { OR: [{ sourceId: id }, { sourceSlug: id }] },
+      });
+      if (redir) {
+        if (depth >= 5) return null; // chống vòng lặp redirect
+        const target = await this.getProductById(redir.targetProductId, depth + 1);
+        if (target) {
+          return {
+            ...target,
+            redirectedFrom: { id, slug: redir.sourceSlug ?? undefined },
+          } as any;
+        }
+      }
       return null;
     }
 
     return this.formatProductResponse(product);
+  }
+
+  /**
+   * Gộp nhiều Product rời rạc thành 1 Product nhiều Variant.
+   * - Giữ nguyên Variant.id (OrderItem/CartItem không gãy).
+   * - Ảnh donor gom về keeper, gán variantId để gallery đổi theo màu.
+   * - Wishlist/Compare/Recommend: xóa trùng user trước để khỏi vỡ unique.
+   * - Review + soldCount + descriptionImages dồn về keeper.
+   * - Ghi ProductRedirect rồi mới xóa donor (link cũ tự redirect, không 404).
+   */
+  async mergeProducts(
+    keeperId: string,
+    donorIds: string[],
+    adminId?: string,
+  ): Promise<{
+    keeperId: string;
+    mergedDonors: string[];
+    variantsMoved: number;
+    imagesMoved: number;
+    reviewsMoved: number;
+  }> {
+    const donors = [...new Set((donorIds || []).filter((d) => d && d !== keeperId))];
+    if (donors.length === 0) {
+      throw new HttpException(
+        { success: false, message: "Danh sách donor rỗng hoặc trùng keeper" },
+        HttpStatus.BAD_REQUEST,
+      );
+    }
+    const keeper = await this.prisma.product.findFirst({
+      where: { id: keeperId, deletedAt: null },
+      include: { variants: { select: { id: true, sku: true } } },
+    });
+    if (!keeper) {
+      throw new HttpException(
+        { success: false, message: "Không tìm thấy product giữ lại (keeper)" },
+        HttpStatus.NOT_FOUND,
+      );
+    }
+    const donorRows = await this.prisma.product.findMany({
+      where: { id: { in: donors }, deletedAt: null },
+      include: {
+        variants: { select: { id: true } },
+        images: {
+          orderBy: { displayOrder: "asc" },
+          select: { id: true, variantId: true, isPrimary: true },
+        },
+      },
+    });
+    if (donorRows.length !== donors.length) {
+      const found = new Set(donorRows.map((d) => d.id));
+      throw new HttpException(
+        {
+          success: false,
+          message: `Không tìm thấy donor: ${donors.filter((d) => !found.has(d)).join(", ")}`,
+        },
+        HttpStatus.NOT_FOUND,
+      );
+    }
+
+    let variantsMoved = 0;
+    let imagesMoved = 0;
+    let reviewsMoved = 0;
+    const mergedDonors: string[] = [];
+
+    await this.prisma.$transaction(
+      async (tx) => {
+        const keeperMaxOrder: any = await (tx as any).productImage.aggregate({
+          where: { productId: keeperId },
+          _max: { displayOrder: true },
+        });
+        let nextOrder = (keeperMaxOrder?._max?.displayOrder ?? -1) + 1;
+        // P1-7: keeper chưa có ảnh thì giữ primary cho ảnh donor đầu tiên.
+        let primaryAssigned = (keeperMaxOrder?._max?.displayOrder ?? -1) >= 0;
+        let soldAdd = 0;
+        const descSet = new Set<string>();
+        let bestDesc: string | null = null;
+
+        // Ảnh NULL của keeper là ảnh của biến thể gốc: gán về đúng variant
+        // (khớp chắc chắn theo SKU trong URL thì gán, còn lại giữ NULL).
+        // Nếu không, ảnh màu của keeper bị coi là ảnh chung và hiện ké sang
+        // mọi biến thể sau khi gộp.
+        // Chốt an toàn: chỉ gán khi keeper có đúng 1 variant và mỗi donor có
+        // đúng 1 variant kèm ít nhất 1 ảnh — khi đó mọi variant sau gộp đều
+        // có ảnh, không ai bị trắng gallery. Còn lại giữ NULL như cũ.
+        if (
+          (keeper.variants?.length ?? 0) === 1 &&
+          donorRows.every((d) => d.variants?.length === 1 && d.images?.length > 0)
+        ) {
+          const keeperNulls: any[] = await (tx as any).productImage.findMany({
+            where: { productId: keeperId, variantId: null },
+            select: { id: true, url: true },
+          });
+          for (const img of keeperNulls) {
+            const vid = matchImageVariant(img.url, keeper.variants as any);
+            if (vid) {
+              await (tx as any).productImage.update({
+                where: { id: img.id },
+                data: { variantId: vid },
+              });
+            }
+          }
+        }
+
+        for (const donor of donorRows) {
+          // P1-8: đọc fresh + thao tác theo productId trong tx.
+          const freshVariants: any[] = await tx.variant.findMany({
+            where: { productId: donor.id },
+            select: { id: true },
+          });
+          const donorVariantIds = freshVariants.map((v: any) => v.id);
+          const firstVariantId = donorVariantIds[0] ?? null;
+
+          // 1. Chuyển variant sang keeper (giữ id + sku, OrderItem an toàn).
+          if (donorVariantIds.length > 0) {
+            await tx.variant.updateMany({
+              where: { productId: donor.id },
+              data: { productId: keeperId },
+            });
+            variantsMoved += donorVariantIds.length;
+          }
+
+          // 2. Chuyển ảnh sang keeper; ảnh chưa gắn variant thì gắn vào
+          // variant đầu của donor để gallery đổi theo màu/cấu hình.
+          const freshImages: any[] = await (tx as any).productImage.findMany({
+            where: { productId: donor.id },
+            orderBy: { displayOrder: "asc" },
+          });
+          for (const img of freshImages) {
+            const keepPrimary = Boolean(img.isPrimary) && !primaryAssigned;
+            if (keepPrimary) primaryAssigned = true;
+            await (tx as any).productImage.update({
+              where: { id: img.id },
+              data: {
+                productId: keeperId,
+                variantId: img.variantId ?? firstVariantId,
+                displayOrder: nextOrder++,
+                isPrimary: keepPrimary,
+              },
+            });
+            imagesMoved += 1;
+          }
+
+          // 3. Wishlist/Compare: xóa trùng user trước rồi mới đổi.
+          for (const model of ["wishlistItem", "compareItem"] as const) {
+            const delegate = (tx as any)[model];
+            const keeperUserIds: any[] = await delegate.findMany({
+              where: { productId: keeperId },
+              select: { userId: true },
+            });
+            const dupUserIds = keeperUserIds.map((r: any) => r.userId);
+            if (dupUserIds.length > 0) {
+              await delegate.deleteMany({
+                where: { productId: donor.id, userId: { in: dupUserIds } },
+              });
+            }
+            await delegate.updateMany({
+              where: { productId: donor.id },
+              data: { productId: keeperId },
+            });
+          }
+
+          // P1-10 userRecommendation: trùng user thì giữ score cao hơn.
+          {
+            const delegate = (tx as any).userRecommendation;
+            const donorRecs: any[] = await delegate.findMany({
+              where: { productId: donor.id },
+            });
+            for (const rec of donorRecs) {
+              const keep = await delegate.findFirst({
+                where: { productId: keeperId, userId: rec.userId },
+              });
+              if (!keep) {
+                await delegate.update({
+                  where: { id: rec.id },
+                  data: { productId: keeperId },
+                });
+              } else if (Number(rec.score ?? 0) > Number((keep as any).score ?? 0)) {
+                await delegate.update({
+                  where: { id: (keep as any).id },
+                  data: { score: rec.score, reason: rec.reason ?? (keep as any).reason },
+                });
+                await delegate.delete({ where: { id: rec.id } });
+              } else {
+                await delegate.delete({ where: { id: rec.id } });
+              }
+            }
+          }
+
+          // 4. Review dồn về keeper (Review không có unique user+product).
+          const revMoved = await tx.review.updateMany({
+            where: { productId: donor.id },
+            data: { productId: keeperId },
+          });
+          reviewsMoved += revMoved.count;
+
+          // 5. Cộng dồn soldCount + gom descriptionImages + mô tả dài nhất.
+          soldAdd += Number((donor as any).soldCount ?? 0);
+          for (const u of (donor as any).descriptionImages ?? []) {
+            if (u) descSet.add(String(u));
+          }
+          const d = String((donor as any).description ?? "");
+          if (d.length > (bestDesc?.length ?? 0)) bestDesc = d;
+
+          // 6. P0-4: redirect cũ trỏ vào donor -> trỏ sang keeper, rồi
+          // upsert redirect donor -> keeper (không nuốt redirect khi trùng).
+          await (tx as any).productRedirect.updateMany({
+            where: { targetProductId: donor.id },
+            data: { targetProductId: keeperId },
+          });
+          await (tx as any).productRedirect.upsert({
+            where: { sourceId: donor.id },
+            update: {
+              sourceSlug: (donor as any).slug ?? null,
+              targetProductId: keeperId,
+            },
+            create: {
+              sourceSlug: (donor as any).slug ?? null,
+              sourceId: donor.id,
+              targetProductId: keeperId,
+            },
+          });
+          await tx.product.delete({ where: { id: donor.id } });
+          mergedDonors.push(donor.id);
+        }
+
+        if (soldAdd > 0) {
+          await tx.product.update({
+            where: { id: keeperId },
+            data: { soldCount: { increment: soldAdd } },
+          });
+        }
+        // P1-6: keeper mô tả rỗng/ngắn thì lấy mô tả dài nhất của donor.
+        const cur = await tx.product.findUnique({
+          where: { id: keeperId },
+          select: { description: true, descriptionImages: true },
+        });
+        const curDesc = String((cur as any)?.description ?? "");
+        const patch: any = {};
+        if (bestDesc && bestDesc.length > curDesc.length) {
+          patch.description = bestDesc;
+        }
+        if (descSet.size > 0) {
+          patch.descriptionImages = [
+            ...new Set([...((cur as any)?.descriptionImages ?? []), ...descSet]),
+          ];
+        }
+        if (Object.keys(patch).length > 0) {
+          await tx.product.update({ where: { id: keeperId }, data: patch });
+        }
+      },
+      { maxWait: 10000, timeout: 30000 },
+    );
+
+    if (adminId) {
+      await this.auditLogService
+        .log(
+          AuditAction.PRODUCT_UPDATE,
+          AuditEntity.PRODUCT,
+          adminId,
+          keeperId,
+          { mergeDonors: mergedDonors },
+        )
+        .catch(() => {});
+    }
+
+    return { keeperId, mergedDonors, variantsMoved, imagesMoved, reviewsMoved };
   }
 
   async createProduct(createProductDto: any, userId?: string) {
